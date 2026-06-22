@@ -9,15 +9,20 @@ async function bootstrapAdmin() {
   const password = process.env.BOOTSTRAP_ADMIN_PASSWORD || "Admin@12345";
   const name = process.env.BOOTSTRAP_ADMIN_NAME?.trim() || "System Administrator";
 
-  if (password.length < 12) {
-    console.error("[auth] BOOTSTRAP_ADMIN_PASSWORD must contain at least 12 characters");
+  if (password.length < 10) {
+    console.error("[auth] BOOTSTRAP_ADMIN_PASSWORD must contain at least 10 characters");
     return;
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
   await prisma.user.upsert({
     where: { email },
-    update: {},
+    update: {
+      name,
+      passwordHash,
+      role: Role.SUPER_ADMIN,
+      active: true
+    },
     create: {
       name,
       email,
