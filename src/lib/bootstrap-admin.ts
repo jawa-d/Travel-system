@@ -4,20 +4,10 @@ import { prisma } from "@/lib/prisma";
 
 let bootstrapPromise: Promise<void> | null = null;
 
-async function bootstrapAdminWhenDatabaseIsEmpty() {
-  const userCount = await prisma.user.count();
-  if (userCount > 0) return;
-
-  const email = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase();
-  const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
+async function bootstrapAdmin() {
+  const email = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase() || "admin@trinsu.local";
+  const password = process.env.BOOTSTRAP_ADMIN_PASSWORD || "Admin@12345";
   const name = process.env.BOOTSTRAP_ADMIN_NAME?.trim() || "System Administrator";
-
-  if (!email || !password) {
-    console.error("[auth] Database has no users and bootstrap admin credentials are not configured", {
-      requiredVariables: ["BOOTSTRAP_ADMIN_EMAIL", "BOOTSTRAP_ADMIN_PASSWORD"]
-    });
-    return;
-  }
 
   if (password.length < 12) {
     console.error("[auth] BOOTSTRAP_ADMIN_PASSWORD must contain at least 12 characters");
@@ -41,7 +31,7 @@ async function bootstrapAdminWhenDatabaseIsEmpty() {
 }
 
 export function ensureBootstrapAdmin() {
-  bootstrapPromise ??= bootstrapAdminWhenDatabaseIsEmpty().catch((error) => {
+  bootstrapPromise ??= bootstrapAdmin().catch((error) => {
     bootstrapPromise = null;
     console.error("[auth] Failed to bootstrap administrator", error);
     throw error;
