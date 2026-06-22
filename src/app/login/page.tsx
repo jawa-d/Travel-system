@@ -1,14 +1,9 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { auth } from "@/auth";
 import { LoginForm } from "@/components/login-form";
 import { Button } from "@/components/ui/button";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
 
-export default async function LoginPage() {
-  const session = await auth();
-  if (session?.user) redirect("/");
-
+export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-md rounded-lg border bg-card p-8 shadow-sm">

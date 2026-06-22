@@ -14,7 +14,7 @@ Production-oriented Arabic RTL platform for issuing and managing travel insuranc
 ## Setup
 
 1. Install Node.js 22+ and PostgreSQL.
-2. Copy `.env.example` to `.env` and update `DATABASE_URL`, `NEXTAUTH_SECRET`, and `NEXTAUTH_URL`.
+2. Copy `.env.example` to `.env` and update `DATABASE_URL`, `AUTH_SECRET`, and `AUTH_URL`.
 3. Install dependencies:
 
 ```bash
@@ -38,6 +38,32 @@ Default seeded user:
 
 - Email: `admin@trinsu.local`
 - Password: `Admin@12345`
+
+## Vercel authentication
+
+Configure these variables for the Production environment:
+
+```text
+DATABASE_URL=postgresql://...
+AUTH_SECRET=<a cryptographically random value of at least 32 characters>
+AUTH_URL=https://your-production-domain.example
+AUTH_TRUST_HOST=true
+BOOTSTRAP_ADMIN_NAME=System Administrator
+BOOTSTRAP_ADMIN_EMAIL=admin@example.com
+BOOTSTRAP_ADMIN_PASSWORD=<a strong password of at least 12 characters>
+```
+
+`NEXTAUTH_SECRET` and `NEXTAUTH_URL` remain supported as legacy aliases. Do not configure
+`AUTH_URL` and `NEXTAUTH_URL` with different values, and never use a localhost URL in Vercel.
+Auth.js v5 can infer the Vercel host, so `AUTH_URL` may be omitted when no custom base path is used.
+
+The bootstrap administrator is created lazily on the first credentials login attempt only when
+the `User` table is empty. Remove `BOOTSTRAP_ADMIN_PASSWORD` from Vercel after the account has
+been created.
+
+The Vercel build command runs `prisma db push --skip-generate` before `next build` so a newly
+provisioned PostgreSQL database receives the current schema. For mature production environments,
+replace this with a reviewed baseline migration and `prisma migrate deploy`.
 
 ## Main Modules
 

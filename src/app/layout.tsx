@@ -2,16 +2,14 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AppProviders } from "@/components/app-providers";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
-import { auth } from "@/auth";
 
 export const metadata: Metadata = {
   title: { default: "TRINSU | إدارة تأمين السفر", template: "%s | TRINSU" },
   description: "منصة إدارة وثائق تأمين السفر"
 };
 
-export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const session = await auth();
-  const demoMode = isDirectAccessEnabled() && !session?.user;
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const demoMode = isDirectAccessEnabled();
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning data-demo-mode={demoMode ? "true" : "false"}>
       <head>
