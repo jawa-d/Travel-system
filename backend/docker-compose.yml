@@ -1,0 +1,35 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:-Trinsu_Local_123!}"
+    ports:
+      - "1433:1433"
+    volumes:
+      - trinsu_sql_data:/var/opt/mssql
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -C -Q "SELECT 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: src/Trinsu.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=Trinsu;User Id=sa;Password=${MSSQL_SA_PASSWORD:-Trinsu_Local_123!};TrustServerCertificate=True;Encrypt=True"
+      Jwt__Issuer: TRINSU
+      Jwt__Audience: TRINSU.Client
+      Jwt__Key: "${JWT_KEY}"
+    ports:
+      - "8080:8080"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+
+volumes:
+  trinsu_sql_data:

@@ -1,0 +1,17 @@
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { can, type Permission } from "@/lib/rbac";
+import { directAccessUser, isDirectAccessEnabled } from "@/lib/direct-access";
+import { prisma } from "@/lib/prisma";
+
+export async function requirePagePermission(permission: Permission) {
+  const session = await auth();
+  const user = session?.user ?? (isDirectAccessEnabled() ? directAccessUser : null);
+  if (!user) redirect("/login");
+  if (user.id !== directAccessUser.id) {
+    const account = await prisma.user.findUnique({ where: { id: user.id }, select: { active: true } });
+    if (!account?.active) redirect("/login");
+  }
+  if (!can(user.role, permission)) redirect("/");
+  return user;
+}

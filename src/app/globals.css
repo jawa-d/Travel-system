@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 204 33% 97%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 188 84% 32%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 42 91% 58%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 206 29% 92%;
+  --muted-foreground: 215 16% 39%;
+  --accent: 166 64% 88%;
+  --accent-foreground: 183 74% 18%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 210 24% 86%;
+  --input: 210 24% 86%;
+  --ring: 188 84% 32%;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: 222 47% 8%;
+  --foreground: 210 40% 96%;
+  --card: 222 39% 11%;
+  --card-foreground: 210 40% 96%;
+  --popover: 222 39% 11%;
+  --popover-foreground: 210 40% 96%;
+  --muted: 217 28% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 188 35% 18%;
+  --accent-foreground: 180 45% 88%;
+  --border: 217 27% 20%;
+  --input: 217 27% 22%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+.dark body {
+  color-scheme: dark;
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.18);
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+input,
+textarea,
+select {
+  direction: rtl;
+}
