@@ -1,37 +1,80 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ArchiveRestore, DatabaseBackup, RotateCcw, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
+import { ArchiveRestore, DatabaseBackup, Eye, EyeOff, RotateCcw, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { clearStoredFiles, exportStoredFiles, importStoredFiles } from "@/lib/file-storage";
-import { appendLocalAudit, useLocalCollection } from "@/lib/local-storage";
+import { appendLocalAudit } from "@/lib/local-storage";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast-provider";
 
 type Role = "SUPER_ADMIN" | "ADMIN" | "UNDERWRITER" | "FINANCE" | "AGENT" | "VIEWER";
-type LocalUser = { id: string; name: string; email: string; role: Role; active: boolean };
+type SystemUser = { id: string; name: string | null; email: string; role: Role; active: boolean };
 
 const roles: Record<Role, string> = {
   SUPER_ADMIN: "مدير عام", ADMIN: "مدير", UNDERWRITER: "مكتتب",
   FINANCE: "المالية", AGENT: "وكيل", VIEWER: "مشاهد"
 };
 
-const initialUsers: LocalUser[] = [{
-  id: "local-super-admin",
-  name: "مدير تجريبي",
-  email: "direct@trinsu.local",
-  role: "SUPER_ADMIN",
-  active: true
-}];
-
-export function SystemManager() {
-  const [users, setUsers] = useLocalCollection<LocalUser>("users", initialUsers);
+export function SystemManager({ users: initialUsers, currentUserId }: { users: SystemUser[]; currentUserId: string }) {
+  const [users, setUsers] = useState(initialUsers);
   const [busy, setBusy] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const { toast } = useToast();
+
+  async function createUser(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    setBusy("user-create");
+    const response = await fetch("/api/system-users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(Object.fromEntries(new FormData(form).entries()))
+    });
+    const result = await response.json().catch(() => null);
+    setBusy("");
+    if (!response.ok) {
+      toast({ title: "تعذر إضافة المستخدم", description: result?.error, tone: "error" });
+      return;
+    }
+    setUsers((current) => [result as SystemUser, ...current]);
+    form.reset();
+    toast({ title: "تم إنشاء المستخدم ويمكنه تسجيل الدخول الآن", tone: "success" });
+  }
+
+  async function updateRole(user: SystemUser, role: Role) {
+    setBusy(user.id);
+    const response = await fetch(`/api/system-users/${user.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role })
+    });
+    const result = await response.json().catch(() => null);
+    setBusy("");
+    if (!response.ok) {
+      toast({ title: "تعذر تحديث الصلاحية", description: result?.error, tone: "error" });
+      return;
+    }
+    setUsers((current) => current.map((item) => item.id === user.id ? result as SystemUser : item));
+    toast({ title: "تم تحديث صلاحية المستخدم", tone: "success" });
+  }
+
+  async function removeUser(user: SystemUser) {
+    setBusy(user.id);
+    const response = await fetch(`/api/system-users/${user.id}`, { method: "DELETE" });
+    const result = await response.json().catch(() => null);
+    setBusy("");
+    if (!response.ok) {
+      toast({ title: "تعذر حذف المستخدم", description: result?.error, tone: "error" });
+      return;
+    }
+    setUsers((current) => current.filter((item) => item.id !== user.id));
+    toast({ title: "تم تعطيل المستخدم ومنع تسجيل دخوله", tone: "success" });
+  }
 
   async function backup() {
     setBusy("backup");
@@ -83,40 +126,34 @@ export function SystemManager() {
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-primary" />المستخدمون والصلاحيات</CardTitle></CardHeader>
         <CardContent className="space-y-5">
-          <form className="grid gap-3 rounded-xl border bg-muted/15 p-4 md:grid-cols-[1fr_1fr_180px_auto]" onSubmit={(event) => {
-            event.preventDefault();
-            const form = new FormData(event.currentTarget);
-            const user: LocalUser = {
-              id: `local-user-${crypto.randomUUID()}`,
-              name: String(form.get("name")),
-              email: String(form.get("email")),
-              role: String(form.get("role")) as Role,
-              active: true
-            };
-            setUsers((current) => [user, ...current]);
-            event.currentTarget.reset();
-          }}>
+          <form className="grid gap-3 rounded-xl border bg-muted/15 p-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_180px_auto]" onSubmit={createUser}>
             <Input name="name" placeholder="اسم المستخدم" required />
             <Input name="email" type="email" placeholder="البريد الإلكتروني" required dir="ltr" />
+            <div className="relative">
+              <Input name="password" type={showPassword ? "text" : "password"} placeholder="كلمة المرور" required minLength={8} dir="ltr" className="pl-11" />
+              <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-md p-2 text-muted-foreground hover:bg-muted" aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
             <select name="role" className="h-10 rounded-md border bg-background px-3 text-sm">
               {Object.entries(roles).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
-            <Button><UserPlus className="h-4 w-4" />إضافة</Button>
+            <Button disabled={busy === "user-create"}><UserPlus className="h-4 w-4" />إضافة</Button>
           </form>
           <div className="divide-y rounded-xl border">
             {users.map((user) => (
               <div key={user.id} className="flex flex-col justify-between gap-3 p-4 sm:flex-row sm:items-center">
                 <div><p className="font-bold">{user.name}</p><p className="text-sm text-muted-foreground" dir="ltr">{user.email}</p></div>
                 <div className="flex items-center gap-2">
-                  <select value={user.role} onChange={(event) => setUsers((current) => current.map((item) => item.id === user.id ? { ...item, role: event.target.value as Role } : item))} className="h-9 rounded-md border bg-background px-2 text-sm">
+                  <select value={user.role} disabled={user.id === currentUserId || busy === user.id} onChange={(event) => updateRole(user, event.target.value as Role)} className="h-9 rounded-md border bg-background px-2 text-sm">
                     {Object.entries(roles).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                   </select>
-                  <Button type="button" size="icon" variant="ghost" className="text-destructive" disabled={user.id === "local-super-admin"} onClick={() => setUsers((current) => current.filter((item) => item.id !== user.id))}><Trash2 className="h-4 w-4" /></Button>
+                  <Button type="button" size="icon" variant="ghost" className="text-destructive" disabled={user.id === currentUserId || busy === user.id} onClick={() => removeUser(user)}><Trash2 className="h-4 w-4" /></Button>
                 </div>
               </div>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">هذه الإدارة تخص وضع العرض المحلي. عند تشغيل قاعدة البيانات تُدار الحسابات من جدول المستخدمين الفعلي.</p>
+          <p className="text-xs text-muted-foreground">تُحفظ الحسابات في قاعدة البيانات، ويمكن للمستخدم تسجيل الدخول مباشرة بالبريد وكلمة المرور المحددين هنا.</p>
         </CardContent>
       </Card>
 
