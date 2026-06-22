@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, clearRateLimit, rateLimit } from "@/lib/rate-limit";
-import { ensureBootstrapAdmin } from "@/lib/bootstrap-admin";
+import { ensureBootstrapUsers } from "@/lib/bootstrap-admin";
 
 const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 const configuredAuthUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
@@ -42,7 +42,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         try {
-          await ensureBootstrapAdmin();
+          await ensureBootstrapUsers();
           const user = await prisma.user.findUnique({ where: { email } });
           if (!user?.passwordHash || !user.active) {
             rateLimit(attemptKey, 5, 15 * 60_000);

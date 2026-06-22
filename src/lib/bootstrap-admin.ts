@@ -4,13 +4,15 @@ import { prisma } from "@/lib/prisma";
 
 let bootstrapPromise: Promise<void> | null = null;
 
-async function bootstrapAdmin() {
-  const email = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase() || "admin@trinsu.local";
-  const password = process.env.BOOTSTRAP_ADMIN_PASSWORD || "Admin@12345";
-  const name = process.env.BOOTSTRAP_ADMIN_NAME?.trim() || "System Administrator";
-
+async function upsertBootstrapUser(input: {
+  email: string;
+  password: string;
+  name: string;
+  role: Role;
+}) {
+  const { email, password, name, role } = input;
   if (password.length < 10) {
-    console.error("[auth] BOOTSTRAP_ADMIN_PASSWORD must contain at least 10 characters");
+    console.error("[auth] Bootstrap password must contain at least 10 characters", { email });
     return;
   }
 
@@ -20,25 +22,47 @@ async function bootstrapAdmin() {
     update: {
       name,
       passwordHash,
-      role: Role.SUPER_ADMIN,
+      role,
       active: true
     },
     create: {
       name,
       email,
       passwordHash,
-      role: Role.SUPER_ADMIN,
+      role,
       active: true
     }
   });
-
-  console.info("[auth] Bootstrap administrator created", { email });
 }
 
-export function ensureBootstrapAdmin() {
-  bootstrapPromise ??= bootstrapAdmin().catch((error) => {
+async function bootstrapUsers() {
+  const adminEmail = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase() || "admin@trinsu.local";
+  const adminPassword = process.env.BOOTSTRAP_ADMIN_PASSWORD || "Admin@12345";
+  const adminName = process.env.BOOTSTRAP_ADMIN_NAME?.trim() || "System Administrator";
+  const agentEmail = process.env.BOOTSTRAP_AGENT_EMAIL?.trim().toLowerCase() || "agent@trinsu.local";
+  const agentPassword = process.env.BOOTSTRAP_AGENT_PASSWORD || "Agent@12345";
+  const agentName = process.env.BOOTSTRAP_AGENT_NAME?.trim() || "Sales Agent";
+
+  await upsertBootstrapUser({
+    email: adminEmail,
+    password: adminPassword,
+    name: adminName,
+    role: Role.SUPER_ADMIN
+  });
+  await upsertBootstrapUser({
+    email: agentEmail,
+    password: agentPassword,
+    name: agentName,
+    role: Role.AGENT
+  });
+
+  console.info("[auth] Bootstrap users are ready", { adminEmail, agentEmail });
+}
+
+export function ensureBootstrapUsers() {
+  bootstrapPromise ??= bootstrapUsers().catch((error) => {
     bootstrapPromise = null;
-    console.error("[auth] Failed to bootstrap administrator", error);
+    console.error("[auth] Failed to bootstrap users", error);
     throw error;
   });
   return bootstrapPromise;
