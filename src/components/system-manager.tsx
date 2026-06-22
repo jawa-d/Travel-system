@@ -13,13 +13,17 @@ import { useToast } from "@/components/ui/toast-provider";
 type Role = "SUPER_ADMIN" | "ADMIN" | "UNDERWRITER" | "FINANCE" | "AGENT" | "VIEWER";
 type SystemUser = { id: string; name: string | null; email: string; role: Role; active: boolean };
 
+function isSystemUser(user: SystemUser | null | undefined): user is SystemUser {
+  return Boolean(user?.id && user.email && user.role);
+}
+
 const roles: Record<Role, string> = {
   SUPER_ADMIN: "مدير عام", ADMIN: "مدير", UNDERWRITER: "مكتتب",
   FINANCE: "المالية", AGENT: "وكيل", VIEWER: "مشاهد"
 };
 
 export function SystemManager({ users: initialUsers, currentUserId }: { users: SystemUser[]; currentUserId: string }) {
-  const [users, setUsers] = useState(initialUsers);
+  const [users, setUsers] = useState(() => initialUsers.filter(isSystemUser));
   const [busy, setBusy] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -41,7 +45,11 @@ export function SystemManager({ users: initialUsers, currentUserId }: { users: S
       toast({ title: "تعذر إضافة المستخدم", description: result?.error, tone: "error" });
       return;
     }
-    setUsers((current) => [result as SystemUser, ...current]);
+    if (!isSystemUser(result)) {
+      toast({ title: "تعذر قراءة بيانات المستخدم الجديد", tone: "error" });
+      return;
+    }
+    setUsers((current) => [result, ...current.filter(isSystemUser)]);
     form.reset();
     toast({ title: "تم إنشاء المستخدم ويمكنه تسجيل الدخول الآن", tone: "success" });
   }
@@ -59,7 +67,11 @@ export function SystemManager({ users: initialUsers, currentUserId }: { users: S
       toast({ title: "تعذر تحديث الصلاحية", description: result?.error, tone: "error" });
       return;
     }
-    setUsers((current) => current.map((item) => item.id === user.id ? result as SystemUser : item));
+    if (!isSystemUser(result)) {
+      toast({ title: "تعذر قراءة بيانات المستخدم", tone: "error" });
+      return;
+    }
+    setUsers((current) => current.filter(isSystemUser).map((item) => item.id === user.id ? result : item));
     toast({ title: "تم تحديث صلاحية المستخدم", tone: "success" });
   }
 
@@ -141,9 +153,9 @@ export function SystemManager({ users: initialUsers, currentUserId }: { users: S
             <Button disabled={busy === "user-create"}><UserPlus className="h-4 w-4" />إضافة</Button>
           </form>
           <div className="divide-y rounded-xl border">
-            {users.map((user) => (
+            {users.filter(isSystemUser).map((user) => (
               <div key={user.id} className="flex flex-col justify-between gap-3 p-4 sm:flex-row sm:items-center">
-                <div><p className="font-bold">{user.name}</p><p className="text-sm text-muted-foreground" dir="ltr">{user.email}</p></div>
+                <div><p className="font-bold">{user.name || "مستخدم"}</p><p className="text-sm text-muted-foreground" dir="ltr">{user.email}</p></div>
                 <div className="flex items-center gap-2">
                   <select value={user.role} disabled={user.id === currentUserId || busy === user.id} onChange={(event) => updateRole(user, event.target.value as Role)} className="h-9 rounded-md border bg-background px-2 text-sm">
                     {Object.entries(roles).map(([value, label]) => <option key={value} value={value}>{label}</option>)}

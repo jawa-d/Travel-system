@@ -19,7 +19,7 @@ export default async function SystemPage() {
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">المستخدمون والبيانات</h1>
         <p className="mt-1 text-sm text-muted-foreground">إدارة الصلاحيات والنسخ الاحتياطية وبيانات العرض المحلية.</p>
       </div>
-      <SystemManager users={users} currentUserId={currentUser.id} />
+      <SystemManager users={users.filter((user) => Boolean(user?.id && user.email))} currentUserId={currentUser.id} />
     </AppShell>
   );
 }
