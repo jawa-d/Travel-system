@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   CheckCircle2, CircleX, Clock3, FileSearch, FileText, LoaderCircle,
   Paperclip, Pencil, PlusCircle, Search, ShieldAlert, Stethoscope, X
@@ -20,8 +19,9 @@ import { usePagination } from "@/lib/pagination";
 import { PaginationControls } from "@/components/pagination-controls";
 import { StoredAttachmentLink } from "@/components/stored-attachment-link";
 import { LookupSelect } from "@/components/lookup-select";
+import { isFinalizedStatus, workflowStatusDetails, type WorkflowStatus } from "@/lib/workflow-status";
 
-type ClaimStatus = "NEW" | "UNDER_REVIEW" | "APPROVED" | "REJECTED" | "CLOSED";
+type ClaimStatus = WorkflowStatus;
 type ClaimType = string;
 
 export type ClaimItem = {
@@ -36,12 +36,12 @@ export type ClaimItem = {
   createdAt: string;
 };
 
-const statusDetails = {
-  NEW: { label: "جديدة", className: "border-blue-200 bg-blue-50 text-blue-700", icon: PlusCircle },
-  UNDER_REVIEW: { label: "قيد المراجعة", className: "border-amber-200 bg-amber-50 text-amber-700", icon: Clock3 },
-  APPROVED: { label: "مقبولة", className: "border-emerald-200 bg-emerald-50 text-emerald-700", icon: CheckCircle2 },
-  REJECTED: { label: "مرفوضة", className: "border-red-200 bg-red-50 text-red-700", icon: CircleX },
-  CLOSED: { label: "مغلقة", className: "border-slate-200 bg-slate-100 text-slate-700", icon: FileText }
+const statusIcons = {
+  OPEN: PlusCircle,
+  UNDER_REVIEW: Clock3,
+  APPROVED: CheckCircle2,
+  REJECTED: CircleX,
+  CLOSED: FileText
 } as const;
 
 const typeLabels: Record<string, string> = {
@@ -65,7 +65,6 @@ export function ClaimManager({
   claimTypes: { value: string; label: string }[];
   agents: { id: string; name: string }[];
 }) {
-  const router = useRouter();
   const [items, setItems] = useLocalCollection("claims", claims);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | ClaimStatus>("ALL");
@@ -112,11 +111,14 @@ export function ClaimManager({
       createdAt: new Date(result.createdAt).toISOString()
     }, ...current]);
     setAttachments([]);
-    router.refresh();
   }
 
   async function updateStatus(formData: FormData) {
     if (!editing) return;
+    if (isFinalizedStatus(editing.status)) {
+      setError("This claim is finalized and cannot be modified.");
+      return;
+    }
     setBusy(true);
     setError("");
     const response = await fetch(`/api/claims/${editing.id}`, {
@@ -134,7 +136,6 @@ export function ClaimManager({
       claim.id === editing.id ? { ...claim, status: result.status } : claim
     ));
     setEditing(null);
-    router.refresh();
   }
 
   return (
@@ -148,7 +149,7 @@ export function ClaimManager({
             </div>
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)} className="h-11 rounded-md border bg-background px-3 text-sm sm:w-44">
               <option value="ALL">جميع الحالات</option>
-              {Object.entries(statusDetails).map(([value, detail]) => <option key={value} value={value}>{detail.label}</option>)}
+              {Object.entries(workflowStatusDetails).map(([value, detail]) => <option key={value} value={value}>{detail.labelAr}</option>)}
             </select>
             <Button asChild variant="outline" size="sm"><Link href={`/api/export?resource=claims&format=xlsx&status=${statusFilter === "ALL" ? "" : statusFilter}&policyNumber=${encodeURIComponent(query)}&from=${from}&to=${to}&agent=${agent}`}><FileSpreadsheet className="h-4 w-4 text-emerald-600" />Excel</Link></Button>
             <Button asChild variant="outline" size="sm"><Link href={`/api/export?resource=claims&format=pdf&status=${statusFilter === "ALL" ? "" : statusFilter}&policyNumber=${encodeURIComponent(query)}&from=${from}&to=${to}&agent=${agent}`}><FileDown className="h-4 w-4 text-red-600" />PDF</Link></Button>
@@ -165,8 +166,9 @@ export function ClaimManager({
           {filtered.length ? (
             <div className="space-y-4">
               {pagination.visible.map((claim) => {
-                const status = statusDetails[claim.status];
-                const StatusIcon = status.icon;
+                const status = workflowStatusDetails[claim.status];
+                const StatusIcon = statusIcons[claim.status];
+                const finalized = isFinalizedStatus(claim.status);
                 return (
                   <Card key={claim.id} className="overflow-hidden border-border/80 shadow-sm transition-shadow hover:shadow-md">
                     <CardContent className="p-5">
@@ -183,9 +185,14 @@ export function ClaimManager({
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge className="bg-muted text-foreground">{claimTypes.find((item) => item.value === claim.claimType)?.label ?? typeLabels[claim.claimType] ?? claim.claimType}</Badge>
-                          <Badge className={status.className}><StatusIcon className="ml-1 h-3 w-3" />{status.label}</Badge>
+                          <Badge className={status.className}><StatusIcon className="ml-1 h-3 w-3" />{status.labelAr}</Badge>
                         </div>
                       </div>
+                      {finalized ? (
+                        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800">
+                          This claim is finalized and cannot be modified.
+                        </div>
+                      ) : null}
                       <p className="mt-4 rounded-xl bg-muted/25 p-3 text-sm leading-6">{claim.description}</p>
                       {claim.attachments.length ? (
                         <div className="mt-3 flex flex-wrap gap-2">
@@ -197,7 +204,7 @@ export function ClaimManager({
                           <span>{formatDate(claim.createdAt)}</span>
                           <span className="flex items-center gap-1"><Paperclip className="h-3.5 w-3.5" />{claim.attachments.length} مرفقات</span>
                         </div>
-                        {canManage ? <Button type="button" size="sm" variant="outline" className="border-primary/20 text-primary" onClick={() => { setError(""); setEditing(claim); }}>
+                        {canManage ? <Button type="button" size="sm" variant="outline" className="border-primary/20 text-primary" disabled={finalized} onClick={() => { setError(""); setEditing(claim); }}>
                           <Pencil className="h-4 w-4" />تحديث الحالة
                         </Button> : null}
                       </div>
@@ -253,7 +260,7 @@ export function ClaimManager({
                 <div className="space-y-2">
                   <Label htmlFor="claim-status">الحالة الجديدة</Label>
                   <select id="claim-status" name="status" defaultValue={editing.status} className="h-11 w-full rounded-md border bg-background px-3">
-                    {Object.entries(statusDetails).map(([value, detail]) => <option key={value} value={value}>{detail.label}</option>)}
+                    {Object.entries(workflowStatusDetails).map(([value, detail]) => <option key={value} value={value}>{detail.labelAr}</option>)}
                   </select>
                 </div>
                 {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}

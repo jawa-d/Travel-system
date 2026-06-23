@@ -17,6 +17,7 @@ const resources: Record<string, string> = {
   "/notifications": "notifications",
   "/audit": "audit",
   "/agency": "agency",
+  "/agent-accounts": "agent-accounts",
   "/reports": "reports"
 };
 

@@ -33,6 +33,7 @@ const permissions = {
   cancellationsWrite: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.FINANCE],
   agencyRead: [Role.SUPER_ADMIN, Role.ADMIN],
   agentsManage: [Role.SUPER_ADMIN, Role.ADMIN],
+  agentAccountsRead: [Role.SUPER_ADMIN],
   systemManage: [Role.SUPER_ADMIN, Role.ADMIN]
   ,lookupsManage: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER]
 } as const;

@@ -8,7 +8,14 @@ import { Label } from "@/components/ui/label";
 import { upsertLocalItem } from "@/lib/local-storage";
 import { useToast } from "@/components/ui/toast-provider";
 
-type Field = { name: string; label: string; type?: string; options?: { label: string; value: string }[] };
+type Field = {
+  name: string;
+  label: string;
+  type?: string;
+  maxLength?: number;
+  placeholder?: string;
+  options?: { label: string; value: string }[];
+};
 
 export function ResourceForm({ title, endpoint, fields }: { title: string; endpoint: string; fields: Field[] }) {
   const router = useRouter();
@@ -45,7 +52,22 @@ export function ResourceForm({ title, endpoint, fields }: { title: string; endpo
                   {field.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
               ) : (
-                <Input id={`resource-${field.name}`} name={field.name} type={field.type ?? "text"} />
+                <Input
+                  id={`resource-${field.name}`}
+                  name={field.name}
+                  type={field.type ?? "text"}
+                  maxLength={field.maxLength}
+                  placeholder={field.placeholder}
+                  dir={field.name === "isoCode" ? "ltr" : undefined}
+                  onInput={field.name === "isoCode"
+                    ? (event) => {
+                        event.currentTarget.value = event.currentTarget.value
+                          .replace(/[^a-zA-Z]/g, "")
+                          .toUpperCase()
+                          .slice(0, 3);
+                      }
+                    : undefined}
+                />
               )}
             </div>
           ))}
@@ -69,5 +91,5 @@ function normalizeResource(resource: string, item: Record<string, unknown> & { i
       personalLiability: String(item.personalLiability)
     };
   }
-  return { ...item, additionalRiskFee: String(item.additionalRiskFee) };
+  return item;
 }

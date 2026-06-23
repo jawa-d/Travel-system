@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   CircleDollarSign, Download, FileX2, LoaderCircle,
   ReceiptText, Search, ShieldAlert, FileDown, FileSpreadsheet
@@ -51,7 +50,6 @@ export function CancellationManager({
   canCreate: boolean;
   cancellationReasons: { value: string; label: string }[];
 }) {
-  const router = useRouter();
   const [items, setItems] = useLocalCollection("cancellations", cancellations);
   const [query, setQuery] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState(policies[0]?.policyNumber ?? "");
@@ -68,7 +66,10 @@ export function CancellationManager({
     );
   }, [items, query]);
 
-  const policy = policies.find((item) => item.policyNumber === selectedPolicy);
+  const availablePolicyOptions = policies.filter(
+    (item) => !items.some((cancellation) => cancellation.policyNumber === item.policyNumber)
+  );
+  const policy = availablePolicyOptions.find((item) => item.policyNumber === selectedPolicy);
   const estimatedRefund = Math.max(Number(policy?.premium ?? 0) * 0.8 - fees, 0);
 
   async function createCancellation(formData: FormData) {
@@ -77,6 +78,8 @@ export function CancellationManager({
 
   async function confirmCancellation() {
     if (!pendingCancellation) return;
+    const requestedPolicyNumber = String(pendingCancellation.policyNumber ?? "");
+    const requestedPolicy = policies.find((item) => item.policyNumber === requestedPolicyNumber);
     setBusy(true);
     setError("");
     const response = await fetch("/api/cancellations", {
@@ -84,21 +87,32 @@ export function CancellationManager({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(pendingCancellation)
     });
-    const result = await response.json();
+    const result = await response.json().catch(() => null);
     setBusy(false);
-    if (!response.ok) {
-      setError(result.error ?? "تعذر إلغاء الوثيقة");
+    if (!response.ok || !result) {
+      setError(result?.error ?? "تعذر إلغاء الوثيقة");
+      return;
+    }
+    const resultPolicy = result.policy ?? (requestedPolicy ? {
+      id: null,
+      policyNumber: requestedPolicy.policyNumber,
+      premium: requestedPolicy.premium,
+      customer: { arabicName: requestedPolicy.customerName }
+    } : null);
+    if (!resultPolicy) {
+      setPendingCancellation(null);
+      setError("تم إلغاء الوثيقة، لكن تعذر تحميل بياناتها. حدّث الصفحة لعرض شهادة الإلغاء.");
       return;
     }
     setPendingCancellation(null);
     setItems((current) => [{
       id: result.id,
       cancellationNumber: result.cancellationNumber,
-      policyNumber: result.policy.policyNumber,
-      customerName: result.policy.customer.arabicName,
+      policyNumber: resultPolicy.policyNumber,
+      customerName: resultPolicy.customer.arabicName,
       reason: result.reason,
       notes: result.notes,
-      premium: String(result.policy.premium),
+      premium: String(resultPolicy.premium),
       refundAmount: String(result.refundAmount),
       administrativeFees: String(result.administrativeFees),
       createdAt: new Date(result.createdAt).toISOString()
@@ -106,11 +120,14 @@ export function CancellationManager({
     const localPolicies = readLocalCollection<Array<{ id: string; status: string }> extends Array<infer T> ? T : never>("policies");
     if (localPolicies) {
       writeLocalCollection("policies", localPolicies.map((item) =>
-        item.id === result.policy.id ? { ...item, status: "CANCELLED" } : item
+        item.id === resultPolicy.id ? { ...item, status: "CANCELLED" } : item
       ));
     }
     toast({ title: "تم إلغاء الوثيقة", description: `تم إنشاء شهادة الإلغاء ${result.cancellationNumber}`, tone: "success" });
-    router.refresh();
+    setSelectedPolicy((current) => {
+      const remaining = availablePolicyOptions.filter((item) => item.policyNumber !== resultPolicy.policyNumber);
+      return current === resultPolicy.policyNumber ? (remaining[0]?.policyNumber ?? "") : current;
+    });
   }
 
   return (
@@ -182,7 +199,7 @@ export function CancellationManager({
             <div className="space-y-2">
               <Label htmlFor="cancellation-policy">الوثيقة</Label>
               <select id="cancellation-policy" name="policyNumber" required value={selectedPolicy} onChange={(event) => setSelectedPolicy(event.target.value)} className="h-10 w-full rounded-md border bg-background px-3 text-sm">
-                {policies.map((item) => <option key={item.policyNumber} value={item.policyNumber}>{item.policyNumber} — {item.customerName}</option>)}
+                {availablePolicyOptions.map((item) => <option key={item.policyNumber} value={item.policyNumber}>{item.policyNumber} — {item.customerName}</option>)}
               </select>
             </div>
             <LookupSelect label="سبب الإلغاء" name="reason" category="CANCELLATION_REASON" initialOptions={cancellationReasons} required />
@@ -204,11 +221,11 @@ export function CancellationManager({
             </div>
 
             {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-            <Button variant="destructive" className="w-full" disabled={busy || !policies.length}>
+            <Button variant="destructive" className="w-full" disabled={busy || !availablePolicyOptions.length}>
               {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ReceiptText className="h-4 w-4" />}
               {busy ? "جارٍ تنفيذ الإلغاء..." : "إلغاء الوثيقة"}
             </Button>
-            {!policies.length && <p className="text-center text-xs text-muted-foreground">لا توجد وثائق متاحة للإلغاء.</p>}
+            {!availablePolicyOptions.length && <p className="text-center text-xs text-muted-foreground">لا توجد وثائق متاحة للإلغاء.</p>}
           </form>
         </CardContent>
       </Card> : null}

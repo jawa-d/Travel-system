@@ -113,7 +113,7 @@ export const demoClaims = [
     claimType: "MEDICAL",
     description: "مطالبة تجريبية للفحص",
     attachments: [],
-    status: "NEW",
+    status: "OPEN",
     createdAt: new Date(),
     updatedAt: new Date()
   }

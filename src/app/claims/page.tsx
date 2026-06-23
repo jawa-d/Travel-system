@@ -21,7 +21,7 @@ export default async function ClaimsPage() {
     ? await prisma.user.findMany({ where: { role: "AGENT", active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } })
     : [];
 
-  const newClaims = claims.filter((claim) => claim.status === "NEW").length;
+  const newClaims = claims.filter((claim) => claim.status === "OPEN").length;
   const underReview = claims.filter((claim) => claim.status === "UNDER_REVIEW").length;
   const approved = claims.filter((claim) => claim.status === "APPROVED").length;
 
@@ -38,7 +38,7 @@ export default async function ClaimsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Stat icon={PlusCircle} label="جديدة" value={newClaims} className="text-blue-600" />
+          <Stat icon={PlusCircle} label="مفتوحة" value={newClaims} className="text-blue-600" />
           <Stat icon={Clock3} label="قيد المراجعة" value={underReview} className="text-amber-600" />
           <Stat icon={CheckCircle2} label="مقبولة" value={approved} className="text-emerald-600" />
         </div>

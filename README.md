@@ -61,9 +61,8 @@ The bootstrap administrator is created lazily on the first credentials login att
 the `User` table is empty. Remove `BOOTSTRAP_ADMIN_PASSWORD` from Vercel after the account has
 been created.
 
-The Vercel build command runs `prisma db push --skip-generate` before `next build` so a newly
-provisioned PostgreSQL database receives the current schema. For mature production environments,
-replace this with a reviewed baseline migration and `prisma migrate deploy`.
+The Vercel build command runs `prisma migrate deploy` before `next build`, applying only reviewed
+production migrations. The existing Neon database has been baselined in Prisma migration history.
 
 ## Main Modules
 

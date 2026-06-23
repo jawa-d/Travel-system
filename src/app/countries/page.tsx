@@ -10,13 +10,17 @@ import { prisma } from "@/lib/prisma";
 const fields = [
   { name: "nameAr", label: "اسم الدولة بالعربية" },
   { name: "nameEn", label: "اسم الدولة بالإنجليزية" },
-  { name: "isoCode", label: "رمز ISO" },
+  {
+    name: "isoCode",
+    label: "رمز ISO (حرفان أو 3 أحرف إنجليزية)",
+    maxLength: 3,
+    placeholder: "مثال: IQ"
+  },
   { name: "category", label: "التصنيف", options: [
     { label: "مسموحة", value: "ALLOWED" },
     { label: "مقيّدة", value: "RESTRICTED" },
     { label: "عالية الخطورة", value: "HIGH_RISK" }
   ] },
-  { name: "additionalRiskFee", label: "رسوم المخاطر الإضافية", type: "number" },
   { name: "status", label: "الحالة", options: [
     { label: "فعالة", value: "ACTIVE" },
     { label: "غير فعالة", value: "INACTIVE" }
@@ -39,7 +43,7 @@ export default async function CountriesPage() {
           </div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">إدارة الدول</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            إضافة وتعديل وحذف الدول وتحديد تصنيف المخاطر والرسوم الإضافية.
+            إضافة وتعديل وحذف الدول وتحديد تصنيف المخاطر.
           </p>
         </div>
         <div className="flex gap-3">
@@ -65,7 +69,6 @@ export default async function CountriesPage() {
               nameEn: country.nameEn,
               isoCode: country.isoCode,
               category: country.category,
-              additionalRiskFee: String(country.additionalRiskFee),
               status: country.status
             }))}
           />

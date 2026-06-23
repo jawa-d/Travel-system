@@ -53,7 +53,8 @@ export async function POST(request: NextRequest) {
           notes: data.notes,
           refundAmount,
           administrativeFees
-        }
+        },
+        include: { policy: { include: { customer: true } } }
       });
       await tx.policy.update({ where: { id: policy.id }, data: { status: "CANCELLED" } });
       return created;

@@ -24,9 +24,9 @@ export default function LoginPage() {
           </div>
 
           <div className="relative">
-            <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#d2ab5b]/30 bg-[#d2ab5b]/10 px-4 py-2 text-xs font-bold text-[#f1d99e]">
-              <Sparkles className="h-4 w-4" />
-              حماية تثق بها، أينما كانت وجهتك
+            <span className="login-brand-badge mb-7 inline-flex items-center gap-3 rounded-full border border-[#d2ab5b]/50 bg-[#d2ab5b]/15 px-6 py-3 text-base font-black text-[#ffe3a3] shadow-[0_0_28px_rgba(210,171,91,0.18)]">
+              <Sparkles className="login-brand-badge-icon h-5 w-5" />
+              أول شركة تأمين تكافلي في العراق
             </span>
             <h1 className="max-w-xl text-4xl font-black leading-[1.35] xl:text-5xl">
               شركة تكافل العراق

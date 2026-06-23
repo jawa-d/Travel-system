@@ -24,8 +24,7 @@ export async function calculatePremium(input: {
   return {
     age,
     base,
-    riskFee: Number(country.additionalRiskFee),
-    premium: Number((premium + Number(country.additionalRiskFee)).toFixed(2)),
+    premium: Number(premium.toFixed(2)),
     countryCategory: country.category,
     planName: plan.name
   };

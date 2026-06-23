@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CircleDollarSign, Globe2, Pencil, ShieldAlert, Trash2, X } from "lucide-react";
+import { Globe2, Pencil, ShieldAlert, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatCurrency } from "@/lib/utils";
 import { useLocalCollection } from "@/lib/local-storage";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast-provider";
@@ -19,7 +18,6 @@ export type CountryItem = {
   nameEn: string;
   isoCode: string;
   category: "ALLOWED" | "RESTRICTED" | "HIGH_RISK";
-  additionalRiskFee: string;
   status: "ACTIVE" | "INACTIVE";
 };
 
@@ -66,9 +64,7 @@ export function CountryManager({ countries }: { countries: CountryItem[] }) {
       return;
     }
     const result = await response.json();
-    setItems((current) => current.map((country) => country.id === editing.id
-      ? { ...result, additionalRiskFee: String(result.additionalRiskFee) }
-      : country));
+    setItems((current) => current.map((country) => country.id === editing.id ? result : country));
     setEditing(null);
     setBusy(null);
     router.refresh();
@@ -137,18 +133,12 @@ export function CountryManager({ countries }: { countries: CountryItem[] }) {
                   </Badge>
                 </div>
 
-                <div className="mt-5 grid grid-cols-2 gap-3">
+                <div className="mt-5">
                   <div className="rounded-xl border bg-muted/20 p-3">
                     <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
                       <ShieldAlert className="h-4 w-4" />التصنيف
                     </div>
                     <Badge className={category.className}>{category.label}</Badge>
-                  </div>
-                  <div className="rounded-xl border bg-muted/20 p-3">
-                    <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-                      <CircleDollarSign className="h-4 w-4" />رسوم المخاطر
-                    </div>
-                    <p className="font-bold text-primary" dir="ltr">{formatCurrency(country.additionalRiskFee)}</p>
                   </div>
                 </div>
 
@@ -170,7 +160,7 @@ export function CountryManager({ countries }: { countries: CountryItem[] }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setEditing(null); }}>
           <Card className="w-full max-w-xl shadow-2xl">
             <CardHeader className="flex-row items-center justify-between space-y-0 border-b px-5 py-4">
-              <div><CardTitle>تعديل الدولة</CardTitle><p className="mt-1 text-sm text-muted-foreground">تحديث الاسم والتصنيف والرسوم والحالة.</p></div>
+              <div><CardTitle>تعديل الدولة</CardTitle><p className="mt-1 text-sm text-muted-foreground">تحديث الاسم والتصنيف والحالة.</p></div>
               <Button type="button" variant="ghost" size="icon" onClick={() => setEditing(null)} disabled={Boolean(busy)}><X className="h-5 w-5" /></Button>
             </CardHeader>
             <CardContent className="p-5 sm:p-6">
@@ -179,7 +169,6 @@ export function CountryManager({ countries }: { countries: CountryItem[] }) {
                   <Field id="country-name-ar" name="nameAr" label="اسم الدولة بالعربية" defaultValue={editing.nameAr} />
                   <Field id="country-name-en" name="nameEn" label="اسم الدولة بالإنجليزية" defaultValue={editing.nameEn} dir="ltr" />
                   <Field id="country-iso" name="isoCode" label="رمز ISO" defaultValue={editing.isoCode} dir="ltr" maxLength={3} />
-                  <Field id="country-fee" name="additionalRiskFee" label="رسوم المخاطر الإضافية" defaultValue={editing.additionalRiskFee} dir="ltr" type="number" min="0" step="0.01" />
                   <div className="space-y-2">
                     <Label htmlFor="country-category">التصنيف</Label>
                     <select id="country-category" name="category" defaultValue={editing.category} className="h-10 w-full rounded-md border bg-background px-3 text-sm">

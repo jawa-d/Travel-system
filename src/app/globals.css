@@ -105,6 +105,22 @@ select {
   55%, 100% { transform: translateX(-180%) skewX(-20deg); }
 }
 
+@keyframes login-badge-motion {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    box-shadow: 0 0 20px rgb(210 171 91 / 18%);
+  }
+  50% {
+    transform: translateY(-9px) scale(1.045);
+    box-shadow: 0 10px 38px rgb(210 171 91 / 38%);
+  }
+}
+
+@keyframes login-badge-sparkle {
+  0%, 100% { transform: rotate(-12deg) scale(1); }
+  50% { transform: rotate(18deg) scale(1.3); }
+}
+
 .login-shell {
   animation: login-rise 700ms cubic-bezier(.22, 1, .36, 1) both;
 }
@@ -161,6 +177,16 @@ select {
   width: 220px;
   max-width: none;
   transform: translateX(-50%);
+}
+
+.login-brand-badge {
+  animation: login-badge-motion 2.2s ease-in-out infinite;
+  will-change: transform, box-shadow;
+}
+
+.login-brand-badge-icon {
+  animation: login-badge-sparkle 1.1s ease-in-out infinite;
+  filter: drop-shadow(0 0 7px rgb(255 227 163 / 75%));
 }
 
 .login-form {
@@ -231,6 +257,8 @@ select {
   .login-logo,
   .login-logo-float,
   .login-logo-halo,
+  .login-brand-badge,
+  .login-brand-badge-icon,
   .login-form,
   .login-orb {
     animation: none;
