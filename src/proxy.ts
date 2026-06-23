@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
+import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 function requestOrigin(request: Parameters<Parameters<typeof auth>[0]>[0]) {
@@ -10,7 +11,24 @@ function requestOrigin(request: Parameters<Parameters<typeof auth>[0]>[0]) {
   return host ? `${protocol}://${host}` : request.nextUrl.origin;
 }
 
-export default auth((request) => {
+function loginRedirect(request: Parameters<Parameters<typeof auth>[0]>[0]) {
+  const loginUrl = new URL("/login", requestOrigin(request));
+  loginUrl.searchParams.set("callbackUrl", `${request.nextUrl.pathname}${request.nextUrl.search}`);
+  const response = NextResponse.redirect(loginUrl);
+
+  // Remove stale Auth.js/NextAuth cookies so an invalid JWT cannot cause a
+  // redirect-render-refresh loop between the proxy and protected pages.
+  [
+    "authjs.session-token",
+    "__Secure-authjs.session-token",
+    "next-auth.session-token",
+    "__Secure-next-auth.session-token"
+  ].forEach((name) => response.cookies.delete(name));
+
+  return response;
+}
+
+export default auth(async (request) => {
   const isLoggedIn = Boolean(request.auth);
   const isActive = request.auth?.user?.active !== false;
   const role = request.auth?.user?.role;
@@ -19,9 +37,16 @@ export default auth((request) => {
   if (isDirectAccessEnabled() && !isLoggedIn) return;
 
   if (!isLoggedIn || !isActive) {
-    const loginUrl = new URL("/login", requestOrigin(request));
-    loginUrl.searchParams.set("callbackUrl", `${request.nextUrl.pathname}${request.nextUrl.search}`);
-    return NextResponse.redirect(loginUrl);
+    return loginRedirect(request);
+  }
+
+  const userId = request.auth?.user?.id;
+  if (userId) {
+    const account = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { active: true }
+    }).catch(() => null);
+    if (!account?.active) return loginRedirect(request);
   }
 
   if (role === "AGENT" && !path.startsWith("/api/")) {

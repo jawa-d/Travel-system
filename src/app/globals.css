@@ -68,3 +68,171 @@ textarea,
 select {
   direction: rtl;
 }
+
+@keyframes login-rise {
+  from { opacity: 0; transform: translateY(28px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes login-slide {
+  from { opacity: 0; transform: translateX(35px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes login-logo {
+  0% { opacity: 0; transform: translateY(-16px) scale(0.92); }
+  70% { transform: translateY(2px) scale(1.015); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes login-float {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(20px, -28px, 0) scale(1.08); }
+}
+
+@keyframes logo-float {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-10px) rotate(1deg); }
+}
+
+@keyframes logo-halo {
+  0%, 100% { opacity: 0.45; transform: scale(0.9); }
+  50% { opacity: 0.9; transform: scale(1.08); }
+}
+
+@keyframes logo-shine {
+  0%, 25% { transform: translateX(150%) skewX(-20deg); }
+  55%, 100% { transform: translateX(-180%) skewX(-20deg); }
+}
+
+.login-shell {
+  animation: login-rise 700ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.login-brand > * {
+  animation: login-slide 700ms 180ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.login-logo {
+  animation: login-logo 850ms 220ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.login-logo-stage {
+  position: relative;
+  display: grid;
+  height: 220px;
+  width: 220px;
+  place-items: center;
+}
+
+.login-logo-halo {
+  position: absolute;
+  inset: 18%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgb(210 171 91 / 34%), transparent 70%);
+  filter: blur(10px);
+  animation: logo-halo 3.5s ease-in-out infinite;
+}
+
+.login-logo-float {
+  position: relative;
+  height: 220px;
+  width: 220px;
+  overflow: hidden;
+  border-radius: 28px;
+  animation: logo-float 4s ease-in-out infinite;
+  filter: drop-shadow(0 18px 18px rgb(35 54 75 / 18%));
+}
+
+.login-logo-float::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(100deg, transparent 38%, rgb(255 255 255 / 60%) 50%, transparent 62%);
+  animation: logo-shine 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.login-logo-image {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  height: auto;
+  width: 220px;
+  max-width: none;
+  transform: translateX(-50%);
+}
+
+.login-form {
+  animation: login-rise 650ms 380ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.login-orb {
+  position: absolute;
+  z-index: -1;
+  border-radius: 9999px;
+  filter: blur(2px);
+  animation: login-float 9s ease-in-out infinite;
+}
+
+.login-orb-one {
+  right: -8rem;
+  top: -10rem;
+  height: 30rem;
+  width: 30rem;
+  background: radial-gradient(circle, rgb(35 54 75 / 22%), transparent 68%);
+}
+
+.login-orb-two {
+  bottom: -12rem;
+  left: -8rem;
+  height: 34rem;
+  width: 34rem;
+  background: radial-gradient(circle, rgb(189 145 62 / 25%), transparent 68%);
+  animation-delay: -4s;
+}
+
+.login-grid {
+  background-image:
+    linear-gradient(rgb(35 54 75 / 4%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(35 54 75 / 4%) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(circle at center, black, transparent 78%);
+}
+
+.login-brand-pattern {
+  background:
+    radial-gradient(circle at 85% 18%, rgb(210 171 91 / 22%), transparent 24%),
+    linear-gradient(135deg, transparent 46%, rgb(255 255 255 / 5%) 47%, transparent 48%);
+  background-size: auto, 42px 42px;
+}
+
+.login-submit {
+  position: relative;
+  overflow: hidden;
+}
+
+.login-submit::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  transform: translateX(110%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 18%), transparent);
+  transition: transform 550ms ease;
+}
+
+.login-submit:hover::after {
+  transform: translateX(-110%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-shell,
+  .login-brand > *,
+  .login-logo,
+  .login-logo-float,
+  .login-logo-halo,
+  .login-form,
+  .login-orb {
+    animation: none;
+  }
+}
