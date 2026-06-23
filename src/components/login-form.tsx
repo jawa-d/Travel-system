@@ -19,7 +19,7 @@ export function LoginForm() {
 
   return (
     <form
-      className="space-y-4"
+      className="login-form space-y-5"
       onSubmit={(event) => {
         event.preventDefault();
         const formData = new FormData(event.currentTarget);
@@ -39,20 +39,20 @@ export function LoginForm() {
       }}
     >
       <div className="space-y-2">
-        <Label htmlFor="email">البريد الإلكتروني</Label>
-        <Input id="email" name="email" type="email" autoComplete="email" required dir="ltr" />
+        <Label htmlFor="email" className="font-bold text-[#22354a]">البريد الإلكتروني</Label>
+        <Input id="email" name="email" type="email" autoComplete="email" required dir="ltr" placeholder="name@iraqtakaful.com" className="h-12 rounded-xl border-slate-200 bg-slate-50/80 px-4 transition-all focus-visible:border-[#bd913e] focus-visible:ring-[#bd913e]/20" />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">كلمة المرور</Label>
+        <Label htmlFor="password" className="font-bold text-[#22354a]">كلمة المرور</Label>
         <div className="relative">
-          <Input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" required dir="ltr" className="pl-11" />
+          <Input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" required dir="ltr" placeholder="••••••••" className="h-12 rounded-xl border-slate-200 bg-slate-50/80 px-4 pl-12 transition-all focus-visible:border-[#bd913e] focus-visible:ring-[#bd913e]/20" />
           <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-md p-2 text-muted-foreground hover:bg-muted" aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <Button className="w-full" disabled={pending}>
+      <Button className="login-submit h-12 w-full rounded-xl bg-[#22354a] text-base font-bold shadow-lg shadow-[#22354a]/15 hover:bg-[#2d455f]" disabled={pending}>
         <LogIn className="h-4 w-4" />
         {pending ? "جارٍ تسجيل الدخول..." : "دخول"}
       </Button>
