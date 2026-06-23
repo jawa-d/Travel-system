@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 560" role="img" aria-labelledby="title desc">
+  <title id="title">شعار تكافل العراق</title>
+  <desc id="desc">درع باللونين الأزرق والذهبي مع اسم عراق تكافل</desc>
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d4af5a"/>
+      <stop offset=".55" stop-color="#b8892f"/>
+      <stop offset="1" stop-color="#e1c173"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke-linejoin="miter">
+    <path d="M260 30c-64 43-126 57-200 58 0 154 34 252 200 348 166-96 200-194 200-348-74-1-136-15-200-58Z" stroke="#23364b" stroke-width="18"/>
+    <path d="M260 70c-48 28-96 38-152 42 5 113 35 187 152 262 117-75 147-149 152-262-56-4-104-14-152-42Z" stroke="#fff" stroke-width="5"/>
+    <path d="M147 127h227v45h-87v181h-55V172h-85c-25 0-43-19-43-45h43Z" fill="#23364b"/>
+    <path d="M81 191h124v45h-69v124c-24-19-42-38-55-57V191Z" fill="#23364b"/>
+    <path d="M81 191h124v162l55 42V169H148c-40 0-67-27-67-60h146v244l33 25 104-76c-19 39-49 72-104 109l-100-74V236h-49c-17 0-30-7-30-45Z" fill="url(#gold)"/>
+  </g>
+  <text x="260" y="490" text-anchor="middle" fill="#23364b" font-family="Arial, sans-serif" font-size="63" font-weight="500">Iraq Takaful</text>
+  <path d="M75 515h370" stroke="url(#gold)" stroke-width="2"/>
+  <text x="260" y="555" text-anchor="middle" fill="#bd913e" font-family="Arial, sans-serif" font-size="48">تكافل العراق</text>
+</svg>
