@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BarChart3, Bell, BriefcaseBusiness, ChevronDown, CircleDollarSign,
+  BarChart3, Bell, BriefcaseBusiness, ChevronDown, CircleDollarSign, Landmark,
   ClipboardList, FileClock, FilePlus2, FileText, Globe2, Home, Menu,
   ScrollText, Settings2, ShieldCheck, Users, X, XCircle, ListPlus
 } from "lucide-react";
@@ -45,7 +45,8 @@ const groups: Array<{ ar: string; en: string; items: NavItem[]; collapsible?: bo
     items: [
       { href: "/pricing", ar: "حاسبة السعر", en: "Pricing", icon: CircleDollarSign, permission: "financeRead" },
       { href: "/reports", ar: "التقارير", en: "Reports", icon: BarChart3, permission: "reportsRead" },
-      { href: "/agency", ar: "بوابة الوكلاء", en: "Agency portal", icon: BriefcaseBusiness, permission: "agencyRead" }
+      { href: "/agency", ar: "بوابة الوكلاء", en: "Agency portal", icon: BriefcaseBusiness, permission: "agencyRead" },
+      { href: "/agent-accounts", ar: "حسابات الوكلاء", en: "Agent accounts", icon: Landmark, permission: "agentAccountsRead" }
     ]
   },
   {

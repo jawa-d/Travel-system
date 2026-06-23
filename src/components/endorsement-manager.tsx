@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   CheckCircle2, Clock3, Download, FilePenLine, LoaderCircle,
   Pencil, PlusCircle, Search, X, XCircle, FileDown, FileSpreadsheet
@@ -15,8 +14,9 @@ import { Label } from "@/components/ui/label";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useLocalCollection } from "@/lib/local-storage";
 import { LookupSelect } from "@/components/lookup-select";
+import { isFinalizedStatus, workflowStatusDetails, type WorkflowStatus } from "@/lib/workflow-status";
 
-type Status = "DRAFT" | "APPROVED" | "REJECTED";
+type Status = WorkflowStatus;
 type EndorsementType = string;
 
 export type EndorsementItem = {
@@ -38,10 +38,12 @@ const typeLabels: Record<string, string> = {
   INCREASE_COVERAGE_AMOUNT: "زيادة مبلغ التغطية"
 };
 
-const statusDetails = {
-  DRAFT: { label: "مسودة", className: "border-slate-200 bg-slate-100 text-slate-700", icon: Clock3 },
-  APPROVED: { label: "معتمد", className: "border-emerald-200 bg-emerald-50 text-emerald-700", icon: CheckCircle2 },
-  REJECTED: { label: "مرفوض", className: "border-red-200 bg-red-50 text-red-700", icon: XCircle }
+const statusIcons = {
+  OPEN: Clock3,
+  UNDER_REVIEW: Clock3,
+  APPROVED: CheckCircle2,
+  REJECTED: XCircle,
+  CLOSED: XCircle
 } as const;
 
 export function EndorsementManager({
@@ -57,7 +59,6 @@ export function EndorsementManager({
   canManage: boolean;
   endorsementTypes: { value: string; label: string }[];
 }) {
-  const router = useRouter();
   const [items, setItems] = useLocalCollection("endorsements", endorsements);
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<EndorsementItem | null>(null);
@@ -71,37 +72,47 @@ export function EndorsementManager({
   async function createItem(formData: FormData) {
     setBusy(true);
     setError("");
+    const selectedPolicyNumber = String(formData.get("policyNumber") ?? "");
+    const selectedPolicy = policies.find((policy) => policy.policyNumber === selectedPolicyNumber);
     const response = await fetch("/api/endorsements", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        policyNumber: formData.get("policyNumber"),
+        policyNumber: selectedPolicyNumber,
         endorsementType: formData.get("endorsementType"),
         newValue: { details: formData.get("details") },
         destinationCountryId: formData.get("destinationCountryId"),
         additionalPremium: formData.get("additionalPremium"),
-        status: "DRAFT"
+        status: "OPEN"
       })
     });
-    const result = await response.json();
+    const result = await response.json().catch(() => null);
     setBusy(false);
-    if (!response.ok) return setError(result.error ?? "تعذر إنشاء الملحق");
+    if (!response.ok || !result) return setError(result?.error ?? "تعذر إنشاء الملحق");
+    const policyNumber = result.policy?.policyNumber ?? selectedPolicyNumber;
+    const customerName = result.policy?.customer?.arabicName ?? selectedPolicy?.customerName;
+    if (!policyNumber || !customerName) {
+      return setError("تم إنشاء الملحق، لكن تعذر تحميل بيانات الوثيقة. حدّث الصفحة لعرضه.");
+    }
     setItems((current) => [{
       id: result.id,
       endorsementNumber: result.endorsementNumber,
-      policyNumber: result.policy.policyNumber,
-      customerName: result.policy.customer.arabicName,
+      policyNumber,
+      customerName,
       endorsementType: result.endorsementType,
       details: String(result.newValue?.details ?? ""),
       additionalPremium: String(result.additionalPremium),
       status: result.status,
       createdAt: new Date(result.createdAt).toISOString()
     }, ...current]);
-    router.refresh();
   }
 
   async function updateStatus(formData: FormData) {
     if (!editing) return;
+    if (isFinalizedStatus(editing.status)) {
+      setError("This endorsement is finalized and cannot be modified.");
+      return;
+    }
     setBusy(true);
     setError("");
     const response = await fetch(`/api/endorsements/${editing.id}`, {
@@ -116,7 +127,6 @@ export function EndorsementManager({
       item.id === editing.id ? { ...item, status: result.status } : item
     ));
     setEditing(null);
-    router.refresh();
   }
 
   return (
@@ -133,8 +143,9 @@ export function EndorsementManager({
           </div>
           <div className="space-y-4">
             {filtered.map((item) => {
-              const status = statusDetails[item.status];
-              const StatusIcon = status.icon;
+              const status = workflowStatusDetails[item.status];
+              const StatusIcon = statusIcons[item.status];
+              const finalized = isFinalizedStatus(item.status);
               return (
                 <Card key={item.id} className="overflow-hidden shadow-sm">
                   <CardContent className="p-5">
@@ -147,8 +158,9 @@ export function EndorsementManager({
                           <p className="mt-1 text-sm text-muted-foreground">{item.customerName} — <span dir="ltr">{item.policyNumber}</span></p>
                         </div>
                       </div>
-                      <Badge className={status.className}><StatusIcon className="ml-1 h-3 w-3" />{status.label}</Badge>
+                      <Badge className={status.className}><StatusIcon className="ml-1 h-3 w-3" />{status.labelAr}</Badge>
                     </div>
+                    {finalized ? <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800">This endorsement is finalized and cannot be modified.</div> : null}
                     <p className="mt-4 rounded-xl bg-muted/25 p-3 text-sm leading-6">{item.details}</p>
                     <div className="mt-4 flex flex-col justify-between gap-3 border-t pt-4 sm:flex-row sm:items-center">
                       <div className="flex gap-4 text-sm">
@@ -157,7 +169,7 @@ export function EndorsementManager({
                       </div>
                       <div className="flex gap-2">
                         <Button asChild size="sm" variant="outline"><Link href={`/api/endorsements/${item.id}/pdf`}><Download className="h-4 w-4" />PDF</Link></Button>
-                        {canManage ? <Button type="button" size="sm" variant="outline" className="text-primary" onClick={() => { setError(""); setEditing(item); }}><Pencil className="h-4 w-4" />الحالة</Button> : null}
+                        {canManage ? <Button type="button" size="sm" variant="outline" className="text-primary" disabled={finalized} onClick={() => { setError(""); setEditing(item); }}><Pencil className="h-4 w-4" />الحالة</Button> : null}
                       </div>
                     </div>
                   </CardContent>
@@ -188,7 +200,7 @@ export function EndorsementManager({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
           <Card className="w-full max-w-md shadow-2xl">
             <CardHeader className="flex-row items-start justify-between space-y-0 border-b"><div><CardTitle>تحديث حالة الملحق</CardTitle><p className="mt-1 font-mono text-sm text-primary">{editing.endorsementNumber}</p></div><Button type="button" variant="ghost" size="icon" onClick={() => setEditing(null)}><X className="h-5 w-5" /></Button></CardHeader>
-            <CardContent className="p-5"><form action={updateStatus} className="space-y-5"><Select label="الحالة" name="status" defaultValue={editing.status} options={Object.entries(statusDetails).map(([value, detail]) => ({ value, label: detail.label }))} />{error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}<div className="flex gap-2 border-t pt-5"><Button type="button" variant="outline" className="flex-1" onClick={() => setEditing(null)}>إلغاء</Button><Button type="submit" className="flex-[2]" disabled={busy}>حفظ الحالة</Button></div></form></CardContent>
+            <CardContent className="p-5"><form action={updateStatus} className="space-y-5"><Select label="الحالة" name="status" defaultValue={editing.status} options={Object.entries(workflowStatusDetails).map(([value, detail]) => ({ value, label: detail.labelAr }))} />{error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}<div className="flex gap-2 border-t pt-5"><Button type="button" variant="outline" className="flex-1" onClick={() => setEditing(null)}>إلغاء</Button><Button type="submit" className="flex-[2]" disabled={busy}>حفظ الحالة</Button></div></form></CardContent>
           </Card>
         </div>
       )}

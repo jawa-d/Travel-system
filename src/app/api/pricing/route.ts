@@ -21,11 +21,10 @@ export async function POST(request: NextRequest) {
       const durationMultiplier = input.numberOfDays <= 7 ? 1 : input.numberOfDays <= 30 ? 1.25 : 1.65;
       const countryMultiplier = country.category === "HIGH_RISK" ? 1.75 : country.category === "RESTRICTED" ? 1.35 : 1;
       const premium = plan.price * ageMultiplier * durationMultiplier *
-        Math.sqrt(input.coverageAmount / 10000) * countryMultiplier + country.additionalRiskFee;
+        Math.sqrt(input.coverageAmount / 10000) * countryMultiplier;
       return NextResponse.json({
         age,
         base: plan.price,
-        riskFee: country.additionalRiskFee,
         premium: Number(premium.toFixed(2)),
         countryCategory: country.category,
         planName: plan.name

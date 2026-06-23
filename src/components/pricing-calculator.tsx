@@ -23,7 +23,6 @@ import { formatCurrency } from "@/lib/utils";
 type Result = {
   premium: number;
   age: number;
-  riskFee: number;
   base: number;
   countryCategory: "ALLOWED" | "RESTRICTED" | "HIGH_RISK";
   planName: string;
@@ -168,7 +167,6 @@ export function PricingCalculator({
                 <Detail icon={UserRound} label="عمر المسافر" value={`${result.age} سنة`} />
                 <Detail icon={Clock3} label="مدة الرحلة" value={`${days} يوم`} />
                 <Detail icon={CircleDollarSign} label="السعر الأساسي" value={formatCurrency(result.base)} dir="ltr" />
-                <Detail icon={ShieldCheck} label="رسوم المخاطر" value={formatCurrency(result.riskFee)} dir="ltr" />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">

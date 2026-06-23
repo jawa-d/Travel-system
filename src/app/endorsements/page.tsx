@@ -29,7 +29,7 @@ export default async function EndorsementsPage() {
         <p className="mt-1 text-sm text-muted-foreground">تمديد الرحلة أو تغيير الوجهة أو تحديث البيانات أو زيادة التغطية.</p>
       </div>
       <div className="mb-6 grid gap-3 sm:grid-cols-3">
-        <Stat icon={Clock3} label="المسودات" value={endorsements.filter((item) => item.status === "DRAFT").length} className="text-slate-600 bg-slate-100" />
+        <Stat icon={Clock3} label="المفتوحة" value={endorsements.filter((item) => item.status === "OPEN").length} className="text-blue-600 bg-blue-50" />
         <Stat icon={CheckCircle2} label="المعتمدة" value={endorsements.filter((item) => item.status === "APPROVED").length} className="text-emerald-600 bg-emerald-50" />
         <Stat icon={XCircle} label="المرفوضة" value={endorsements.filter((item) => item.status === "REJECTED").length} className="text-red-600 bg-red-50" />
       </div>

@@ -1,6 +1,6 @@
 import { getDemoPolicies } from "@/lib/demo-policy-store";
 
-export type DemoEndorsementStatus = "DRAFT" | "APPROVED" | "REJECTED";
+export type DemoEndorsementStatus = "OPEN" | "UNDER_REVIEW" | "APPROVED" | "REJECTED" | "CLOSED";
 export type DemoEndorsementType =
   | "EXTEND_TRAVEL_PERIOD"
   | "CHANGE_DESTINATION"
@@ -63,6 +63,7 @@ export function updateDemoEndorsementStatus(id: string, status: DemoEndorsementS
   const items = getDemoEndorsements();
   const index = items.findIndex((item) => item.id === id);
   if (index === -1) return null;
+  if (items[index].status === "REJECTED" || items[index].status === "CLOSED") return "FINALIZED" as const;
   items[index] = { ...items[index], status, updatedAt: new Date() };
   return items[index];
 }

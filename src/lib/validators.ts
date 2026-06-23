@@ -39,7 +39,12 @@ export const planSchema = z.object({
 export const countrySchema = z.object({
   nameAr: z.string().min(2),
   nameEn: z.string().min(2),
-  isoCode: z.string().min(2).max(3).toUpperCase(),
+  isoCode: z.string()
+    .trim()
+    .min(2, "رمز ISO يجب أن يتكون من حرفين على الأقل")
+    .max(3, "رمز ISO يجب ألا يتجاوز 3 أحرف")
+    .regex(/^[A-Za-z]+$/, "رمز ISO يجب أن يحتوي على أحرف إنجليزية فقط")
+    .toUpperCase(),
   category: z.enum(["ALLOWED", "RESTRICTED", "HIGH_RISK"]),
   additionalRiskFee: z.coerce.number().nonnegative().default(0),
   status: z.enum(["ACTIVE", "INACTIVE"])
@@ -79,7 +84,7 @@ export const claimSchema = z.object({
     (value) => value.startsWith("idb://") || /^https?:\/\//.test(value),
     "مرجع المرفق غير صحيح"
   )).default([]),
-  status: z.nativeEnum(ClaimStatus).default("NEW")
+  status: z.nativeEnum(ClaimStatus).default("OPEN")
 });
 
 export const endorsementSchema = z.object({
@@ -88,7 +93,7 @@ export const endorsementSchema = z.object({
   newValue: z.record(z.unknown()),
   destinationCountryId: z.string().optional().or(z.literal("")),
   additionalPremium: z.coerce.number().nonnegative().default(0),
-  status: z.nativeEnum(EndorsementStatus).default("DRAFT")
+  status: z.nativeEnum(EndorsementStatus).default("OPEN")
 });
 
 export const cancellationSchema = z.object({

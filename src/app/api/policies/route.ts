@@ -48,8 +48,7 @@ export async function POST(request: NextRequest) {
       const countryMultiplier = country.category === "HIGH_RISK" ? 1.75 : country.category === "RESTRICTED" ? 1.35 : 1;
       const premium = Number((
         plan.price * ageMultiplier * durationMultiplier *
-        Math.sqrt(payload.coverageAmount / 10000) * countryMultiplier +
-        country.additionalRiskFee
+        Math.sqrt(payload.coverageAmount / 10000) * countryMultiplier
       ).toFixed(2));
       const verificationUrl = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/verify/${policyNumber}`;
       const qrCodeData = await QRCode.toDataURL(verificationUrl);

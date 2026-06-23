@@ -54,7 +54,8 @@ export async function POST(request: NextRequest) {
         status: data.status,
         createdById: user.id,
         createdByName: user.name ?? user.email ?? "System"
-      }
+      },
+      include: { policy: { include: { customer: true } }, destinationCountry: true }
     });
     await writeAuditLog({
       userId: user.id,

@@ -1,6 +1,6 @@
 import { demoClaims } from "@/lib/demo-data";
 
-export type DemoClaimStatus = "NEW" | "UNDER_REVIEW" | "APPROVED" | "REJECTED" | "CLOSED";
+export type DemoClaimStatus = "OPEN" | "UNDER_REVIEW" | "APPROVED" | "REJECTED" | "CLOSED";
 export type DemoClaimType = "MEDICAL" | "BAGGAGE" | "TRIP_DELAY" | "CANCELLATION" | "OTHER";
 
 export type DemoClaim = {
@@ -55,6 +55,7 @@ export function updateDemoClaimStatus(id: string, status: DemoClaimStatus) {
   const claims = getDemoClaims();
   const index = claims.findIndex((claim) => claim.id === id);
   if (index === -1) return null;
+  if (claims[index].status === "REJECTED" || claims[index].status === "CLOSED") return "FINALIZED" as const;
   claims[index] = { ...claims[index], status, updatedAt: new Date() };
   return claims[index];
 }

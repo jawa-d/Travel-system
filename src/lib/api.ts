@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
+import { ZodError } from "zod";
 import { auth } from "@/auth";
 import { can, type Permission } from "@/lib/rbac";
 import { directAccessUser, isDirectAccessEnabled } from "@/lib/direct-access";
@@ -24,6 +25,12 @@ export async function requirePermission(permission: Permission) {
 
 export function jsonError(error: unknown) {
   if (error instanceof Response) return error;
+  if (error instanceof ZodError) {
+    return NextResponse.json(
+      { error: error.issues.map((issue) => issue.message).join("، ") },
+      { status: 400 }
+    );
+  }
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
     return NextResponse.json({ error: "السجل موجود مسبقا" }, { status: 409 });
   }

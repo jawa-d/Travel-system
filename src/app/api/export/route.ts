@@ -29,6 +29,7 @@ const titles: Record<string, string> = {
   notifications: "Notifications",
   audit: "Audit Log",
   agency: "Agency Policies",
+  "agent-accounts": "Agent Accounts",
   reports: "System Report"
 };
 
@@ -49,6 +50,7 @@ async function authorize(resource: string) {
   if (resource === "reports" || resource === "dashboard") return requirePermission("reportsRead");
   if (resource === "claims") return requirePermission("claimsRead");
   if (resource === "agency") return requirePermission("agencyRead");
+  if (resource === "agent-accounts") return requirePermission("agentAccountsRead");
   if (resource === "notifications") return requirePermission("notificationsRead");
   if (resource === "customers") return requirePermission("customersRead");
   return requireUser();
@@ -70,6 +72,8 @@ async function demoRows(resource: string): Promise<ExportRow[]> {
         departureDate: item.departureDate, returnDate: item.returnDate,
         premium: item.premium, coverageAmount: item.coverageAmount, status: item.status
       })));
+    case "agent-accounts":
+      return [];
     case "claims":
       return normalize(demoClaims.map((item) => ({
         claimNumber: item.claimNumber, policyNumber: item.policy.policyNumber,
@@ -166,6 +170,90 @@ async function databaseRows(resource: string, request: NextRequest, user: Awaite
         coverage: item.coverageAmount, premium: item.premium, status: item.status,
         issuedBy: item.issuedByName ?? item.issuedBy?.name ?? "", issueDate: item.issuedAt ?? item.createdAt
       })));
+    case "agent-accounts": {
+      const agents = await prisma.user.findMany({
+        where: {
+          role: "AGENT",
+          ...(q ? {
+            OR: [
+              { name: { contains: q, mode: "insensitive" as const } },
+              { email: { contains: q, mode: "insensitive" as const } }
+            ]
+          } : {})
+        },
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          active: true,
+          agency: { select: { name: true, code: true } },
+          ownedPolicies: {
+            where: {
+              deletedAt: null,
+              ...(status ? { status: status as never } : {}),
+              ...(dateRange ? { createdAt: dateRange } : {})
+            },
+            select: {
+              policyNumber: true,
+              status: true,
+              premium: true,
+              createdAt: true,
+              customer: { select: { arabicName: true } },
+              destinationCountry: { select: { nameAr: true } },
+              cancellation: { select: { refundAmount: true, administrativeFees: true } }
+            }
+          }
+        }
+      });
+      const rows: Record<string, unknown>[] = [];
+      agents.forEach((agent) => {
+        if (agent.ownedPolicies.length) {
+          agent.ownedPolicies.forEach((policy) => {
+            const premium = Number(policy.premium);
+            const commission = policy.status === "ACTIVE" || policy.status === "EXPIRED" ? premium * 0.1 : 0;
+            rows.push({
+              agent: agent.name ?? "Agent",
+              email: agent.email,
+              accountStatus: agent.active ? "ACTIVE" : "INACTIVE",
+              agency: agent.agency?.name ?? "",
+              agencyCode: agent.agency?.code ?? "",
+              policyNumber: policy.policyNumber,
+              customer: policy.customer.arabicName,
+              destination: policy.destinationCountry.nameAr,
+              policyStatus: policy.status,
+              premium,
+              commissionRate: "10%",
+              commission,
+              cancelledCommission: policy.status === "CANCELLED" ? premium * 0.1 : 0,
+              refund: Number(policy.cancellation?.refundAmount ?? 0),
+              administrativeFees: Number(policy.cancellation?.administrativeFees ?? 0),
+              issueDate: policy.createdAt
+            });
+          });
+        } else {
+          rows.push({
+            agent: agent.name ?? "Agent",
+            email: agent.email,
+            accountStatus: agent.active ? "ACTIVE" : "INACTIVE",
+            agency: agent.agency?.name ?? "",
+            agencyCode: agent.agency?.code ?? "",
+            policyNumber: "",
+            customer: "",
+            destination: "",
+            policyStatus: "",
+            premium: 0,
+            commissionRate: "10%",
+            commission: 0,
+            cancelledCommission: 0,
+            refund: 0,
+            administrativeFees: 0,
+            issueDate: ""
+          });
+        }
+      });
+      return normalize(rows);
+    }
     case "claims":
       return normalize((await prisma.claim.findMany({
         where: {

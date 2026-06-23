@@ -64,7 +64,7 @@ enum ClaimType {
 }
 
 enum ClaimStatus {
-  NEW
+  OPEN
   UNDER_REVIEW
   APPROVED
   REJECTED
@@ -92,9 +92,11 @@ enum EndorsementType {
 }
 
 enum EndorsementStatus {
-  DRAFT
+  OPEN
+  UNDER_REVIEW
   APPROVED
   REJECTED
+  CLOSED
 }
 
 enum CancellationReason {
@@ -302,7 +304,7 @@ model Claim {
   claimType    String
   description  String      @db.Text
   attachments  String[]
-  status       ClaimStatus @default(NEW)
+  status       ClaimStatus @default(OPEN)
   createdById  String?
   createdBy    User?       @relation("ClaimCreator", fields: [createdById], references: [id])
   createdAt    DateTime    @default(now())
@@ -323,7 +325,7 @@ model Endorsement {
   destinationCountryId String?
   destinationCountry Country?          @relation(fields: [destinationCountryId], references: [id])
   additionalPremium  Decimal           @default(0) @db.Decimal(10, 2)
-  status             EndorsementStatus @default(DRAFT)
+  status             EndorsementStatus @default(OPEN)
   createdById        String?
   createdByName      String?
   createdAt          DateTime          @default(now())

@@ -8,7 +8,7 @@ import { isDirectAccessEnabled } from "@/lib/direct-access";
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const data = countrySchema.parse(await request.json());
+    const data = { ...countrySchema.parse(await request.json()), additionalRiskFee: 0 };
     if (isDirectAccessEnabled()) {
       const country = updateDemoCountry(id, data);
       if (!country) return NextResponse.json({ error: "الدولة غير موجودة" }, { status: 404 });
