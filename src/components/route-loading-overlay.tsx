@@ -31,7 +31,7 @@ export function RouteLoadingOverlay() {
   const startLoading = useCallback(() => {
     clearTimers();
     setLoading(true);
-    fallbackTimeoutRef.current = setTimeout(() => setLoading(false), 10000);
+    fallbackTimeoutRef.current = setTimeout(() => setLoading(false), 5000);
   }, [clearTimers]);
 
   const scheduleStartLoading = useCallback(() => {
@@ -43,7 +43,7 @@ export function RouteLoadingOverlay() {
     hideTimeoutRef.current = setTimeout(() => {
       setLoading(false);
       if (fallbackTimeoutRef.current) clearTimeout(fallbackTimeoutRef.current);
-    }, 420);
+    }, 140);
   }, []);
 
   useEffect(() => {

@@ -46,13 +46,13 @@ export type ExecutiveDashboardData = {
 };
 
 const metricCards = [
-  { key: "totalCustomers", label: "إجمالي العملاء", en: "Total Customers", icon: Users },
-  { key: "totalPolicies", label: "إجمالي الوثائق", en: "Total Policies", icon: FileText },
-  { key: "activePolicies", label: "الوثائق الفعّالة", en: "Active Policies", icon: ShieldCheck },
-  { key: "totalClaims", label: "إجمالي المطالبات", en: "Total Claims", icon: ClipboardList },
-  { key: "totalEndorsements", label: "إجمالي الملاحق", en: "Total Endorsements", icon: FileClock },
-  { key: "totalCancellations", label: "إجمالي الإلغاءات", en: "Total Cancellations", icon: ShieldX },
-  { key: "totalAgents", label: "إجمالي الوكلاء", en: "Total Agents", icon: BriefcaseBusiness }
+  { key: "totalCustomers", label: "إجمالي العملاء", icon: Users },
+  { key: "totalPolicies", label: "إجمالي الوثائق", icon: FileText },
+  { key: "activePolicies", label: "الوثائق الفعّالة", icon: ShieldCheck },
+  { key: "totalClaims", label: "إجمالي المطالبات", icon: ClipboardList },
+  { key: "totalEndorsements", label: "إجمالي الملاحق", icon: FileClock },
+  { key: "totalCancellations", label: "إجمالي الإلغاءات", icon: ShieldX },
+  { key: "totalAgents", label: "إجمالي الوكلاء", icon: BriefcaseBusiness }
 ] as const;
 
 const statusColors: Record<string, string> = {
@@ -101,7 +101,6 @@ export function ExecutiveDashboard({ data }: { data: ExecutiveDashboardData }) {
                 <CardContent className="p-5">
                   <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#293545] text-[#d9bd7e]"><Icon className="h-5 w-5" /></span>
                   <p className="mt-5 text-xs font-bold text-[#727982]">{card.label}</p>
-                  <p className="mt-1 text-[10px] uppercase tracking-wider text-[#AE8F50]">{card.en}</p>
                   <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: .25 + index * .05 }} className="mt-3 text-3xl font-black text-[#293545]">{value}</motion.p>
                 </CardContent>
               </Card>

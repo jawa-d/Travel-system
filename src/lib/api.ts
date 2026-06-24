@@ -32,7 +32,7 @@ export function jsonError(error: unknown) {
     );
   }
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-    return NextResponse.json({ error: "السجل موجود مسبقا" }, { status: 409 });
+    return NextResponse.json({ error: "السجل موجود مسبقاً" }, { status: 409 });
   }
   const message = error instanceof Error ? error.message : "حدث خطأ غير متوقع";
   return NextResponse.json({ error: message }, { status: 400 });

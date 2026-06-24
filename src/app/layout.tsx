@@ -3,20 +3,17 @@ import { cookies } from "next/headers";
 import "./globals.css";
 import { AppProviders } from "@/components/app-providers";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
-import { localeMeta, normalizeLocale } from "@/lib/i18n";
 
 export const metadata: Metadata = {
-  title: { default: "TRINSU | Travel Insurance Management", template: "%s | TRINSU" },
-  description: "Travel insurance policy management platform"
+  title: { default: "TRINSU | إدارة تأمين السفر", template: "%s | TRINSU" },
+  description: "منصة إدارة وثائق تأمين السفر"
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const demoMode = isDirectAccessEnabled();
   const cookieStore = await cookies();
-  const locale = normalizeLocale(cookieStore.get("locale")?.value);
   const cookieTheme = cookieStore.get("theme")?.value;
   const theme = cookieTheme === "light" || cookieTheme === "dark" ? cookieTheme : "system";
-  const meta = localeMeta[locale];
   const themeScript = `
 try {
   const storedTheme = localStorage.getItem('trinsu:theme');
@@ -30,11 +27,11 @@ try {
 `;
 
   return (
-    <html lang={meta.htmlLang} dir={meta.dir} suppressHydrationWarning data-demo-mode={demoMode ? "true" : "false"} data-theme={theme}>
+    <html lang="ar" dir="rtl" suppressHydrationWarning data-demo-mode={demoMode ? "true" : "false"} data-theme={theme}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className={meta.fontClass}>
+      <body className="font-arabic">
         <AppProviders>{children}</AppProviders>
       </body>
     </html>

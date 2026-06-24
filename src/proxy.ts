@@ -1,6 +1,5 @@
 import { auth } from "@/auth";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
-import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 function requestOrigin(request: Parameters<Parameters<typeof auth>[0]>[0]) {
@@ -38,15 +37,6 @@ export default auth(async (request) => {
 
   if (!isLoggedIn || !isActive) {
     return loginRedirect(request);
-  }
-
-  const userId = request.auth?.user?.id;
-  if (userId) {
-    const account = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { active: true }
-    }).catch(() => null);
-    if (!account?.active) return loginRedirect(request);
   }
 
   if (role === "AGENT" && !path.startsWith("/api/")) {
