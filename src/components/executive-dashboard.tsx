@@ -66,7 +66,7 @@ const policyLabels: Record<string, string> = {
 
 export function ExecutiveDashboard({ data }: { data: ExecutiveDashboardData }) {
   return (
-    <div className="-m-4 min-h-screen bg-[#F1ECE2] p-4 sm:-m-6 sm:p-6 lg:-m-7 lg:p-7 xl:-m-8 xl:p-8">
+    <div className="min-h-screen w-full bg-[#F1ECE2]">
       <motion.section
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}

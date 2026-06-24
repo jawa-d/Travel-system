@@ -190,7 +190,7 @@ export function AgentAccountsDashboard({ accounts }: { accounts: AgentAccount[] 
                     </div>
                   </div>
 
-                  <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:max-w-3xl">
+                  <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <MiniMetric label="الوثائق" value={account.visiblePolicies.length} icon={FileText} />
                     <MiniMetric label="الأقساط" value={formatCurrency(premium)} icon={Banknote} />
                     <MiniMetric label="العمولة" value={formatCurrency(commission)} icon={BadgeDollarSign} />

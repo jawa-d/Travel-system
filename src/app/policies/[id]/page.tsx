@@ -69,7 +69,7 @@ export default async function PolicyDetailsPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.4fr_0.8fr]">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)]">
         <div className="space-y-6">
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" />بيانات التغطية والرحلة</CardTitle></CardHeader>

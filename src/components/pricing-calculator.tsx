@@ -80,7 +80,7 @@ export function PricingCalculator({
   }
 
   return (
-    <div className="grid items-start gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
+    <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(320px,0.36fr)_minmax(0,1fr)]">
       <Card className="shadow-sm xl:sticky xl:top-24">
         <CardHeader className="border-b bg-muted/15">
           <CardTitle className="flex items-center gap-2">

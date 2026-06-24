@@ -49,7 +49,7 @@ export default async function PlansPage() {
         </div>
       </div>
 
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.34fr)]">
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <div>

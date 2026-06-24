@@ -65,7 +65,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         <Metric icon={FileText} label="المطالبات" value={claims.length} />
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1.3fr_1fr]">
+      <div className="mt-6 grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
         <Card>
           <CardHeader><CardTitle>أعلى الوجهات</CardTitle></CardHeader>
           <CardContent className="space-y-4">

@@ -233,7 +233,7 @@ export function PolicyWizard({
         </CardContent>
       </Card>
 
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.28fr)]">
         <Card className="min-h-[460px] shadow-sm">
           <CardHeader className="border-b bg-muted/15">
             <CardTitle>{steps[step - 1]?.title ?? "مراجعة وإصدار الوثيقة"}</CardTitle>

@@ -69,7 +69,7 @@ export function AgentManager({ agents: initialAgents }: { agents: Agent[] }) {
 
   return (
     <>
-      <div className="mb-8 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="mb-8 grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.34fr)]">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

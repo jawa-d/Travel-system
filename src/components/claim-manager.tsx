@@ -140,7 +140,7 @@ export function ClaimManager({
 
   return (
     <>
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.34fr)]">
         <section>
           <div className="mb-4 flex flex-col gap-3 rounded-xl border bg-card p-3 shadow-sm sm:flex-row">
             <div className="relative flex-1">

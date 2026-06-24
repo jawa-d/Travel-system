@@ -102,7 +102,7 @@ export function CustomerProfile({
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(320px,0.32fr)_minmax(0,1fr)]">
         <Card>
           <CardHeader><CardTitle>بيانات العميل</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm">

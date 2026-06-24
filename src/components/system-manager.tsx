@@ -134,7 +134,7 @@ export function SystemManager({ users: initialUsers, currentUserId }: { users: S
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.3fr_0.8fr]">
+    <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-primary" />المستخدمون والصلاحيات</CardTitle></CardHeader>
         <CardContent className="space-y-5">

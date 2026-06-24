@@ -50,7 +50,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
           </p>
         </div>
 
-        <form className="flex w-full gap-2 lg:max-w-xl">
+        <form className="flex w-full gap-2 lg:w-[min(100%,48rem)]">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -71,7 +71,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
         </form>
       </div>
 
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.34fr)]">
         <Card className="overflow-hidden border-border/80 shadow-sm">
           <CardHeader className="border-b bg-muted/20 px-5 py-4 sm:px-6">
             <div className="flex items-center justify-between gap-4">

@@ -30,11 +30,11 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       }).catch(() => 0);
 
   return (
-    <div className="min-h-screen bg-[#f5f7fa] dark:bg-background">
+    <div className="min-h-screen overflow-x-hidden bg-[#f5f7fa] dark:bg-background">
       {isDirectAccessEnabled() ? <LocalNotificationSync /> : null}
       <AppNavigation locale={locale} role={user.role} />
-      <main className="lg:pr-64 xl:pr-72">
-        <header className="sticky top-0 z-30 flex h-[73px] items-center justify-between border-b border-slate-200/70 bg-white/90 px-4 shadow-[0_1px_8px_rgba(15,23,42,0.03)] backdrop-blur-xl dark:border-border dark:bg-card/90 sm:px-5 lg:px-7">
+      <main className="min-w-0 w-full lg:pr-64 xl:pr-72">
+        <header className="sticky top-0 z-30 flex h-[73px] min-w-0 items-center justify-between gap-3 border-b border-slate-200/70 bg-white/90 px-3 shadow-[0_1px_8px_rgba(15,23,42,0.03)] backdrop-blur-xl dark:border-border dark:bg-card/90 sm:px-4 lg:px-5 xl:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <AppNavigation locale={locale} role={user.role} mobileOnly />
             <div className="hidden h-7 w-px bg-slate-200 sm:block lg:hidden" />
@@ -88,7 +88,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             </details>
           </div>
         </header>
-        <div className="mx-auto max-w-[1540px] p-4 sm:p-6 lg:p-7 xl:p-8">{children}</div>
+        <div className="w-full max-w-none p-3 sm:p-4 lg:p-5 xl:p-6 2xl:p-7">{children}</div>
       </main>
     </div>
   );

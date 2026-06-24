@@ -67,7 +67,7 @@ export function LookupManager({ initialValues }: { initialValues: Lookup[] }) {
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[260px_1fr]">
+    <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(240px,0.22fr)_minmax(0,1fr)]">
       <Card><CardContent className="space-y-2 p-3">
         {Object.entries(categories).map(([value, label]) => (
           <button key={value} type="button" onClick={() => setCategory(value as keyof typeof categories)}

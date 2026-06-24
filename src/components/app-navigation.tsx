@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -108,7 +109,16 @@ export function AppNavigation({ locale, role, mobileOnly = false }: { locale: Lo
     )}>
       <div className="flex h-[73px] shrink-0 items-center justify-between border-b border-slate-200/70 px-5">
         <Link href="/" onClick={() => setOpen(false)} className="flex min-w-0 items-center gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary to-cyan-600 text-lg font-black text-white shadow-lg shadow-primary/20">T</span>
+          <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-primary/10 bg-white p-1.5 shadow-lg shadow-primary/10">
+            <Image
+              src="/iraq-takaful-logo.svg"
+              alt="Iraq Takaful Insurance Company logo"
+              width={44}
+              height={44}
+              priority
+              className="h-full w-full object-contain"
+            />
+          </span>
           <span className="min-w-0">
             <span className="block text-lg font-black leading-5 tracking-tight text-slate-950 dark:text-foreground">TRINSU</span>
             <span className="block truncate text-[10px] font-medium text-slate-400">{isArabic ? "إدارة تأمين السفر" : "Travel Insurance"}</span>

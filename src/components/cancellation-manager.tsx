@@ -132,7 +132,7 @@ export function CancellationManager({
 
   return (
     <>
-    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_370px]">
+    <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.34fr)]">
       <section>
         <div className="mb-4 flex gap-2">
           <div className="relative flex-1">
