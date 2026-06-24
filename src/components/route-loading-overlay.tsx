@@ -1,52 +1,89 @@
 "use client";
 
-import Image from "next/image";
+import { AnimatePresence } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { BrandedLoadingScreen } from "@/components/branded-loading-screen";
+
+function isModifiedClick(event: MouseEvent) {
+  return event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
+}
+
+function isRoutableUrl(href: string, currentUrl: string) {
+  if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) return false;
+
+  const nextUrl = new URL(href, currentUrl);
+  const current = new URL(currentUrl);
+  return nextUrl.origin === current.origin && `${nextUrl.pathname}${nextUrl.search}` !== `${current.pathname}${current.search}`;
+}
 
 export function RouteLoadingOverlay() {
   const pathname = usePathname();
-  const [loading, setLoading] = useState(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fallbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const startLoading = useCallback(() => {
-    setLoading(true);
+  const clearTimers = useCallback(() => {
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     if (fallbackTimeoutRef.current) clearTimeout(fallbackTimeoutRef.current);
-    fallbackTimeoutRef.current = setTimeout(() => setLoading(false), 8000);
+  }, []);
+
+  const startLoading = useCallback(() => {
+    clearTimers();
+    setLoading(true);
+    fallbackTimeoutRef.current = setTimeout(() => setLoading(false), 10000);
+  }, [clearTimers]);
+
+  const scheduleStartLoading = useCallback(() => {
+    window.setTimeout(startLoading, 0);
+  }, [startLoading]);
+
+  const finishLoading = useCallback(() => {
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    hideTimeoutRef.current = setTimeout(() => {
+      setLoading(false);
+      if (fallbackTimeoutRef.current) clearTimeout(fallbackTimeoutRef.current);
+    }, 420);
   }, []);
 
   useEffect(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => setLoading(false), 220);
-    if (fallbackTimeoutRef.current) clearTimeout(fallbackTimeoutRef.current);
+    if (document.readyState === "complete") {
+      finishLoading();
+      return;
+    }
 
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, [pathname]);
+    window.addEventListener("load", finishLoading, { once: true });
+    return () => window.removeEventListener("load", finishLoading);
+  }, [finishLoading]);
 
   useEffect(() => {
+    finishLoading();
+  }, [finishLoading, pathname]);
+
+  useEffect(() => {
+    const originalPushState = window.history.pushState;
+    const originalReplaceState = window.history.replaceState;
+
     function handleDocumentClick(event: MouseEvent) {
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-        return;
-      }
+      if (event.defaultPrevented || event.button !== 0 || isModifiedClick(event)) return;
 
       const link = (event.target as HTMLElement | null)?.closest("a[href]");
       if (!link) return;
 
-      const href = link.getAttribute("href");
       const target = link.getAttribute("target");
-      if (!href || target === "_blank" || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) {
-        return;
-      }
+      const download = link.getAttribute("download");
+      const href = link.getAttribute("href");
+      if (target === "_blank" || download !== null || !href || !isRoutableUrl(href, window.location.href)) return;
 
-      const nextUrl = new URL(href, window.location.href);
-      if (nextUrl.origin !== window.location.origin) return;
+      startLoading();
+    }
 
-      const currentPath = `${window.location.pathname}${window.location.search}`;
-      const nextPath = `${nextUrl.pathname}${nextUrl.search}`;
-      if (nextPath === currentPath) return;
+    function handleSubmit(event: SubmitEvent) {
+      if (event.defaultPrevented) return;
+
+      const form = event.target as HTMLFormElement | null;
+      const target = form?.getAttribute("target");
+      if (target === "_blank") return;
 
       startLoading();
     }
@@ -55,37 +92,41 @@ export function RouteLoadingOverlay() {
       startLoading();
     }
 
+    function handleBeforeUnload() {
+      startLoading();
+    }
+
+    window.history.pushState = function pushState(...args) {
+      const url = args[2];
+      if (typeof url === "string" && isRoutableUrl(url, window.location.href)) scheduleStartLoading();
+      return originalPushState.apply(this, args);
+    };
+
+    window.history.replaceState = function replaceState(...args) {
+      const url = args[2];
+      if (typeof url === "string" && isRoutableUrl(url, window.location.href)) scheduleStartLoading();
+      return originalReplaceState.apply(this, args);
+    };
+
     window.addEventListener("popstate", handlePopState);
+    window.addEventListener("beforeunload", handleBeforeUnload);
     document.addEventListener("click", handleDocumentClick);
+    document.addEventListener("submit", handleSubmit);
 
     return () => {
+      window.history.pushState = originalPushState;
+      window.history.replaceState = originalReplaceState;
       window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("click", handleDocumentClick);
-      if (fallbackTimeoutRef.current) clearTimeout(fallbackTimeoutRef.current);
+      document.removeEventListener("submit", handleSubmit);
+      clearTimers();
     };
-  }, [startLoading]);
-
-  if (!loading) return null;
+  }, [clearTimers, scheduleStartLoading, startLoading]);
 
   return (
-    <div className="route-loader fixed inset-0 z-[100] grid place-items-center bg-white/82 backdrop-blur-md dark:bg-slate-950/78">
-      <div className="route-loader-card grid place-items-center gap-4 rounded-2xl border border-primary/10 bg-white/90 px-8 py-7 shadow-2xl shadow-primary/15 dark:border-white/10 dark:bg-card/90">
-        <div className="route-loader-logo relative grid h-24 w-24 place-items-center rounded-2xl bg-white p-3 shadow-lg shadow-slate-900/10">
-          <Image
-            src="/iraq-takaful-logo.svg"
-            alt="Iraq Takaful Insurance Company logo"
-            width={88}
-            height={88}
-            priority
-            className="h-full w-full object-contain"
-          />
-        </div>
-        <div className="flex items-center gap-1.5" aria-label="Loading page">
-          <span className="route-loader-dot" />
-          <span className="route-loader-dot" />
-          <span className="route-loader-dot" />
-        </div>
-      </div>
-    </div>
+    <AnimatePresence mode="wait">
+      {loading ? <BrandedLoadingScreen key="global-route-loader" fixed /> : null}
+    </AnimatePresence>
   );
 }
