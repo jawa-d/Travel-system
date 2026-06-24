@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import type { Locale } from "@/lib/i18n";
 
 const pages = {
   ar: {
@@ -19,53 +20,54 @@ const pages = {
     "/agent-accounts": ["حسابات الوكلاء", "الإنتاج والأقساط والعمولات والتسويات"],
     "/plans": ["خطط السفر", "التغطيات وأسعار الخطط"],
     "/countries": ["الدول", "تصنيف الوجهات والمخاطر"],
+    "/lookups": ["القوائم الديناميكية", "إدارة القيم المرجعية"],
     "/notifications": ["الإشعارات", "تنبيهات النظام والوثائق"],
     "/audit": ["سجل التدقيق", "متابعة العمليات والتغييرات"],
-    "/system": ["إدارة النظام", "المستخدمون والنسخ الاحتياطي"]
-    ,"/lookups": ["القوائم الديناميكية", "إدارة القيم المرجعية"]
-    ,"/profile": ["الملف الشخصي", "إعدادات الحساب والواجهة"]
+    "/system": ["إدارة النظام", "المستخدمون والنسخ الاحتياطي"],
+    "/profile": ["الملف الشخصي", "إعدادات الحساب والواجهة"]
   },
   en: {
     "/": ["Dashboard", "Insurance business overview"],
     "/customers": ["Customers", "Manage customer records"],
     "/policies": ["Policies", "Manage travel policies"],
-    "/policies/new": ["Issue policy", "Create a new policy"],
+    "/policies/new": ["Issue Policy", "Create a new insurance policy"],
     "/claims": ["Claims", "Manage insurance claims"],
     "/endorsements": ["Endorsements", "Policy modifications"],
     "/cancellations": ["Cancellations", "Policy cancellations"],
-    "/pricing": ["Pricing", "Calculate insurance premiums"],
+    "/pricing": ["Pricing Calculator", "Calculate insurance premiums"],
     "/reports": ["Reports", "Analytics and insights"],
-    "/agency": ["Agency portal", "Agency production and commission"],
-    "/agent-accounts": ["Agent accounts", "Production, premiums and commissions"],
-    "/plans": ["Travel plans", "Coverage and pricing"],
+    "/agency": ["Agency Portal", "Agency production and commissions"],
+    "/agent-accounts": ["Agent Accounts", "Production, premiums, commissions and settlements"],
+    "/plans": ["Travel Plans", "Coverage and pricing"],
     "/countries": ["Countries", "Destination risk management"],
+    "/lookups": ["Lookups", "Reference value management"],
     "/notifications": ["Notifications", "System and policy alerts"],
-    "/audit": ["Audit log", "Track system operations"],
-    "/system": ["System", "Users and backup management"]
-    ,"/lookups": ["Lookups", "Reference value management"]
-    ,"/profile": ["Profile", "Account and interface settings"]
+    "/audit": ["Audit Logs", "Track system operations"],
+    "/system": ["System", "Users and backup management"],
+    "/profile": ["Profile", "Account and interface settings"]
   }
 } as const;
 
-export function PageContext({ locale }: { locale: "ar" | "en" }) {
+export function PageContext({ locale }: { locale: Locale }) {
   const pathname = usePathname();
   const exact = pages[locale][pathname as keyof typeof pages.ar];
   const parentPath = Object.keys(pages[locale])
     .filter((path) => path !== "/" && pathname.startsWith(`${path}/`))
     .sort((a, b) => b.length - a.length)[0];
   const context = exact ?? pages[locale][parentPath as keyof typeof pages.ar] ?? pages[locale]["/"];
+  const Chevron = locale === "ar" ? ChevronLeft : ChevronRight;
 
   return (
     <div className="hidden min-w-0 sm:block">
       {pathname !== "/" ? (
         <div className="mb-0.5 flex items-center gap-1 text-[10px] text-slate-400">
           <Link href="/" className="hover:text-primary">{locale === "ar" ? "الرئيسية" : "Home"}</Link>
-          <ChevronLeft className="h-3 w-3" />
+          <Chevron className="h-3 w-3" />
           <span className="truncate">{context[0]}</span>
         </div>
       ) : null}
       <h2 className="truncate text-sm font-extrabold text-slate-900 dark:text-foreground">{context[0]}</h2>
-      <p className="truncate text-[11px] text-slate-500">{context[1]}</p>
+      <p className="truncate text-[11px] text-slate-500 dark:text-muted-foreground">{context[1]}</p>
     </div>
   );
 }

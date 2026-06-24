@@ -4,8 +4,35 @@ import jsPDF from "jspdf";
 import QRCode from "qrcode";
 
 const ARABIC_FONT_FILE = "ArabicTypesetting.ttf";
-const ARABIC_FONT_NAME = "ArabicTypesetting";
+const ARABIC_FONT_NAME = "Tajawal";
+const ENGLISH_FONT_NAME = "helvetica";
+const NAVY = [41, 53, 69] as const;
+const GOLD = [174, 143, 80] as const;
+const LIGHT = [241, 236, 226] as const;
+const BORDER = [216, 210, 197] as const;
+const TEXT = [35, 43, 55] as const;
+const MUTED = [101, 113, 130] as const;
 let arabicFontBase64: string | null = null;
+
+type Locale = "ar" | "en";
+type PdfField = { label: string; value?: string | number | null };
+type PdfSection = { title: string; fields: PdfField[] };
+type PdfTable = { title: string; columns: string[]; rows: Array<Array<string | number | null | undefined>>; totals?: PdfField[] };
+
+type CorporatePdfInput = {
+  title: string;
+  documentNumber: string;
+  documentType?: string;
+  locale?: Locale;
+  generatedBy?: string;
+  issueDate?: string;
+  customerName?: string;
+  qrPayload?: Record<string, unknown> | string;
+  sections?: PdfSection[];
+  tables?: PdfTable[];
+  terms?: string[];
+  approvalStatus?: string;
+};
 
 function registerArabicFont(doc: jsPDF) {
   arabicFontBase64 ??= readFileSync(join(process.cwd(), "public", "fonts", ARABIC_FONT_FILE)).toString("base64");
@@ -14,35 +41,222 @@ function registerArabicFont(doc: jsPDF) {
   doc.addFont(ARABIC_FONT_FILE, ARABIC_FONT_NAME, "bold");
 }
 
-function arabic(doc: jsPDF, value: string) {
-  return doc.processArabic(value);
+function isArabicText(value: string) {
+  return /[\u0600-\u06ff]/.test(value);
 }
 
-function rtlText(doc: jsPDF, value: string, x: number, y: number, options: { maxWidth?: number; align?: "right" | "center" } = {}) {
-  doc.setFont(ARABIC_FONT_NAME, "normal");
-  doc.text(arabic(doc, value), x, y, {
-    align: options.align ?? "right",
+function processText(doc: jsPDF, value: string) {
+  return isArabicText(value) ? doc.processArabic(value) : value;
+}
+
+function setFont(doc: jsPDF, value: string, style: "normal" | "bold" = "normal") {
+  doc.setFont(isArabicText(value) ? ARABIC_FONT_NAME : ENGLISH_FONT_NAME, style);
+}
+
+function text(doc: jsPDF, value: string, x: number, y: number, options: { maxWidth?: number; align?: "left" | "right" | "center"; size?: number; style?: "normal" | "bold"; color?: readonly number[] } = {}) {
+  const color = options.color ?? TEXT;
+  doc.setTextColor(color[0], color[1], color[2]);
+  doc.setFontSize(options.size ?? 9);
+  setFont(doc, value, options.style);
+  doc.text(processText(doc, value), x, y, {
+    align: options.align ?? (isArabicText(value) ? "right" : "left"),
     maxWidth: options.maxWidth
   });
 }
 
-function field(doc: jsPDF, labelAr: string, labelEn: string, value: string, x: number, y: number, width: number) {
-  doc.setDrawColor(218, 226, 232);
-  doc.setFillColor(249, 251, 252);
-  doc.roundedRect(x, y, width, 17, 2, 2, "FD");
-  doc.setFontSize(8);
-  doc.setTextColor(94, 108, 122);
-  rtlText(doc, labelAr, x + width - 4, y + 5);
-  doc.setFont("helvetica", "normal");
-  doc.text(labelEn, x + 4, y + 5);
-  doc.setFontSize(10);
-  doc.setTextColor(18, 32, 45);
-  const isArabic = /[\u0600-\u06ff]/.test(value);
-  if (isArabic) rtlText(doc, value, x + width - 4, y + 12.5, { maxWidth: width - 8 });
-  else {
-    doc.setFont("helvetica", "bold");
-    doc.text(value || "-", x + 4, y + 12.5, { maxWidth: width - 8 });
+function safe(value: unknown) {
+  if (value === null || value === undefined || value === "") return "-";
+  return String(value);
+}
+
+function nowStamp() {
+  return new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Baghdad"
+  }).format(new Date());
+}
+
+function addWatermark(doc: jsPDF) {
+  const pageCount = doc.getNumberOfPages();
+  for (let page = 1; page <= pageCount; page += 1) {
+    doc.setPage(page);
+    doc.setTextColor(232, 228, 219);
+    doc.setFont(ENGLISH_FONT_NAME, "bold");
+    doc.setFontSize(54);
+    doc.text("TRINSU", 105, 155, { align: "center", angle: -28 });
   }
+}
+
+function addHeader(doc: jsPDF, input: Required<Pick<CorporatePdfInput, "title" | "documentNumber" | "documentType" | "issueDate">>) {
+  doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
+  doc.rect(0, 0, 210, 32, "F");
+  doc.setFillColor(GOLD[0], GOLD[1], GOLD[2]);
+  doc.rect(0, 32, 210, 2.4, "F");
+
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(14, 7, 20, 20, 3, 3, "F");
+  doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
+  doc.setFont(ENGLISH_FONT_NAME, "bold");
+  doc.setFontSize(9);
+  doc.text("TRI", 19, 19);
+
+  text(doc, "TRINSU", 40, 14, { size: 18, style: "bold", color: [255, 255, 255] });
+  text(doc, "Travel Insurance Management System", 40, 21, { size: 8, color: [238, 242, 247] });
+  text(doc, "Iraq Takaful Insurance Company", 40, 27, { size: 7, color: [219, 226, 235] });
+
+  text(doc, input.title, 196, 14, { size: 13, style: "bold", color: [255, 255, 255], align: "right", maxWidth: 78 });
+  text(doc, `${input.documentType} # ${input.documentNumber}`, 196, 22, { size: 8, color: [238, 242, 247], align: "right" });
+  text(doc, `Issue Date: ${input.issueDate}`, 196, 28, { size: 7, color: [219, 226, 235], align: "right" });
+}
+
+function addFooter(doc: jsPDF, generatedBy: string) {
+  const pageCount = doc.getNumberOfPages();
+  for (let page = 1; page <= pageCount; page += 1) {
+    doc.setPage(page);
+    doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
+    doc.line(14, 279, 196, 279);
+    text(doc, `Page ${page} of ${pageCount}`, 14, 285, { size: 7, color: MUTED });
+    text(doc, `Generated by: ${generatedBy}`, 55, 285, { size: 7, color: MUTED });
+    text(doc, `Generated: ${nowStamp()}`, 111, 285, { size: 7, color: MUTED });
+    text(doc, "TRINSU | support@trinsu.local | www.trinsu.local", 196, 285, { size: 7, color: MUTED, align: "right" });
+    text(doc, `© ${new Date().getFullYear()} Iraq Takaful Insurance Company. All rights reserved.`, 105, 291, { size: 6.5, color: MUTED, align: "center" });
+  }
+}
+
+function ensureSpace(doc: jsPDF, y: number, needed = 24) {
+  if (y + needed <= 274) return y;
+  doc.addPage();
+  return 42;
+}
+
+function drawSection(doc: jsPDF, section: PdfSection, startY: number, locale: Locale) {
+  let y = ensureSpace(doc, startY, 28);
+  doc.setFillColor(LIGHT[0], LIGHT[1], LIGHT[2]);
+  doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
+  doc.roundedRect(14, y, 182, 9, 2, 2, "FD");
+  text(doc, section.title, locale === "ar" ? 192 : 18, y + 6.2, { size: 10, style: "bold", color: NAVY, align: locale === "ar" ? "right" : "left" });
+  y += 13;
+
+  const colWidth = 88;
+  const rowHeight = 15;
+  section.fields.forEach((field, index) => {
+    y = ensureSpace(doc, y, rowHeight + 2);
+    const col = index % 2;
+    const x = locale === "ar" ? (col === 0 ? 108 : 14) : (col === 0 ? 14 : 108);
+    if (index > 0 && col === 0) y += rowHeight + 2;
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
+    doc.roundedRect(x, y, colWidth, rowHeight, 2, 2, "FD");
+    text(doc, field.label, locale === "ar" ? x + colWidth - 4 : x + 4, y + 5, { size: 7.5, color: MUTED, align: locale === "ar" ? "right" : "left" });
+    text(doc, safe(field.value), locale === "ar" ? x + colWidth - 4 : x + 4, y + 11.5, { size: 9, style: "bold", color: TEXT, align: locale === "ar" ? "right" : "left", maxWidth: colWidth - 8 });
+  });
+  return y + rowHeight + 8;
+}
+
+function drawTable(doc: jsPDF, table: PdfTable, startY: number, locale: Locale) {
+  let y = ensureSpace(doc, startY, 34);
+  text(doc, table.title, locale === "ar" ? 196 : 14, y, { size: 10, style: "bold", color: NAVY, align: locale === "ar" ? "right" : "left" });
+  y += 5;
+  const x = 14;
+  const width = 182;
+  const colWidth = width / Math.max(table.columns.length, 1);
+  doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
+  doc.rect(x, y, width, 8, "F");
+  table.columns.forEach((column, index) => {
+    text(doc, column, x + index * colWidth + colWidth / 2, y + 5.4, { size: 7.2, style: "bold", color: [255, 255, 255], align: "center", maxWidth: colWidth - 3 });
+  });
+  y += 8;
+
+  table.rows.forEach((row, rowIndex) => {
+    y = ensureSpace(doc, y, 8);
+    doc.setFillColor(rowIndex % 2 === 0 ? 255 : 249, rowIndex % 2 === 0 ? 255 : 250, rowIndex % 2 === 0 ? 255 : 247);
+    doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
+    doc.rect(x, y, width, 8, "FD");
+    row.forEach((cell, index) => {
+      text(doc, safe(cell), x + index * colWidth + colWidth / 2, y + 5.3, { size: 7, color: TEXT, align: "center", maxWidth: colWidth - 3 });
+    });
+    y += 8;
+  });
+
+  if (table.totals?.length) {
+    y += 3;
+    doc.setFillColor(LIGHT[0], LIGHT[1], LIGHT[2]);
+    doc.setDrawColor(GOLD[0], GOLD[1], GOLD[2]);
+    doc.roundedRect(114, y, 82, 8 + table.totals.length * 6, 2, 2, "FD");
+    table.totals.forEach((item, index) => {
+      text(doc, `${item.label}: ${safe(item.value)}`, 192, y + 6 + index * 6, { size: 8, style: "bold", color: NAVY, align: "right" });
+    });
+    y += 11 + table.totals.length * 6;
+  }
+  return y + 5;
+}
+
+function drawSignatures(doc: jsPDF, y: number, approvalStatus: string, locale: Locale) {
+  y = ensureSpace(doc, y, 45);
+  const cards = [
+    { title: locale === "ar" ? "التوقيع المخول" : "Authorized Signature", value: "Authorized Officer" },
+    { title: locale === "ar" ? "ختم الشركة" : "Company Stamp", value: "TRINSU" },
+    { title: locale === "ar" ? "حالة الموافقة" : "Approval Status", value: approvalStatus }
+  ];
+  cards.forEach((card, index) => {
+    const x = 14 + index * 62;
+    doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
+    doc.roundedRect(x, y, 58, 32, 2, 2);
+    text(doc, card.title, x + 29, y + 7, { size: 8, color: MUTED, align: "center" });
+    if (index === 1) {
+      doc.setDrawColor(GOLD[0], GOLD[1], GOLD[2]);
+      doc.circle(x + 29, y + 19, 9);
+      text(doc, card.value, x + 29, y + 21, { size: 8, style: "bold", color: NAVY, align: "center" });
+    } else {
+      doc.setDrawColor(GOLD[0], GOLD[1], GOLD[2]);
+      doc.line(x + 10, y + 22, x + 48, y + 22);
+      text(doc, card.value, x + 29, y + 28, { size: 7.5, color: NAVY, align: "center" });
+    }
+  });
+  return y + 39;
+}
+
+export async function createCorporatePdf(input: CorporatePdfInput) {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", putOnlyUsedFonts: true, compress: true });
+  registerArabicFont(doc);
+  const locale = input.locale ?? "en";
+  const issueDate = input.issueDate ?? new Date().toISOString().slice(0, 10);
+  addHeader(doc, {
+    title: input.title,
+    documentNumber: input.documentNumber,
+    documentType: input.documentType ?? "Document",
+    issueDate
+  });
+
+  let y = 44;
+  if (input.qrPayload) {
+    const payload = typeof input.qrPayload === "string" ? input.qrPayload : JSON.stringify(input.qrPayload);
+    const qr = await QRCode.toDataURL(payload, { margin: 1, width: 220, errorCorrectionLevel: "H" });
+    doc.setDrawColor(GOLD[0], GOLD[1], GOLD[2]);
+    doc.roundedRect(158, y, 38, 44, 2, 2);
+    doc.addImage(qr, "PNG", 161, y + 3, 32, 32);
+    text(doc, "SCAN TO VERIFY", 177, y + 39, { size: 6.8, style: "bold", color: NAVY, align: "center" });
+  }
+
+  for (const section of input.sections ?? []) y = drawSection(doc, section, y, locale);
+  for (const table of input.tables ?? []) y = drawTable(doc, table, y, locale);
+
+  if (input.terms?.length) {
+    y = ensureSpace(doc, y, 32);
+    text(doc, locale === "ar" ? "الشروط والأحكام" : "Terms & Conditions", locale === "ar" ? 196 : 14, y, { size: 10, style: "bold", color: NAVY, align: locale === "ar" ? "right" : "left" });
+    y += 6;
+    input.terms.forEach((term, index) => {
+      y = ensureSpace(doc, y, 7);
+      text(doc, `${index + 1}. ${term}`, locale === "ar" ? 196 : 14, y, { size: 7.8, color: TEXT, align: locale === "ar" ? "right" : "left", maxWidth: 182 });
+      y += 6;
+    });
+  }
+
+  drawSignatures(doc, y + 4, input.approvalStatus ?? "APPROVED", locale);
+  addWatermark(doc);
+  addFooter(doc, input.generatedBy ?? "TRINSU System");
+  return doc;
 }
 
 export async function createPolicyPdf(policy: {
@@ -62,114 +276,90 @@ export async function createPolicyPdf(policy: {
   issuedBy?: string;
   issuedByRole?: string;
 }) {
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", putOnlyUsedFonts: true });
-  registerArabicFont(doc);
-  const qr = await QRCode.toDataURL(policy.verificationUrl, { margin: 1, width: 240, errorCorrectionLevel: "H" });
-
-  doc.setFillColor(7, 31, 49);
-  doc.rect(0, 0, 210, 42, "F");
-  doc.setFillColor(7, 142, 158);
-  doc.rect(0, 38, 210, 4, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(24);
-  doc.text("TRINSU", 16, 17);
-  doc.setFontSize(9);
-  doc.text("TRAVEL INSURANCE", 16, 24);
-  doc.setFontSize(8);
-  doc.text("Official Electronic Policy", 16, 32);
-  doc.setFontSize(18);
-  rtlText(doc, "وثيقة تأمين السفر", 194, 18);
-  doc.setFontSize(9);
-  rtlText(doc, "وثيقة إلكترونية رسمية قابلة للتحقق", 194, 29);
-
-  doc.setTextColor(18, 32, 45);
-  doc.setFontSize(11);
-  field(doc, "رقم الوثيقة", "Policy Number", policy.policyNumber, 15, 50, 180);
-  field(doc, "اسم العميل بالعربية", "Customer Arabic Name", policy.arabicCustomerName ?? "-", 108, 71, 87);
-  field(doc, "اسم العميل بالإنجليزية", "Customer English Name", policy.customerName, 15, 71, 87);
-  field(doc, "رقم جواز السفر", "Passport Number", policy.passportNumber, 108, 92, 87);
-  field(doc, "الوجهة", "Destination", policy.destination, 15, 92, 87);
-  field(doc, "تاريخ المغادرة", "Departure Date", policy.departureDate, 108, 113, 87);
-  field(doc, "تاريخ العودة", "Return Date", policy.returnDate, 15, 113, 87);
-  field(doc, "مبلغ التغطية", "Coverage Amount", policy.coverageAmount ?? "-", 108, 134, 87);
-  field(doc, "نوع الوثيقة", "Policy Type", policy.policyType ?? "-", 15, 134, 87);
-  field(doc, "خطة السفر", "Travel Plan", policy.planName ?? "-", 108, 155, 87);
-  field(doc, "قسط التأمين", "Premium", policy.premium, 15, 155, 87);
-  field(doc, "تاريخ الإصدار", "Issue Date", policy.issueDate ?? "-", 108, 176, 87);
-  field(doc, "أُصدرت بواسطة", "Issued By", policy.issuedBy ?? "-", 15, 176, 87);
-
-  doc.setDrawColor(7, 142, 158);
-  doc.setLineWidth(0.5);
-  doc.roundedRect(15, 201, 180, 49, 3, 3);
-  doc.addImage(qr, "PNG", 154, 207, 35, 35);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.text("SCAN TO VERIFY", 159, 246);
-  doc.setFontSize(9);
-  doc.text(policy.issuedByRole ? `Role: ${policy.issuedByRole}` : "Authorized issuer", 22, 211);
-  doc.setFontSize(14);
-  doc.setTextColor(7, 118, 134);
-  doc.text("AUTHORIZED", 28, 226);
-  doc.setFontSize(8);
-  doc.setTextColor(18, 32, 45);
-  doc.text("Electronic Signature", 32, 233);
-
-  doc.setDrawColor(7, 118, 134);
-  doc.setLineWidth(0.8);
-  doc.circle(118, 225, 17);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("TRINSU", 108, 222);
-  doc.setFontSize(7);
-  doc.text("COMPANY STAMP", 104, 228);
-  rtlText(doc, "ختم الشركة", 126, 234, { align: "center" });
-
-  doc.setDrawColor(220, 226, 232);
-  doc.line(15, 262, 195, 262);
-  doc.setTextColor(90, 103, 115);
-  doc.setFontSize(8);
-  rtlText(doc, "امسح رمز الاستجابة السريعة للتحقق من صحة الوثيقة", 195, 270);
-  doc.setFont("helvetica", "normal");
-  doc.text("Scan the QR code to verify this policy.", 15, 270);
-  doc.setFontSize(6.5);
-  doc.text(policy.verificationUrl, 15, 278, { maxWidth: 180 });
-  doc.text("TRINSU Travel Insurance Management System", 15, 287);
-
-  return doc;
+  return createCorporatePdf({
+    title: "Official Travel Insurance Policy",
+    documentType: "Policy",
+    documentNumber: policy.policyNumber,
+    issueDate: policy.issueDate,
+    generatedBy: policy.issuedBy ?? "TRINSU System",
+    customerName: policy.customerName,
+    qrPayload: {
+      verificationUrl: policy.verificationUrl,
+      policyNumber: policy.policyNumber,
+      customerName: policy.arabicCustomerName ?? policy.customerName,
+      issueDate: policy.issueDate
+    },
+    sections: [
+      {
+        title: "Customer Information",
+        fields: [
+          { label: "Customer Name", value: policy.customerName },
+          { label: "Arabic Name", value: policy.arabicCustomerName },
+          { label: "Passport Number", value: policy.passportNumber },
+          { label: "Issued By", value: policy.issuedBy }
+        ]
+      },
+      {
+        title: "Policy Information",
+        fields: [
+          { label: "Policy Number", value: policy.policyNumber },
+          { label: "Policy Type", value: policy.policyType },
+          { label: "Travel Plan", value: policy.planName },
+          { label: "Approval Status", value: "APPROVED" }
+        ]
+      },
+      {
+        title: "Travel Information",
+        fields: [
+          { label: "Destination", value: policy.destination },
+          { label: "Departure Date", value: policy.departureDate },
+          { label: "Return Date", value: policy.returnDate },
+          { label: "Issue Date", value: policy.issueDate }
+        ]
+      },
+      {
+        title: "Coverage & Premium Details",
+        fields: [
+          { label: "Coverage Amount", value: policy.coverageAmount },
+          { label: "Premium", value: policy.premium },
+          { label: "Issuer Role", value: policy.issuedByRole },
+          { label: "Verification", value: "QR enabled" }
+        ]
+      }
+    ],
+    terms: [
+      "This document is electronically generated and valid when verified through the QR code.",
+      "Coverage is subject to policy terms, exclusions, limits and approved travel dates.",
+      "Any change to customer, destination or coverage information requires an official endorsement."
+    ],
+    approvalStatus: "AUTHORIZED"
+  });
 }
 
 export async function createCertificatePdf(input: { title: string; number: string; lines: string[]; verificationUrl?: string }) {
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", putOnlyUsedFonts: true });
-  registerArabicFont(doc);
-  doc.setFillColor(7, 118, 134);
-  doc.rect(0, 0, 210, 30, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(18);
-  if (/[\u0600-\u06ff]/.test(input.title)) rtlText(doc, input.title, 192, 19);
-  else {
-    doc.setFont("helvetica", "bold");
-    doc.text(input.title, 18, 19);
-  }
-  doc.setTextColor(20, 30, 40);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(12);
-  doc.text(`Number: ${input.number}`, 18, 48);
-  input.lines.forEach((line, index) => {
-    if (/[\u0600-\u06ff]/.test(line)) rtlText(doc, line, 192, 64 + index * 10);
-    else doc.text(line, 18, 64 + index * 10);
+  return createCorporatePdf({
+    title: input.title,
+    documentType: "Certificate",
+    documentNumber: input.number,
+    qrPayload: input.verificationUrl ?? { documentNumber: input.number, issueDate: new Date().toISOString().slice(0, 10), title: input.title },
+    sections: [
+      {
+        title: "Certificate Details",
+        fields: input.lines.map((line, index) => {
+          const [label, ...rest] = line.split(":");
+          return { label: rest.length ? label : `Detail ${index + 1}`, value: rest.length ? rest.join(":").trim() : line };
+        })
+      }
+    ],
+    terms: [
+      "This certificate is issued by TRINSU Travel Insurance Management System.",
+      "The certificate is valid only with a matching company record and QR verification."
+    ],
+    approvalStatus: "APPROVED"
   });
-  if (input.verificationUrl) {
-    const qr = await QRCode.toDataURL(input.verificationUrl, { margin: 1, width: 160 });
-    doc.addImage(qr, "PNG", 155, 44, 34, 34);
-  }
-  doc.circle(160, 210, 18);
-  doc.setFont("helvetica", "bold");
-  doc.text("TRINSU E-STAMP", 140, 212);
-  return doc;
 }
 
 export function registerPdfArabicFont(doc: jsPDF) {
   registerArabicFont(doc);
-  return { fontName: ARABIC_FONT_NAME, process: (value: string) => arabic(doc, value) };
+  return { fontName: ARABIC_FONT_NAME, process: (value: string) => processText(doc, value) };
 }

@@ -13,8 +13,10 @@ import { GlobalSearch } from "@/components/global-search";
 import { LocalNotificationSync } from "@/components/local-notification-sync";
 import { PageContext } from "@/components/page-context";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { prisma } from "@/lib/prisma";
 import { getDemoNotifications } from "@/lib/demo-notification-store";
+import { cn } from "@/lib/utils";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -30,11 +32,11 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       }).catch(() => 0);
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#f5f7fa] dark:bg-background">
+    <div className="min-h-screen overflow-x-hidden bg-[#F1ECE2] transition-colors duration-300 dark:bg-background">
       {isDirectAccessEnabled() ? <LocalNotificationSync /> : null}
       <AppNavigation locale={locale} role={user.role} />
-      <main className="min-w-0 w-full lg:pr-64 xl:pr-72">
-        <header className="sticky top-0 z-30 flex h-[73px] min-w-0 items-center justify-between gap-3 border-b border-slate-200/70 bg-white/90 px-3 shadow-[0_1px_8px_rgba(15,23,42,0.03)] backdrop-blur-xl dark:border-border dark:bg-card/90 sm:px-4 lg:px-5 xl:px-6">
+      <main className={cn("min-w-0 w-full", locale === "ar" ? "lg:pr-64 xl:pr-72" : "lg:pl-64 xl:pl-72")}>
+        <header className="sticky top-0 z-30 flex h-[73px] min-w-0 items-center justify-between gap-3 border-b border-slate-200/70 bg-white/90 px-3 shadow-[0_1px_8px_rgba(15,23,42,0.03)] backdrop-blur-xl transition-colors duration-300 dark:border-border dark:bg-card/90 sm:px-4 lg:px-5 xl:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <AppNavigation locale={locale} role={user.role} mobileOnly />
             <div className="hidden h-7 w-px bg-slate-200 sm:block lg:hidden" />
@@ -44,7 +46,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex shrink-0 items-center gap-1.5">
             {user.role !== "AGENT" ? <GlobalSearch /> : null}
             {user.role !== "AGENT" ? <ExportActions locale={locale} /> : null}
-            <ThemeToggle />
+            <LanguageSwitcher locale={locale} />
+            <ThemeToggle locale={locale} />
             <Button asChild className="hidden rounded-xl px-3 shadow-sm md:inline-flex">
               <Link href="/policies/new"><Plus className="h-4 w-4" />{t.issuePolicy}</Link>
             </Button>
@@ -59,11 +62,11 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             </Button> : null}
             <details className="group relative">
-              <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm transition-shadow hover:shadow-md sm:pr-2">
+              <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm transition-all hover:shadow-md dark:border-border dark:bg-card sm:pr-2">
                 <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-primary/15 to-cyan-500/10 text-sm font-black text-primary">{user.name?.slice(0, 1) ?? "T"}</span>
                 <span className="hidden text-right md:block">
-                  <span className="block max-w-28 truncate text-xs font-bold text-slate-800">{user.name}</span>
-                  <span className="block text-[10px] text-slate-500">{roleLabels[user.role]}</span>
+                  <span className="block max-w-28 truncate text-xs font-bold text-slate-800 dark:text-foreground">{user.name}</span>
+                  <span className="block text-[10px] text-slate-500 dark:text-muted-foreground">{roleLabels[user.role]}</span>
                 </span>
                 <ChevronDown className="hidden h-3.5 w-3.5 text-slate-400 md:block" />
               </summary>

@@ -136,6 +136,8 @@ model User {
   passwordHash  String?
   role          Role       @default(VIEWER)
   active        Boolean    @default(true)
+  localePreference String  @default("ar")
+  themePreference  String  @default("system")
   agencyId      String?
   agency        Agency?    @relation(fields: [agencyId], references: [id], onDelete: SetNull)
   accounts      Account[]

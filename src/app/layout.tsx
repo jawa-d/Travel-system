@@ -1,21 +1,42 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import "./globals.css";
 import { AppProviders } from "@/components/app-providers";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
+import { localeMeta, normalizeLocale } from "@/lib/i18n";
 
 export const metadata: Metadata = {
-  title: { default: "TRINSU | إدارة تأمين السفر", template: "%s | TRINSU" },
-  description: "منصة إدارة وثائق تأمين السفر"
+  title: { default: "TRINSU | Travel Insurance Management", template: "%s | TRINSU" },
+  description: "Travel insurance policy management platform"
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const demoMode = isDirectAccessEnabled();
+  const cookieStore = await cookies();
+  const locale = normalizeLocale(cookieStore.get("locale")?.value);
+  const cookieTheme = cookieStore.get("theme")?.value;
+  const theme = cookieTheme === "light" || cookieTheme === "dark" ? cookieTheme : "system";
+  const meta = localeMeta[locale];
+  const themeScript = `
+try {
+  const storedTheme = localStorage.getItem('trinsu:theme');
+  const cookieTheme = document.cookie.match(/(?:^|; )theme=([^;]+)/)?.[1];
+  const preference = storedTheme || cookieTheme || '${theme}';
+  const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const dark = preference === 'dark' || (preference === 'system' && systemDark);
+  document.documentElement.classList.toggle('dark', dark);
+  document.documentElement.dataset.theme = preference;
+} catch {}
+`;
+
   return (
-    <html lang="ar" dir="rtl" suppressHydrationWarning data-demo-mode={demoMode ? "true" : "false"}>
+    <html lang={meta.htmlLang} dir={meta.dir} suppressHydrationWarning data-demo-mode={demoMode ? "true" : "false"} data-theme={theme}>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: `try{document.documentElement.classList.toggle('dark',localStorage.getItem('trinsu:theme')==='dark')}catch{}` }} />
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body><AppProviders>{children}</AppProviders></body>
+      <body className={meta.fontClass}>
+        <AppProviders>{children}</AppProviders>
+      </body>
     </html>
   );
 }
