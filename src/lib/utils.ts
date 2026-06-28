@@ -1,24 +1,25 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { toEnglishDigits } from "@/lib/i18n";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 export function formatCurrency(value: number | string) {
-  return new Intl.NumberFormat("ar-IQ", {
+  return toEnglishDigits(new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 2
-  }).format(Number(value));
+  }).format(Number(value)));
 }
 
 export function formatDate(value: Date | string) {
-  return new Intl.DateTimeFormat("ar-IQ", {
+  return toEnglishDigits(new Intl.DateTimeFormat("ar-IQ-u-nu-latn", {
     year: "numeric",
     month: "long",
     day: "numeric"
-  }).format(new Date(value));
+  }).format(new Date(value)));
 }
 
 export function getAge(dateOfBirth: Date | string) {

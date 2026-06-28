@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import QRCode from "qrcode";
 import { prisma } from "@/lib/prisma";
 import { jsonError, requirePermission, requireUser } from "@/lib/api";
 import { createPolicyNumber } from "@/lib/policy-number";
@@ -15,6 +14,7 @@ import { createDemoPolicy } from "@/lib/demo-policy-store";
 import { getAge } from "@/lib/utils";
 import { auth } from "@/auth";
 import { visiblePolicyWhere } from "@/lib/policy-access";
+import { createPolicyVerificationQr } from "@/lib/policy-verification";
 
 export async function GET() {
   const user = await requireUser();
@@ -50,8 +50,7 @@ export async function POST(request: NextRequest) {
         plan.price * ageMultiplier * durationMultiplier *
         Math.sqrt(payload.coverageAmount / 10000) * countryMultiplier
       ).toFixed(2));
-      const verificationUrl = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/verify/${policyNumber}`;
-      const qrCodeData = await QRCode.toDataURL(verificationUrl);
+      const qrCodeData = await createPolicyVerificationQr(policyNumber);
       const policy = createDemoPolicy({
         id: `demo-policy-${crypto.randomUUID()}`,
         policyNumber,
@@ -95,8 +94,7 @@ export async function POST(request: NextRequest) {
       coverageAmount: payload.coverageAmount,
       travelPlanId: payload.travelPlanId
     });
-    const verificationUrl = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/verify/${policyNumber}`;
-    const qrCodeData = await QRCode.toDataURL(verificationUrl);
+    const qrCodeData = await createPolicyVerificationQr(policyNumber);
 
     const policy = await prisma.$transaction(async (tx) => {
       const created = await tx.policy.create({

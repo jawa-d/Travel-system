@@ -7,13 +7,14 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
 import { getDemoPolicies } from "@/lib/demo-policy-store";
 import { canAccessPolicy } from "@/lib/policy-access";
+import { getPolicyVerificationUrl } from "@/lib/policy-verification";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (isDirectAccessEnabled()) {
     const policy = getDemoPolicies().find((item) => item.id === id);
     if (!policy) return new Response("Policy not found", { status: 404 });
-    const verificationUrl = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/verify/${policy.policyNumber}`;
+    const verificationUrl = getPolicyVerificationUrl(policy.policyNumber);
     const doc = await createPolicyPdf({
       policyNumber: policy.policyNumber,
       customerName: policy.customer.englishName,
@@ -46,7 +47,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   if (policy.deletedAt || !canAccessPolicy(user, policy)) {
     return new Response("Forbidden", { status: 403 });
   }
-  const verificationUrl = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/verify/${policy.policyNumber}`;
+  const verificationUrl = getPolicyVerificationUrl(policy.policyNumber);
   const doc = await createPolicyPdf({
     policyNumber: policy.policyNumber,
     customerName: policy.customer.englishName,

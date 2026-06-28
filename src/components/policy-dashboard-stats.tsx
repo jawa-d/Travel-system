@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ClipboardList, FileCheck2, FileClock, FilePenLine, Files, ShieldX } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { formatLocaleNumber } from "@/lib/i18n";
 
 const cards = [
   { key: "total", label: "إجمالي الوثائق", icon: Files, tone: "from-cyan-500/15 to-cyan-50 text-cyan-700" },
@@ -43,8 +44,11 @@ function Metric({ label, value, icon: Icon, tone }: { label: string; value: numb
       <CardContent className={`relative bg-gradient-to-br ${tone} p-5`}>
         <div className="absolute -left-5 -top-6 h-20 w-20 rounded-full bg-white/50 blur-2xl transition-transform group-hover:scale-150" />
         <div className="relative flex items-start justify-between gap-4">
-          <div><p className="text-sm font-semibold opacity-75">{label}</p><p className="mt-3 text-4xl font-black tracking-tight">{shown.toLocaleString("ar-IQ")}</p></div>
-          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white/70 shadow-sm"><Icon className="h-6 w-6" /></span>
+          <div>
+            <p className="text-sm font-semibold leading-5 opacity-75">{label}</p>
+            <p className="mt-3 text-4xl font-black leading-none tracking-normal">{formatLocaleNumber(shown, "ar")}</p>
+          </div>
+          <span className="grid h-12 w-12 place-items-center rounded-lg bg-white/70 shadow-sm"><Icon className="h-6 w-6" /></span>
         </div>
       </CardContent>
     </Card>

@@ -6,6 +6,7 @@ import { createPolicyPdf } from "@/lib/pdf";
 import { sendEmail } from "@/lib/email";
 import { emailPdfSchema } from "@/lib/validators";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getPolicyVerificationUrl } from "@/lib/policy-verification";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!canAccessPolicy(user, policy) || policy.deletedAt) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    const verificationUrl = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/verify/${policy.policyNumber}`;
+    const verificationUrl = getPolicyVerificationUrl(policy.policyNumber);
     const doc = await createPolicyPdf({
       policyNumber: policy.policyNumber,
       customerName: policy.customer.englishName,

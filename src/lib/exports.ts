@@ -1,9 +1,13 @@
 import * as XLSX from "xlsx";
 import { createCorporatePdf } from "@/lib/pdf";
+import { toEnglishDigits } from "@/lib/i18n";
 
 export function rowsToExcelBuffer<T extends Record<string, unknown>>(rows: T[], sheetName = "Report") {
   const workbook = XLSX.utils.book_new();
-  const sheet = XLSX.utils.json_to_sheet(rows);
+  const normalizedRows = rows.map((row) => Object.fromEntries(
+    Object.entries(row).map(([key, value]) => [key, typeof value === "string" || typeof value === "number" ? toEnglishDigits(value) : value])
+  ));
+  const sheet = XLSX.utils.json_to_sheet(normalizedRows);
   XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
   return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
 }
@@ -11,7 +15,7 @@ export function rowsToExcelBuffer<T extends Record<string, unknown>>(rows: T[], 
 export async function rowsToPdfBuffer(title: string, rows: Record<string, unknown>[]) {
   const columns = rows.length ? Object.keys(rows[0]).slice(0, 6) : ["Status"];
   const printableRows = rows.length
-    ? rows.slice(0, 120).map((row) => columns.map((column) => String(row[column] ?? "").replace(/\s+/g, " ").slice(0, 80)))
+    ? rows.slice(0, 120).map((row) => columns.map((column) => toEnglishDigits(String(row[column] ?? "").replace(/\s+/g, " ").slice(0, 80))))
     : [["No data available"]];
   const doc = await createCorporatePdf({
     title,

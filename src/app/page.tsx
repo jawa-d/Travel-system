@@ -5,7 +5,7 @@ import { requirePagePermission } from "@/lib/page-guard";
 import { prisma } from "@/lib/prisma";
 import { visiblePolicyWhere } from "@/lib/policy-access";
 
-const monthFormatter = new Intl.DateTimeFormat("ar-IQ", { month: "short" });
+const monthFormatter = new Intl.DateTimeFormat("ar-IQ-u-nu-latn", { month: "short" });
 
 export default async function DashboardPage() {
   const user = await requirePagePermission("dashboard");

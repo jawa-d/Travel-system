@@ -20,10 +20,12 @@ function isRoutableUrl(href: string, currentUrl: string) {
 export function RouteLoadingOverlay() {
   const pathname = usePathname();
   const [loading, setLoading] = useState(true);
+  const startTimeoutRef = useRef<number | ReturnType<typeof setTimeout> | null>(null);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fallbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearTimers = useCallback(() => {
+    if (startTimeoutRef.current) clearTimeout(startTimeoutRef.current);
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     if (fallbackTimeoutRef.current) clearTimeout(fallbackTimeoutRef.current);
   }, []);
@@ -35,7 +37,11 @@ export function RouteLoadingOverlay() {
   }, [clearTimers]);
 
   const scheduleStartLoading = useCallback(() => {
-    window.setTimeout(startLoading, 0);
+    if (startTimeoutRef.current) clearTimeout(startTimeoutRef.current);
+    startTimeoutRef.current = window.setTimeout(() => {
+      startTimeoutRef.current = null;
+      startLoading();
+    }, 0);
   }, [startLoading]);
 
   const finishLoading = useCallback(() => {
@@ -75,7 +81,7 @@ export function RouteLoadingOverlay() {
       const href = link.getAttribute("href");
       if (target === "_blank" || download !== null || !href || !isRoutableUrl(href, window.location.href)) return;
 
-      startLoading();
+      scheduleStartLoading();
     }
 
     function handleSubmit(event: SubmitEvent) {
@@ -85,15 +91,11 @@ export function RouteLoadingOverlay() {
       const target = form?.getAttribute("target");
       if (target === "_blank") return;
 
-      startLoading();
+      scheduleStartLoading();
     }
 
     function handlePopState() {
-      startLoading();
-    }
-
-    function handleBeforeUnload() {
-      startLoading();
+      scheduleStartLoading();
     }
 
     window.history.pushState = function pushState(...args) {
@@ -109,7 +111,6 @@ export function RouteLoadingOverlay() {
     };
 
     window.addEventListener("popstate", handlePopState);
-    window.addEventListener("beforeunload", handleBeforeUnload);
     document.addEventListener("click", handleDocumentClick);
     document.addEventListener("submit", handleSubmit);
 
@@ -117,12 +118,11 @@ export function RouteLoadingOverlay() {
       window.history.pushState = originalPushState;
       window.history.replaceState = originalReplaceState;
       window.removeEventListener("popstate", handlePopState);
-      window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("click", handleDocumentClick);
       document.removeEventListener("submit", handleSubmit);
       clearTimers();
     };
-  }, [clearTimers, scheduleStartLoading, startLoading]);
+  }, [clearTimers, scheduleStartLoading]);
 
   return (
     <AnimatePresence mode="wait">

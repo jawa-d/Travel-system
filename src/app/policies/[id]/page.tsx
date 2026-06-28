@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  ArrowRight, CalendarDays, CheckCircle2, ClipboardList, Download, FileClock,
-  FilePenLine, FileText, Mail, MapPin, Phone, Printer, ShieldCheck, UserRound, XCircle
+  ArrowRight, CalendarDays, CheckCircle2, ClipboardList, Download, ExternalLink,
+  FileClock, FilePenLine, FileText, Mail, MapPin, Phone, Printer, QrCode,
+  ShieldCheck, UserRound, XCircle
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
@@ -17,11 +18,14 @@ import { requirePagePermission } from "@/lib/page-guard";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { canAccessPolicy } from "@/lib/policy-access";
+import { createPolicyVerificationQr, getPolicyVerificationUrl } from "@/lib/policy-verification";
 
 const statusLabels: Record<string, string> = { DRAFT: "مسودة", ACTIVE: "فعالة", EXPIRED: "منتهية", CANCELLED: "ملغاة" };
 const statusClasses: Record<string, string> = {
-  DRAFT: "bg-slate-100 text-slate-700", ACTIVE: "bg-emerald-50 text-emerald-700",
-  EXPIRED: "bg-amber-50 text-amber-700", CANCELLED: "bg-red-50 text-red-700"
+  DRAFT: "bg-slate-100 text-slate-700",
+  ACTIVE: "bg-emerald-50 text-emerald-700",
+  EXPIRED: "bg-amber-50 text-amber-700",
+  CANCELLED: "bg-red-50 text-red-700"
 };
 
 export default async function PolicyDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -42,15 +46,11 @@ export default async function PolicyDetailsPage({ params }: { params: Promise<{ 
   if (!policy) notFound();
   if (!demo && databasePolicy && (!canAccessPolicy(user, databasePolicy) || (databasePolicy.deletedAt && user.role !== "SUPER_ADMIN"))) notFound();
 
-  const claims = demo
-    ? getDemoClaims().filter((item) => item.policy.id === id)
-    : databasePolicy?.claims ?? [];
-  const endorsements = demo
-    ? getDemoEndorsements().filter((item) => item.policy.id === id)
-    : databasePolicy?.endorsements ?? [];
-  const cancellation = demo
-    ? getDemoCancellations().find((item) => item.policy.id === id) ?? null
-    : databasePolicy?.cancellation ?? null;
+  const claims = demo ? getDemoClaims().filter((item) => item.policy.id === id) : databasePolicy?.claims ?? [];
+  const endorsements = demo ? getDemoEndorsements().filter((item) => item.policy.id === id) : databasePolicy?.endorsements ?? [];
+  const cancellation = demo ? getDemoCancellations().find((item) => item.policy.id === id) ?? null : databasePolicy?.cancellation ?? null;
+  const verificationUrl = getPolicyVerificationUrl(policy.policyNumber);
+  const qrCodeData = policy.qrCodeData ?? await createPolicyVerificationQr(policy.policyNumber);
 
   return (
     <AppShell>
@@ -61,9 +61,10 @@ export default async function PolicyDetailsPage({ params }: { params: Promise<{ 
             <h1 className="font-mono text-2xl font-black text-primary sm:text-3xl" dir="ltr">{policy.policyNumber}</h1>
             <Badge className={statusClasses[policy.status]}>{statusLabels[policy.status] ?? policy.status}</Badge>
           </div>
-          <p className="mt-2 text-sm text-muted-foreground">ملف الوثيقة وتغطيتها والعمليات المرتبطة بها.</p>
+          <p className="mt-2 text-sm text-muted-foreground">ملف الوثيقة وتغطيتها ورمز التحقق والعمليات المرتبطة بها.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline"><Link href={verificationUrl}><ExternalLink className="h-4 w-4" />صفحة التحقق</Link></Button>
           <Button asChild variant="outline"><Link href={`/api/policies/${id}/pdf`}><Download className="h-4 w-4" />تنزيل PDF</Link></Button>
           <Button asChild><Link target="_blank" href={`/api/policies/${id}/pdf`}><Printer className="h-4 w-4" />طباعة</Link></Button>
         </div>
@@ -87,12 +88,12 @@ export default async function PolicyDetailsPage({ params }: { params: Promise<{ 
             <CardHeader><CardTitle className="flex items-center gap-2"><ClipboardList className="h-5 w-5 text-primary" />المطالبات ({claims.length})</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               {claims.map((item) => (
-                <div key={item.id} className="flex flex-col justify-between gap-2 rounded-xl border p-4 sm:flex-row sm:items-center">
+                <div key={item.id} className="flex flex-col justify-between gap-2 rounded-lg border p-4 sm:flex-row sm:items-center">
                   <div><p className="font-mono text-sm font-bold text-primary" dir="ltr">{item.claimNumber}</p><p className="mt-1 text-sm text-muted-foreground">{item.description}</p></div>
                   <Badge>{item.status}</Badge>
                 </div>
               ))}
-              {!claims.length ? <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">لا توجد مطالبات مرتبطة بهذه الوثيقة.</p> : null}
+              {!claims.length ? <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">لا توجد مطالبات مرتبطة بهذه الوثيقة.</p> : null}
             </CardContent>
           </Card>
 
@@ -100,19 +101,33 @@ export default async function PolicyDetailsPage({ params }: { params: Promise<{ 
             <CardHeader><CardTitle className="flex items-center gap-2"><FilePenLine className="h-5 w-5 text-primary" />الملاحق ({endorsements.length})</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               {endorsements.map((item) => (
-                <div key={item.id} className="flex flex-col justify-between gap-2 rounded-xl border p-4 sm:flex-row sm:items-center">
+                <div key={item.id} className="flex flex-col justify-between gap-2 rounded-lg border p-4 sm:flex-row sm:items-center">
                   <div><p className="font-mono text-sm font-bold text-primary" dir="ltr">{item.endorsementNumber}</p><p className="mt-1 text-xs text-muted-foreground">{item.endorsementType}</p></div>
                   <Badge>{item.status}</Badge>
                 </div>
               ))}
-              {!endorsements.length ? <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">لا توجد ملاحق على الوثيقة.</p> : null}
+              {!endorsements.length ? <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">لا توجد ملاحق على الوثيقة.</p> : null}
             </CardContent>
           </Card>
         </div>
 
         <div className="space-y-6">
           <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><UserRound className="h-5 w-5 text-primary" />المؤمَّن عليه</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="flex items-center gap-2"><QrCode className="h-5 w-5 text-primary" />رمز التحقق QR</CardTitle></CardHeader>
+            <CardContent className="space-y-4 text-center">
+              <div className="mx-auto w-fit rounded-xl border border-primary/15 bg-white p-3 shadow-sm">
+                <img src={qrCodeData} alt="Scan QR Code to Verify Policy" className="h-44 w-44" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-primary">امسح رمز QR للتحقق من صحة الوثيقة</p>
+                <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground" dir="ltr">{verificationUrl}</p>
+              </div>
+              <Button asChild variant="outline" className="w-full"><Link href={verificationUrl}>فتح صفحة التحقق</Link></Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2"><UserRound className="h-5 w-5 text-primary" />المؤمن له</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div><p className="font-bold">{policy.customer.arabicName}</p><p className="text-sm text-muted-foreground">{policy.customer.englishName}</p></div>
               <Detail icon={FileText} label="رقم الجواز" value={policy.customer.passportNumber} dir="ltr" />
@@ -132,7 +147,7 @@ export default async function PolicyDetailsPage({ params }: { params: Promise<{ 
                   <p>الرسوم: <strong>{formatCurrency(Number(cancellation.administrativeFees))}</strong></p>
                 </div>
               ) : (
-                <p className="text-sm leading-6 text-muted-foreground">الوثيقة غير ملغاة ويمكن إدارة حالتها من سجل الوثائق.</p>
+                <p className="text-sm leading-6 text-muted-foreground">الوثيقة غير ملغاة ويمكن التحقق من حالتها من خلال رمز QR أو صفحة التحقق العامة.</p>
               )}
             </CardContent>
           </Card>
@@ -144,7 +159,7 @@ export default async function PolicyDetailsPage({ params }: { params: Promise<{ 
 
 function Detail({ icon: Icon, label, value, dir }: { icon: typeof FileText; label: string; value: React.ReactNode; dir?: "ltr" | "rtl" }) {
   return (
-    <div className="rounded-xl border bg-muted/15 p-3">
+    <div className="rounded-lg border bg-muted/15 p-3">
       <p className="flex items-center gap-2 text-xs text-muted-foreground"><Icon className="h-3.5 w-3.5" />{label}</p>
       <p className="mt-1.5 text-sm font-bold" dir={dir}>{value}</p>
     </div>

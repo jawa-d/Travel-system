@@ -1,5 +1,4 @@
 "use client";
-
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -30,7 +29,6 @@ import { cn } from "@/lib/utils";
 import type { Locale } from "@/lib/i18n";
 import type { Role } from "@prisma/client";
 import { can, type Permission } from "@/lib/rbac";
-
 type NavItem = {
   href: string;
   label: string;
@@ -38,7 +36,6 @@ type NavItem = {
   featured?: boolean;
   permission?: Permission;
 };
-
 const groups: Array<{ label: string; items: NavItem[]; collapsible?: boolean }> = [
   {
     label: "الرئيسية",
@@ -79,7 +76,6 @@ const groups: Array<{ label: string; items: NavItem[]; collapsible?: boolean }> 
     ]
   }
 ];
-
 export function AppNavigation({ role, mobileOnly = false }: { locale?: Locale; role: Role; mobileOnly?: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -100,7 +96,7 @@ export function AppNavigation({ role, mobileOnly = false }: { locale?: Locale; r
         href={item.href}
         onClick={() => setOpen(false)}
         className={cn(
-          "group relative flex min-h-11 items-center gap-3 rounded-xl px-2.5 text-[13px] font-semibold transition-colors duration-150",
+          "group relative flex min-h-11 items-center gap-3 rounded-lg px-2.5 text-[13px] font-semibold transition-colors duration-150",
           selected && "bg-primary text-primary-foreground shadow-md shadow-primary/15",
           !selected && item.featured && "bg-primary/10 text-primary hover:bg-primary/15",
           !selected && !item.featured && "text-slate-600 hover:bg-white hover:text-slate-950 hover:shadow-sm dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
@@ -119,7 +115,6 @@ export function AppNavigation({ role, mobileOnly = false }: { locale?: Locale; r
       </Link>
     );
   }
-
   const sidebar = (
     <aside
       className={cn(
@@ -140,7 +135,7 @@ export function AppNavigation({ role, mobileOnly = false }: { locale?: Locale; r
             />
           </span>
           <span className="min-w-0">
-            <span className="block text-lg font-black leading-5 tracking-tight text-slate-950 dark:text-foreground">TRINSU</span>
+            <span className="block text-lg font-black leading-5 tracking-normal text-slate-950 dark:text-foreground">TRINSU</span>
             <span className="block truncate text-[10px] font-medium text-slate-400">إدارة تأمين السفر</span>
           </span>
         </Link>
@@ -153,7 +148,7 @@ export function AppNavigation({ role, mobileOnly = false }: { locale?: Locale; r
       <nav className="flex-1 space-y-5 overflow-y-auto px-4 py-5">
         {visibleGroups.map((group) => group.collapsible ? (
           <details key={group.label} className="group/settings" open={group.items.some((item) => active(item.href)) || undefined}>
-            <summary className="mb-1 flex cursor-pointer list-none items-center justify-between rounded-lg px-2 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+            <summary className="mb-1 flex cursor-pointer list-none items-center justify-between rounded-lg px-2 py-1.5 text-[10px] font-extrabold uppercase tracking-normal text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
               {group.label}
               <ChevronDown className="h-3.5 w-3.5 transition-transform group-open/settings:rotate-180" />
             </summary>
@@ -161,19 +156,18 @@ export function AppNavigation({ role, mobileOnly = false }: { locale?: Locale; r
           </details>
         ) : (
           <section key={group.label}>
-            <p className="mb-1.5 px-2 text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-400">{group.label}</p>
+            <p className="mb-1.5 px-2 text-[10px] font-extrabold uppercase tracking-normal text-slate-400">{group.label}</p>
             <div className="space-y-1">{group.items.map(itemLink)}</div>
           </section>
         ))}
       </nav>
-
       <div className="shrink-0 border-t border-slate-200/70 p-4 dark:border-border">
-        <div className="rounded-xl border border-primary/10 bg-gradient-to-l from-primary/[0.08] to-cyan-500/[0.04] p-3 dark:from-[#AE8F50]/15 dark:to-slate-900">
+        <div className="rounded-lg border border-primary/10 bg-gradient-to-l from-primary/[0.08] to-cyan-500/[0.04] p-3 dark:from-[#AE8F50]/15 dark:to-slate-900">
           <div className="flex items-center gap-2 text-xs font-bold text-primary">
             <ShieldCheck className="h-4 w-4" />
             النظام يعمل بأمان
           </div>
-          <p className="mt-1 text-[10px] leading-4 text-slate-500 dark:text-slate-400">يتم حفظ تغييراتك تلقائياً.</p>
+          <p className="mt-1 text-[10px] leading-4 text-slate-500 dark:text-slate-400">يتم حفظ تغييراتك تلقائيا.</p>
         </div>
       </div>
     </aside>

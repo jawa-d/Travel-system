@@ -43,8 +43,8 @@ export function PageContext({}: { locale?: Locale }) {
           <span className="truncate">{context[0]}</span>
         </div>
       ) : null}
-      <h2 className="truncate text-sm font-extrabold text-slate-900 dark:text-foreground">{context[0]}</h2>
-      <p className="truncate text-[11px] text-slate-500 dark:text-muted-foreground">{context[1]}</p>
+      <h2 className="truncate text-sm font-extrabold leading-5 text-slate-900 dark:text-foreground">{context[0]}</h2>
+      <p className="truncate text-[11px] leading-4 text-slate-500 dark:text-muted-foreground">{context[1]}</p>
     </div>
   );
 }

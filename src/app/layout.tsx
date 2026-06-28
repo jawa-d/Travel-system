@@ -4,6 +4,8 @@ import "./globals.css";
 import { AppProviders } from "@/components/app-providers";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
 
+/* eslint-disable @next/next/no-page-custom-font */
+
 export const metadata: Metadata = {
   title: { default: "TRINSU | إدارة تأمين السفر", template: "%s | TRINSU" },
   description: "منصة إدارة وثائق تأمين السفر"
@@ -29,6 +31,9 @@ try {
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning data-demo-mode={demoMode ? "true" : "false"} data-theme={theme}>
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="font-arabic">
