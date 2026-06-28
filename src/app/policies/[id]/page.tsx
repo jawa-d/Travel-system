@@ -1,9 +1,24 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  ArrowRight, CalendarDays, CheckCircle2, ClipboardList, Download, ExternalLink,
-  FileClock, FilePenLine, FileText, Mail, MapPin, Phone, Printer, QrCode,
-  ShieldCheck, UserRound, XCircle
+  ArrowRight,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardList,
+  Download,
+  ExternalLink,
+  FileClock,
+  FilePenLine,
+  FileText,
+  Mail,
+  MapPin,
+  Phone,
+  Printer,
+  QrCode,
+  ShieldCheck,
+  UserRound,
+  XCircle
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
@@ -19,14 +34,7 @@ import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { canAccessPolicy } from "@/lib/policy-access";
 import { createPolicyVerificationQr, getPolicyVerificationUrl } from "@/lib/policy-verification";
-
-const statusLabels: Record<string, string> = { DRAFT: "مسودة", ACTIVE: "فعالة", EXPIRED: "منتهية", CANCELLED: "ملغاة" };
-const statusClasses: Record<string, string> = {
-  DRAFT: "bg-slate-100 text-slate-700",
-  ACTIVE: "bg-emerald-50 text-emerald-700",
-  EXPIRED: "bg-amber-50 text-amber-700",
-  CANCELLED: "bg-red-50 text-red-700"
-};
+import { policyStatusClasses, policyStatusLabelsAr } from "@/lib/policy-status-display";
 
 export default async function PolicyDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requirePagePermission("policiesRead");
@@ -36,7 +44,10 @@ export default async function PolicyDetailsPage({ params }: { params: Promise<{ 
   const databasePolicy = !demo ? await prisma.policy.findUnique({
     where: { id },
     include: {
-      customer: true, destinationCountry: true, travelPlan: true, issuedBy: true,
+      customer: true,
+      destinationCountry: true,
+      travelPlan: true,
+      issuedBy: true,
       claims: { orderBy: { createdAt: "desc" } },
       endorsements: { orderBy: { createdAt: "desc" } },
       cancellation: true
@@ -59,7 +70,7 @@ export default async function PolicyDetailsPage({ params }: { params: Promise<{ 
           <Button asChild variant="ghost" size="sm" className="mb-2 -mr-3"><Link href="/policies"><ArrowRight className="h-4 w-4" />العودة للوثائق</Link></Button>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="font-mono text-2xl font-black text-primary sm:text-3xl" dir="ltr">{policy.policyNumber}</h1>
-            <Badge className={statusClasses[policy.status]}>{statusLabels[policy.status] ?? policy.status}</Badge>
+            <Badge className={policyStatusClasses[policy.status]}>{policyStatusLabelsAr[policy.status] ?? policy.status}</Badge>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">ملف الوثيقة وتغطيتها ورمز التحقق والعمليات المرتبطة بها.</p>
         </div>
@@ -157,7 +168,7 @@ export default async function PolicyDetailsPage({ params }: { params: Promise<{ 
   );
 }
 
-function Detail({ icon: Icon, label, value, dir }: { icon: typeof FileText; label: string; value: React.ReactNode; dir?: "ltr" | "rtl" }) {
+function Detail({ icon: Icon, label, value, dir }: { icon: typeof FileText; label: string; value: ReactNode; dir?: "ltr" | "rtl" }) {
   return (
     <div className="rounded-lg border bg-muted/15 p-3">
       <p className="flex items-center gap-2 text-xs text-muted-foreground"><Icon className="h-3.5 w-3.5" />{label}</p>
