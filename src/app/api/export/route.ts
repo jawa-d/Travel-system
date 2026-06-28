@@ -13,7 +13,7 @@ import { getDemoCancellations } from "@/lib/demo-cancellation-store";
 import { getDemoNotifications } from "@/lib/demo-notification-store";
 import { getDemoAuditLogs } from "@/lib/demo-audit-store";
 import { getIpAddress, writeAuditLog } from "@/lib/audit";
-import { visiblePolicyWhere } from "@/lib/policy-access";
+import { visibleCustomerWhere, visiblePolicyWhere } from "@/lib/policy-access";
 
 type ExportRow = Record<string, string | number | boolean | null>;
 
@@ -136,13 +136,18 @@ async function databaseRows(resource: string, request: NextRequest, user: Awaite
   switch (resource) {
     case "customers":
       return normalize(await prisma.customer.findMany({
-        where: q ? {
-          OR: [
-            { arabicName: { contains: q, mode: "insensitive" } },
-            { englishName: { contains: q, mode: "insensitive" } },
-            { passportNumber: { contains: q, mode: "insensitive" } }
+        where: {
+          AND: [
+            visibleCustomerWhere(user),
+            q ? {
+              OR: [
+                { arabicName: { contains: q, mode: "insensitive" } },
+                { englishName: { contains: q, mode: "insensitive" } },
+                { passportNumber: { contains: q, mode: "insensitive" } }
+              ]
+            } : {}
           ]
-        } : undefined,
+        },
         orderBy: { createdAt: "desc" },
         select: {
           englishName: true, arabicName: true, passportNumber: true, mobile: true,
@@ -315,10 +320,12 @@ async function databaseRows(resource: string, request: NextRequest, user: Awaite
     case "dashboard":
     case "reports": {
       const [customers, policies, premiums, claims, active, cancelled] = await Promise.all([
-        prisma.customer.count(), prisma.policy.count(),
-        prisma.policy.aggregate({ _sum: { premium: true } }), prisma.claim.count(),
-        prisma.policy.count({ where: { status: "ACTIVE" } }),
-        prisma.policy.count({ where: { status: "CANCELLED" } })
+        prisma.customer.count({ where: visibleCustomerWhere(user) }),
+        prisma.policy.count({ where: policyVisibility }),
+        prisma.policy.aggregate({ where: policyVisibility, _sum: { premium: true } }),
+        prisma.claim.count({ where: { policy: policyVisibility } }),
+        prisma.policy.count({ where: { AND: [policyVisibility, { status: "ACTIVE" }] } }),
+        prisma.policy.count({ where: { AND: [policyVisibility, { status: "CANCELLED" }] } })
       ]);
       return normalize([
         { metric: "Total customers", value: customers },

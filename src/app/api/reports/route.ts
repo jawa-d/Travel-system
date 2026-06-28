@@ -3,22 +3,45 @@ import { endOfDay, endOfMonth, endOfYear, startOfDay, startOfMonth, startOfYear 
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/api";
 import { rowsToExcelBuffer, rowsToPdfBuffer } from "@/lib/exports";
+import { visibleCustomerWhere, visiblePolicyWhere } from "@/lib/policy-access";
 
 export async function GET(request: NextRequest) {
-  await requirePermission("reportsRead");
+  const user = await requirePermission("reportsRead");
   const period = request.nextUrl.searchParams.get("period") ?? "monthly";
   const format = request.nextUrl.searchParams.get("format") ?? "json";
   const now = new Date();
   const from = period === "daily" ? startOfDay(now) : period === "yearly" ? startOfYear(now) : startOfMonth(now);
   const to = period === "daily" ? endOfDay(now) : period === "yearly" ? endOfYear(now) : endOfMonth(now);
 
+  const policyWhere = visiblePolicyWhere(user);
+  const customerWhere = visibleCustomerWhere(user);
+  const periodPolicyWhere = { AND: [policyWhere, { createdAt: { gte: from, lte: to } }] };
+
   const [totalPolicies, premiums, topDestinations, topCustomers, nationalities, claims] = await Promise.all([
-    prisma.policy.count({ where: { createdAt: { gte: from, lte: to } } }),
-    prisma.policy.aggregate({ _sum: { premium: true }, where: { createdAt: { gte: from, lte: to } } }),
-    prisma.policy.groupBy({ by: ["destinationCountryId"], _count: true, orderBy: { _count: { destinationCountryId: "desc" } }, take: 10 }),
-    prisma.policy.groupBy({ by: ["customerId"], _count: true, orderBy: { _count: { customerId: "desc" } }, take: 10 }),
-    prisma.customer.groupBy({ by: ["nationality"], _count: true, orderBy: { _count: { nationality: "desc" } }, take: 10 }),
-    prisma.claim.groupBy({ by: ["status"], _count: true })
+    prisma.policy.count({ where: periodPolicyWhere }),
+    prisma.policy.aggregate({ _sum: { premium: true }, where: periodPolicyWhere }),
+    prisma.policy.groupBy({
+      by: ["destinationCountryId"],
+      where: policyWhere,
+      _count: true,
+      orderBy: { _count: { destinationCountryId: "desc" } },
+      take: 10
+    }),
+    prisma.policy.groupBy({
+      by: ["customerId"],
+      where: policyWhere,
+      _count: true,
+      orderBy: { _count: { customerId: "desc" } },
+      take: 10
+    }),
+    prisma.customer.groupBy({
+      by: ["nationality"],
+      where: customerWhere,
+      _count: true,
+      orderBy: { _count: { nationality: "desc" } },
+      take: 10
+    }),
+    prisma.claim.groupBy({ by: ["status"], where: { policy: policyWhere }, _count: true })
   ]);
 
   const rows = [

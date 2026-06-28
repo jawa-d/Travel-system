@@ -8,7 +8,7 @@ import { createSystemNotification } from "@/lib/notifications";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
 import { createDemoCancellation, getDemoCancellations } from "@/lib/demo-cancellation-store";
 import { getDemoPolicies } from "@/lib/demo-policy-store";
-import { visiblePolicyWhere } from "@/lib/policy-access";
+import { canAccessPolicy, visiblePolicyWhere } from "@/lib/policy-access";
 
 export async function GET() {
   if (isDirectAccessEnabled()) return NextResponse.json(getDemoCancellations());
@@ -41,6 +41,9 @@ export async function POST(request: NextRequest) {
     }
     const user = await requirePermission("cancellationsWrite");
     const policy = await prisma.policy.findUniqueOrThrow({ where: { policyNumber: data.policyNumber } });
+    if (!canAccessPolicy(user, policy) || policy.deletedAt) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const premium = Number(policy.premium);
     const administrativeFees = data.administrativeFees;
     const refundAmount = Math.max(premium * 0.8 - administrativeFees, 0);

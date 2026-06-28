@@ -3,13 +3,15 @@ import { AppShell } from "@/components/app-shell";
 import { ExecutiveDashboard, type ExecutiveDashboardData } from "@/components/executive-dashboard";
 import { requirePagePermission } from "@/lib/page-guard";
 import { prisma } from "@/lib/prisma";
-import { visiblePolicyWhere } from "@/lib/policy-access";
+import { visibleCustomerWhere, visiblePolicyWhere } from "@/lib/policy-access";
 
 const monthFormatter = new Intl.DateTimeFormat("ar-IQ-u-nu-latn", { month: "short" });
 
 export default async function DashboardPage() {
   const user = await requirePagePermission("dashboard");
   const policyWhere = visiblePolicyWhere(user);
+  const customerWhere = visibleCustomerWhere(user);
+  const isSuperAdmin = user.role === "SUPER_ADMIN";
   const since = new Date();
   since.setMonth(since.getMonth() - 11, 1);
   since.setHours(0, 0, 0, 0);
@@ -31,15 +33,15 @@ export default async function DashboardPage() {
     latestEndorsements,
     latestActivity
   ] = await Promise.all([
-    prisma.customer.count(),
+    prisma.customer.count({ where: customerWhere }),
     prisma.policy.count({ where: policyWhere }),
     prisma.policy.count({ where: { AND: [policyWhere, { status: "ACTIVE" }] } }),
     prisma.claim.count({ where: { policy: policyWhere } }),
     prisma.endorsement.count({ where: { policy: policyWhere } }),
     prisma.cancellation.count({ where: { policy: policyWhere } }),
-    prisma.user.count({ where: { role: "AGENT" } }),
+    isSuperAdmin ? prisma.user.count({ where: { role: "AGENT" } }) : Promise.resolve(1),
     prisma.policy.findMany({ where: { AND: [policyWhere, { createdAt: { gte: since } }] }, select: { createdAt: true } }),
-    prisma.customer.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
+    prisma.customer.findMany({ where: { AND: [customerWhere, { createdAt: { gte: since } }] }, select: { createdAt: true } }),
     prisma.policy.groupBy({ by: ["status"], where: policyWhere, _count: true }),
     prisma.claim.groupBy({ by: ["status"], where: { policy: policyWhere }, _count: true }),
     prisma.policy.findMany({
@@ -70,6 +72,7 @@ export default async function DashboardPage() {
       }
     }),
     prisma.activity.findMany({
+      where: isSuperAdmin ? {} : { actorId: user.id },
       orderBy: { createdAt: "desc" },
       take: 6,
       select: {

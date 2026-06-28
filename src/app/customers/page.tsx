@@ -18,20 +18,25 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { prisma } from "@/lib/prisma";
 import { requirePagePermission } from "@/lib/page-guard";
+import { visibleCustomerWhere } from "@/lib/policy-access";
 
 export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
-  await requirePagePermission("customersRead");
+  const user = await requirePagePermission("customersRead");
   const { q = "" } = await searchParams;
+  const visibility = visibleCustomerWhere(user);
   const customers = await prisma.customer.findMany({
-    where: q
-      ? {
+    where: {
+      AND: [
+        visibility,
+        q ? {
           OR: [
             { passportNumber: { contains: q, mode: "insensitive" } },
             { arabicName: { contains: q, mode: "insensitive" } },
             { englishName: { contains: q, mode: "insensitive" } }
           ]
-        }
-      : undefined,
+        } : {}
+      ]
+    },
     orderBy: { createdAt: "desc" },
     take: 50
   });

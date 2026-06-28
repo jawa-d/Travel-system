@@ -143,6 +143,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   activities    Activity[]
+  customers     Customer[]  @relation("CustomerCreator")
   policies      Policy[]   @relation("PolicyIssuer")
   ownedPolicies Policy[]   @relation("PolicyOwner")
   claims        Claim[]     @relation("ClaimCreator")
@@ -200,6 +201,12 @@ model Customer {
   email           String?
   address         String?
   passportImage   String?
+  createdByUserId String?
+  createdBy        User?     @relation("CustomerCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdByName    String?
+  createdByEmail   String?
+  createdByRole    Role?
+  createdByAgency  String?
   policies        Policy[]
   claims          Claim[]
   createdAt       DateTime  @default(now())
@@ -208,6 +215,7 @@ model Customer {
   @@index([arabicName])
   @@index([englishName])
   @@index([passportNumber])
+  @@index([createdByUserId])
 }
 
 model TravelPlan {
@@ -265,7 +273,9 @@ model Policy {
   issuedByUserId     String?
   owner              User?          @relation("PolicyOwner", fields: [issuedByUserId], references: [id], onDelete: SetNull)
   issuedByName       String?
+  issuedByEmail      String?
   issuedByRole       Role?
+  issuedByAgency     String?
   agencyId           String?
   agency             Agency?        @relation(fields: [agencyId], references: [id], onDelete: SetNull)
   deletedAt          DateTime?
@@ -354,6 +364,7 @@ model AuditLog {
   userId    String?
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   role      Role?
+  agency    String?
   action    String
   entity    String
   entityId  String?

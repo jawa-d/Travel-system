@@ -4,6 +4,7 @@ import { isDirectAccessEnabled } from "@/lib/direct-access";
 import { getDemoCustomers } from "@/lib/demo-customer-store";
 import { getDemoPolicies } from "@/lib/demo-policy-store";
 import { prisma } from "@/lib/prisma";
+import { visibleCustomerWhere, visiblePolicyWhere } from "@/lib/policy-access";
 
 export async function GET(request: NextRequest) {
   const query = (request.nextUrl.searchParams.get("q") ?? "").trim();
@@ -22,23 +23,33 @@ export async function GET(request: NextRequest) {
     return NextResponse.json([...customers, ...policies]);
   }
 
-  await requireUser();
+  const user = await requireUser();
   const [customers, policies] = await Promise.all([
     prisma.customer.findMany({
-      where: { OR: [
-        { arabicName: { contains: query, mode: "insensitive" } },
-        { englishName: { contains: query, mode: "insensitive" } },
-        { passportNumber: { contains: query, mode: "insensitive" } }
-      ] },
+      where: {
+        AND: [
+          visibleCustomerWhere(user),
+          { OR: [
+            { arabicName: { contains: query, mode: "insensitive" } },
+            { englishName: { contains: query, mode: "insensitive" } },
+            { passportNumber: { contains: query, mode: "insensitive" } }
+          ] }
+        ]
+      },
       select: { id: true, arabicName: true, passportNumber: true },
       take: 6
     }),
     prisma.policy.findMany({
-      where: { OR: [
-        { policyNumber: { contains: query, mode: "insensitive" } },
-        { customer: { arabicName: { contains: query, mode: "insensitive" } } },
-        { destinationCountry: { nameAr: { contains: query, mode: "insensitive" } } }
-      ] },
+      where: {
+        AND: [
+          visiblePolicyWhere(user),
+          { OR: [
+            { policyNumber: { contains: query, mode: "insensitive" } },
+            { customer: { arabicName: { contains: query, mode: "insensitive" } } },
+            { destinationCountry: { nameAr: { contains: query, mode: "insensitive" } } }
+          ] }
+        ]
+      },
       include: { customer: true, destinationCountry: true },
       take: 6
     })

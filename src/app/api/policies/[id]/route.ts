@@ -54,6 +54,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json(policy);
     }
     const user = await requirePermission("policiesManage");
+    const existingPolicy = await prisma.policy.findUnique({
+      where: { id },
+      select: { issuedByUserId: true, issuedById: true }
+    });
+    if (!existingPolicy) {
+      return NextResponse.json({ error: "Policy not found" }, { status: 404 });
+    }
+    if (!canAccessPolicy(user, existingPolicy)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const policy = await prisma.policy.update({ where: { id }, data: { status: body.status } });
     await writeAuditLog({
       userId: user.id,

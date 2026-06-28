@@ -52,6 +52,10 @@ export type PolicyItem = {
   coverageAmount: string;
   status: PolicyStatus;
   deletedAt: string | null;
+  issuedByName: string | null;
+  issuedByRole: string | null;
+  issuedByAgency: string | null;
+  issuedAt: string | null;
 };
 
 const statusDetails = {
@@ -270,6 +274,10 @@ export function PolicyManager({ policies, canManageStatus, canDelete }: { polici
                         <span className="text-sm font-bold" dir="ltr">{formatCurrency(policy.premium)}</span>
                         <span className="text-xs text-muted-foreground">قسط التأمين</span>
                       </div>
+                      <p className="text-xs text-muted-foreground">
+                        Issued by <span className="font-semibold text-foreground">{policy.issuedByName ?? "System"}</span>
+                        {policy.issuedByRole ? ` (${policy.issuedByRole})` : ""} - {policy.issuedAt ? formatDate(policy.issuedAt) : "-"}
+                      </p>
                     </div>
 
                     {policy.deletedAt ? (

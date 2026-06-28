@@ -8,7 +8,7 @@ import { getIpAddress, writeAuditLog } from "@/lib/audit";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
 import { createDemoEndorsement, getDemoEndorsements } from "@/lib/demo-endorsement-store";
 import { getDemoPolicies } from "@/lib/demo-policy-store";
-import { visiblePolicyWhere } from "@/lib/policy-access";
+import { canAccessPolicy, visiblePolicyWhere } from "@/lib/policy-access";
 
 export async function GET() {
   if (isDirectAccessEnabled()) return NextResponse.json(getDemoEndorsements());
@@ -38,6 +38,9 @@ export async function POST(request: NextRequest) {
     }
     const user = await requirePermission("endorsementsWrite");
     const policy = await prisma.policy.findUniqueOrThrow({ where: { policyNumber: data.policyNumber } });
+    if (!canAccessPolicy(user, policy) || policy.deletedAt) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const endorsement = await prisma.endorsement.create({
       data: {
         endorsementNumber: createSequence("END"),

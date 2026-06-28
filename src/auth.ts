@@ -87,10 +87,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ user }) {
       if (!user.id) return;
       try {
+        const account = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { agency: { select: { name: true } }, role: true }
+        });
         await prisma.auditLog.create({
           data: {
             userId: user.id,
-            role: (user as typeof user & { role?: Role }).role,
+            role: account?.role ?? (user as typeof user & { role?: Role }).role,
+            agency: account?.agency?.name ?? null,
             action: "USER_LOGIN",
             entity: "User",
             entityId: user.id,

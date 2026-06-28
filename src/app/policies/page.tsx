@@ -72,7 +72,11 @@ export default async function PoliciesPage() {
           premium: String(policy.premium),
           coverageAmount: String(policy.coverageAmount),
           status: policy.status
-          ,deletedAt: policy.deletedAt?.toISOString() ?? null
+          ,deletedAt: policy.deletedAt?.toISOString() ?? null,
+          issuedByName: policy.issuedByName,
+          issuedByRole: policy.issuedByRole,
+          issuedByAgency: policy.issuedByAgency,
+          issuedAt: (policy.issuedAt ?? policy.createdAt).toISOString()
         }))}
       />
     </AppShell>

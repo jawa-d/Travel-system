@@ -30,8 +30,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json(claim);
     }
     const user = await requirePermission("claimsManage");
-    const existing = await prisma.claim.findUnique({ where: { id }, select: { id: true, status: true } });
+    const existing = await prisma.claim.findUnique({
+      where: { id },
+      select: { id: true, status: true, policy: { select: { issuedByUserId: true, issuedById: true, deletedAt: true } } }
+    });
     if (!existing) return NextResponse.json({ error: "المطالبة غير موجودة" }, { status: 404 });
+    if (!canAccessPolicy(user, existing.policy) || existing.policy.deletedAt) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     if (validateWorkflowTransition(existing.status, status) === "FINALIZED") {
       return NextResponse.json({ error: "This claim is finalized and cannot be modified." }, { status: 409 });
     }

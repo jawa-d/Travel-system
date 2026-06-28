@@ -62,6 +62,13 @@ export default async function PolicyDetailsPage({ params }: { params: Promise<{ 
   const cancellation = demo ? getDemoCancellations().find((item) => item.policy.id === id) ?? null : databasePolicy?.cancellation ?? null;
   const verificationUrl = getPolicyVerificationUrl(policy.policyNumber);
   const qrCodeData = policy.qrCodeData ?? await createPolicyVerificationQr(policy.policyNumber);
+  const issuer = databasePolicy ? {
+    name: databasePolicy.issuedByName ?? databasePolicy.issuedBy?.name ?? "System",
+    email: databasePolicy.issuedByEmail ?? databasePolicy.issuedBy?.email ?? null,
+    role: databasePolicy.issuedByRole ?? databasePolicy.issuedBy?.role ?? null,
+    agency: databasePolicy.issuedByAgency ?? null,
+    issuedAt: databasePolicy.issuedAt ?? databasePolicy.createdAt
+  } : null;
 
   return (
     <AppShell>
@@ -147,6 +154,19 @@ export default async function PolicyDetailsPage({ params }: { params: Promise<{ 
               <Button asChild variant="outline" className="w-full"><Link href={`/customers/${policy.customer.id}`}>عرض ملف العميل</Link></Button>
             </CardContent>
           </Card>
+
+          {issuer ? (
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" />Issued By</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <Detail icon={UserRound} label="User" value={issuer.name} />
+                <Detail icon={Mail} label="Email" value={issuer.email ?? "-"} dir="ltr" />
+                <Detail icon={ShieldCheck} label="Role" value={issuer.role ?? "-"} />
+                <Detail icon={FileText} label="Agency" value={issuer.agency ?? "-"} />
+                <Detail icon={CalendarDays} label="Issue Date" value={formatDate(issuer.issuedAt)} />
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card className={cancellation ? "border-red-200" : ""}>
             <CardHeader><CardTitle className="flex items-center gap-2">{cancellation ? <XCircle className="h-5 w-5 text-red-600" /> : <FileClock className="h-5 w-5 text-primary" />}{cancellation ? "بيانات الإلغاء" : "حالة الوثيقة"}</CardTitle></CardHeader>

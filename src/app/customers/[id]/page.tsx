@@ -4,13 +4,20 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { requirePagePermission } from "@/lib/page-guard";
 import { can } from "@/lib/rbac";
+import { visibleCustomerWhere, visiblePolicyWhere } from "@/lib/policy-access";
 
 export default async function CustomerProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requirePagePermission("customersRead");
   const { id } = await params;
-  const customer = await prisma.customer.findUnique({
-    where: { id },
-    include: { policies: { include: { travelPlan: true, destinationCountry: true }, orderBy: { createdAt: "desc" } } }
+  const customer = await prisma.customer.findFirst({
+    where: { AND: [{ id }, visibleCustomerWhere(user)] },
+    include: {
+      policies: {
+        where: visiblePolicyWhere(user),
+        include: { travelPlan: true, destinationCountry: true },
+        orderBy: { createdAt: "desc" }
+      }
+    }
   });
   if (!customer) notFound();
 

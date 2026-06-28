@@ -5,6 +5,7 @@ import { jsonError, requirePermission } from "@/lib/api";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
 import { updateDemoEndorsementStatus, type DemoEndorsementStatus } from "@/lib/demo-endorsement-store";
 import { getIpAddress, writeAuditLog } from "@/lib/audit";
+import { canAccessPolicy } from "@/lib/policy-access";
 import { isWorkflowStatus, validateWorkflowTransition } from "@/lib/workflow-status";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -19,8 +20,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json(item);
     }
     const user = await requirePermission("endorsementsWrite");
-    const existing = await prisma.endorsement.findUnique({ where: { id }, select: { id: true, status: true } });
+    const existing = await prisma.endorsement.findUnique({
+      where: { id },
+      select: { id: true, status: true, policy: { select: { issuedByUserId: true, issuedById: true, deletedAt: true } } }
+    });
     if (!existing) return NextResponse.json({ error: "الملحق غير موجود" }, { status: 404 });
+    if (!canAccessPolicy(user, existing.policy) || existing.policy.deletedAt) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     if (validateWorkflowTransition(existing.status, body.status) === "FINALIZED") {
       return NextResponse.json({ error: "This endorsement is finalized and cannot be modified." }, { status: 409 });
     }

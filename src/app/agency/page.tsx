@@ -10,12 +10,13 @@ import { requirePagePermission } from "@/lib/page-guard";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency } from "@/lib/utils";
 import { AgentManager } from "@/components/agent-manager";
+import { visiblePolicyWhere } from "@/lib/policy-access";
 
 const commissionRate = 0.1;
 
 export default async function AgencyPage() {
-  await requirePagePermission("agentsManage");
-  const where = {};
+  const user = await requirePagePermission("agentsManage");
+  const where = visiblePolicyWhere(user);
   const agents = isDirectAccessEnabled()
     ? await prisma.user.findMany({
         where: { role: "AGENT" },

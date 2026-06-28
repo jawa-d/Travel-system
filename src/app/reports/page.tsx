@@ -10,11 +10,13 @@ import { isDirectAccessEnabled } from "@/lib/direct-access";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency } from "@/lib/utils";
 import { requirePagePermission } from "@/lib/page-guard";
+import { visiblePolicyWhere } from "@/lib/policy-access";
 
 type Period = "daily" | "monthly" | "yearly" | "all";
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ period?: string; from?: string; to?: string }> }) {
-  await requirePagePermission("reportsRead");
+  const user = await requirePagePermission("reportsRead");
+  const policyWhere = visiblePolicyWhere(user);
   const params = await searchParams;
   const period = (["daily", "monthly", "yearly", "all"].includes(params.period ?? "") ? params.period : "monthly") as Period;
   const now = new Date();
@@ -24,13 +26,13 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const policies = isDirectAccessEnabled()
     ? getDemoPolicies().filter((item) => (!from || item.createdAt >= from) && (!to || item.createdAt <= to))
     : await prisma.policy.findMany({
-        where: from || to ? { createdAt: { gte: from, lte: to } } : undefined,
+        where: { AND: [policyWhere, from || to ? { createdAt: { gte: from, lte: to } } : {}] },
         include: { customer: true, destinationCountry: true, travelPlan: true },
         orderBy: { createdAt: "desc" }
       });
   const claims = isDirectAccessEnabled()
     ? getDemoClaims().filter((item) => (!from || item.createdAt >= from) && (!to || item.createdAt <= to))
-    : await prisma.claim.findMany({ where: from || to ? { createdAt: { gte: from, lte: to } } : undefined });
+    : await prisma.claim.findMany({ where: { AND: [{ policy: policyWhere }, from || to ? { createdAt: { gte: from, lte: to } } : {}] } });
 
   const destinations = countTop(policies.map((item) => item.destinationCountry.nameAr));
   const customers = countTop(policies.map((item) => item.customer.arabicName));

@@ -13,7 +13,7 @@ import { getDemoPlans } from "@/lib/demo-plan-store";
 import { createDemoPolicy } from "@/lib/demo-policy-store";
 import { getAge } from "@/lib/utils";
 import { auth } from "@/auth";
-import { visiblePolicyWhere } from "@/lib/policy-access";
+import { getActorSnapshot, visibleCustomerWhere, visiblePolicyWhere } from "@/lib/policy-access";
 import { createPolicyVerificationQr } from "@/lib/policy-verification";
 
 export async function GET() {
@@ -77,14 +77,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(policy, { status: 201 });
     }
     const user = await requirePermission("policiesWrite");
+    const actor = await getActorSnapshot(user);
 
-    const customerId =
-      payload.customerId ??
-      (
-        await prisma.customer.create({
-          data: payload.customer!
-        })
-      ).id;
+    const customerId = payload.customerId
+      ? (
+          await prisma.customer.findFirst({
+            where: { AND: [{ id: payload.customerId }, visibleCustomerWhere(user)] },
+            select: { id: true }
+          })
+        )?.id
+      : (
+          await prisma.customer.create({
+            data: {
+              ...payload.customer!,
+              createdByUserId: actor.userId,
+              createdByName: actor.name,
+              createdByEmail: actor.email,
+              createdByRole: actor.role,
+              createdByAgency: actor.agencyName
+            }
+          })
+        ).id;
+
+    if (!customerId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const customer = await prisma.customer.findUniqueOrThrow({ where: { id: customerId } });
     const premium = await calculatePremium({
@@ -115,10 +132,12 @@ export async function POST(request: NextRequest) {
         status: payload.status,
         qrCodeData,
         issuedById: user.id,
-        issuedByUserId: user.id,
-        issuedByName: user.name ?? user.email ?? "System",
-        issuedByRole: user.role,
-        agencyId: (await tx.user.findUnique({ where: { id: user.id }, select: { agencyId: true } }))?.agencyId ?? null,
+        issuedByUserId: actor.userId,
+        issuedByName: actor.name,
+        issuedByEmail: actor.email,
+        issuedByRole: actor.role,
+        issuedByAgency: actor.agencyName,
+        agencyId: actor.agencyId,
         issuedAt: payload.status === "ACTIVE" ? new Date() : null
       },
       include: { customer: true, destinationCountry: true, travelPlan: true }
@@ -131,6 +150,7 @@ export async function POST(request: NextRequest) {
     await writeAuditLog({
       userId: user.id,
       role: user.role,
+      agency: actor.agencyName,
       action: "POLICY_CREATED",
       entity: "Policy",
       entityId: policy.id,

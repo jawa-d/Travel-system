@@ -6,6 +6,7 @@ import { getDemoPlans } from "@/lib/demo-plan-store";
 import { directAccessUser, isDirectAccessEnabled } from "@/lib/direct-access";
 import { prisma } from "@/lib/prisma";
 import { requirePagePermission } from "@/lib/page-guard";
+import { visibleCustomerWhere } from "@/lib/policy-access";
 
 export default async function NewPolicyPage() {
   const user = await requirePagePermission("policiesWrite");
@@ -19,7 +20,7 @@ export default async function NewPolicyPage() {
         []
       ]
     : await Promise.all([
-        prisma.customer.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),
+        prisma.customer.findMany({ where: visibleCustomerWhere(user), orderBy: { createdAt: "desc" }, take: 100 }),
         prisma.country.findMany({ where: { status: "ACTIVE" }, orderBy: { nameAr: "asc" } }),
         prisma.travelPlan.findMany({ where: { active: true }, orderBy: { price: "asc" } }),
         prisma.lookupValue.findMany({ where: { category: "POLICY_TYPE", active: true }, orderBy: { sortOrder: "asc" } }),
