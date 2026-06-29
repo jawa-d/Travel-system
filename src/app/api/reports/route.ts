@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (format === "pdf") {
-    const buffer = await rowsToPdfBuffer(`TRINSU ${period} report`, rows);
+    const buffer = await rowsToPdfBuffer(`Iraq Takaful ${period} report`, rows);
     return new Response(new Uint8Array(buffer), {
       headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="report-${period}.pdf"` }
     });

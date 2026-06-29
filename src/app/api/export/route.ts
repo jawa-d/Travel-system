@@ -367,7 +367,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const buffer = await rowsToPdfBuffer(`TRINSU - ${titles[resource]}`, rows);
+  const buffer = await rowsToPdfBuffer(`Iraq Takaful - ${titles[resource]}`, rows);
   if (user) await writeAuditLog({
     userId: user.id, role: user.role, action: "EXPORT_ACTION", entity: resource,
     ipAddress: getIpAddress(request.headers), metadata: { resource, format, rows: rows.length }

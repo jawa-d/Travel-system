@@ -29,7 +29,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       premium: formatCurrency(policy.premium),
       verificationUrl,
       issueDate: formatDate(policy.createdAt),
-      issuedBy: "TRINSU Demo",
+      issuedBy: "Iraq Takaful Demo",
       issuedByRole: "SUPER_ADMIN"
     });
     return new Response(Buffer.from(doc.output("arraybuffer")), {

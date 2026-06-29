@@ -15,7 +15,11 @@ const TEXT = [35, 43, 55] as const;
 const MUTED = [101, 113, 130] as const;
 const FOOTER_TEXT = [111, 121, 135] as const;
 const FOOTER_LINE = [226, 232, 240] as const;
+const COMPANY_NAME_AR = "تكافل العراق للتأمين التكافلي";
+const COMPANY_NAME_EN = "Iraq Takaful Insurance Company";
+const LOGO_FILE = "Screenshot 2026-06-22 194918.png";
 let arabicFontBase64: string | null = null;
+let logoBase64: string | null = null;
 const PDF_QR_OPTIONS = { margin: 2, width: 512, errorCorrectionLevel: "H" as const };
 const FOOTER_TOP_Y = 276;
 const CONTENT_BOTTOM_Y = 268;
@@ -59,14 +63,16 @@ function setFont(doc: jsPDF, value: string, style: "normal" | "bold" = "normal")
   doc.setFont(isArabicText(value) ? ARABIC_FONT_NAME : ENGLISH_FONT_NAME, style);
 }
 
-function text(doc: jsPDF, value: string, x: number, y: number, options: { maxWidth?: number; align?: "left" | "right" | "center"; size?: number; style?: "normal" | "bold"; color?: readonly number[] } = {}) {
+function text(doc: jsPDF, value: string, x: number, y: number, options: { maxWidth?: number; align?: "left" | "right" | "center"; size?: number; style?: "normal" | "bold"; color?: readonly number[]; lineHeightFactor?: number } = {}) {
   const color = options.color ?? TEXT;
+  const arabic = isArabicText(value);
   doc.setTextColor(color[0], color[1], color[2]);
-  doc.setFontSize(options.size ?? 9);
-  setFont(doc, value, options.style);
+  doc.setFontSize(options.size ?? (arabic ? 10.2 : 9));
+  setFont(doc, value, options.style ?? (arabic ? "bold" : "normal"));
   doc.text(processText(doc, value), x, y, {
-    align: options.align ?? (isArabicText(value) ? "right" : "left"),
-    maxWidth: options.maxWidth
+    align: options.align ?? (arabic ? "right" : "left"),
+    maxWidth: options.maxWidth,
+    lineHeightFactor: options.lineHeightFactor ?? (arabic ? 1.45 : 1.2)
   });
 }
 
@@ -94,32 +100,34 @@ function withOpacity(doc: jsPDF, opacity: number, draw: () => void) {
 function drawPageWatermark(doc: jsPDF) {
   withOpacity(doc, 0.06, () => {
     doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
-    doc.setFont(ENGLISH_FONT_NAME, "bold");
-    doc.setFontSize(58);
-    doc.text("TRINSU", 105, 149, { align: "center", angle: -38 });
+    doc.setFont(ARABIC_FONT_NAME, "bold");
+    doc.setFontSize(33);
+    doc.text(processText(doc, COMPANY_NAME_AR), 105, 149, { align: "center", angle: -38 });
   });
+}
+
+function drawOfficialLogo(doc: jsPDF, x: number, y: number, size: number) {
+  logoBase64 ??= readFileSync(join(process.cwd(), "src", LOGO_FILE)).toString("base64");
+  doc.addImage(`data:image/png;base64,${logoBase64}`, "PNG", x, y, size, size);
 }
 
 function addHeader(doc: jsPDF, input: Required<Pick<CorporatePdfInput, "title" | "documentNumber" | "documentType" | "issueDate">>) {
   doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
-  doc.rect(0, 0, 210, 32, "F");
+  doc.rect(0, 0, 210, 42, "F");
   doc.setFillColor(GOLD[0], GOLD[1], GOLD[2]);
-  doc.rect(0, 32, 210, 2.4, "F");
+  doc.rect(0, 42, 210, 2.4, "F");
 
   doc.setFillColor(255, 255, 255);
-  doc.roundedRect(14, 7, 20, 20, 3, 3, "F");
-  doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
-  doc.setFont(ENGLISH_FONT_NAME, "bold");
-  doc.setFontSize(9);
-  doc.text("TRI", 19, 19);
+  doc.roundedRect(13, 5.5, 27, 31, 3, 3, "F");
+  drawOfficialLogo(doc, 16, 7.4, 21);
 
-  text(doc, "TRINSU", 40, 14, { size: 18, style: "bold", color: [255, 255, 255] });
-  text(doc, "Travel Insurance Management System", 40, 21, { size: 8, color: [238, 242, 247] });
-  text(doc, "Iraq Takaful Insurance Company", 40, 27, { size: 7, color: [219, 226, 235] });
+  text(doc, COMPANY_NAME_AR, 47, 15.5, { size: 18, style: "bold", color: [255, 255, 255], maxWidth: 86, lineHeightFactor: 1.35 });
+  text(doc, COMPANY_NAME_EN, 47, 24, { size: 8.4, style: "bold", color: [238, 242, 247] });
+  text(doc, "Enterprise Travel Insurance Documents", 47, 30.4, { size: 7.2, color: [219, 226, 235] });
 
-  text(doc, input.title, 196, 14, { size: 13, style: "bold", color: [255, 255, 255], align: "right", maxWidth: 78 });
-  text(doc, `${input.documentType} # ${input.documentNumber}`, 196, 22, { size: 8, color: [238, 242, 247], align: "right" });
-  text(doc, `Issue Date: ${input.issueDate}`, 196, 28, { size: 7, color: [219, 226, 235], align: "right" });
+  text(doc, input.title, 196, 13.4, { size: isArabicText(input.title) ? 14.5 : 12, style: "bold", color: [255, 255, 255], align: "right", maxWidth: 72, lineHeightFactor: 1.35 });
+  text(doc, `${input.documentType}: ${input.documentNumber}`, 196, 24.5, { size: 8.6, style: "bold", color: [238, 242, 247], align: "right" });
+  text(doc, `Issue Date: ${input.issueDate}`, 196, 31.2, { size: 7.4, color: [219, 226, 235], align: "right" });
 }
 
 function addFooter(doc: jsPDF) {
@@ -135,7 +143,7 @@ function addFooter(doc: jsPDF) {
     text(doc, "System Administrator", 105, 285.1, { size: 7.4, style: "bold", color: FOOTER_TEXT, align: "center" });
     text(doc, "it_main@iraq-takaful.com", 196, 282.5, { size: 7.2, color: FOOTER_TEXT, align: "right" });
 
-    text(doc, `© ${new Date().getFullYear()} Iraq Takaful Insurance Company.`, 105, 291, { size: 7, color: FOOTER_TEXT, align: "center" });
+    text(doc, `© ${new Date().getFullYear()} ${COMPANY_NAME_EN}.`, 105, 291, { size: 7, color: FOOTER_TEXT, align: "center" });
     text(doc, "All Rights Reserved.", 105, 294.6, { size: 6.6, color: FOOTER_TEXT, align: "center" });
   }
 }
@@ -144,7 +152,7 @@ function ensureSpace(doc: jsPDF, y: number, needed = 24) {
   if (y + needed <= CONTENT_BOTTOM_Y) return y;
   doc.addPage();
   drawPageWatermark(doc);
-  return 42;
+  return 54;
 }
 
 function drawSection(doc: jsPDF, section: PdfSection, startY: number, locale: Locale) {
@@ -152,7 +160,7 @@ function drawSection(doc: jsPDF, section: PdfSection, startY: number, locale: Lo
   doc.setFillColor(LIGHT[0], LIGHT[1], LIGHT[2]);
   doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
   doc.roundedRect(14, y, 182, 9, 2, 2, "FD");
-  text(doc, section.title, locale === "ar" ? 192 : 18, y + 6.2, { size: 10, style: "bold", color: NAVY, align: locale === "ar" ? "right" : "left" });
+  text(doc, section.title, locale === "ar" ? 192 : 18, y + 6.4, { size: locale === "ar" ? 11.8 : 10, style: "bold", color: NAVY, align: locale === "ar" ? "right" : "left" });
   y += 13;
 
   const colWidth = 88;
@@ -165,15 +173,15 @@ function drawSection(doc: jsPDF, section: PdfSection, startY: number, locale: Lo
     doc.setFillColor(255, 255, 255);
     doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
     doc.roundedRect(x, y, colWidth, rowHeight, 2, 2, "FD");
-    text(doc, field.label, locale === "ar" ? x + colWidth - 4 : x + 4, y + 5, { size: 7.5, color: MUTED, align: locale === "ar" ? "right" : "left" });
-    text(doc, safe(field.value), locale === "ar" ? x + colWidth - 4 : x + 4, y + 11.5, { size: 9, style: "bold", color: TEXT, align: locale === "ar" ? "right" : "left", maxWidth: colWidth - 8 });
+    text(doc, field.label, locale === "ar" ? x + colWidth - 4 : x + 4, y + 5.4, { size: locale === "ar" ? 8.8 : 7.5, style: "bold", color: MUTED, align: locale === "ar" ? "right" : "left" });
+    text(doc, safe(field.value), locale === "ar" ? x + colWidth - 4 : x + 4, y + 11.8, { size: locale === "ar" ? 10.2 : 9, style: "bold", color: TEXT, align: locale === "ar" ? "right" : "left", maxWidth: colWidth - 8 });
   });
   return y + rowHeight + 8;
 }
 
 function drawTable(doc: jsPDF, table: PdfTable, startY: number, locale: Locale) {
   let y = ensureSpace(doc, startY, 34);
-  text(doc, table.title, locale === "ar" ? 196 : 14, y, { size: 10, style: "bold", color: NAVY, align: locale === "ar" ? "right" : "left" });
+  text(doc, table.title, locale === "ar" ? 196 : 14, y, { size: locale === "ar" ? 11.8 : 10, style: "bold", color: NAVY, align: locale === "ar" ? "right" : "left" });
   y += 5;
   const x = 14;
   const width = 182;
@@ -181,7 +189,7 @@ function drawTable(doc: jsPDF, table: PdfTable, startY: number, locale: Locale) 
   doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
   doc.rect(x, y, width, 8, "F");
   table.columns.forEach((column, index) => {
-    text(doc, column, x + index * colWidth + colWidth / 2, y + 5.4, { size: 7.2, style: "bold", color: [255, 255, 255], align: "center", maxWidth: colWidth - 3 });
+    text(doc, column, x + index * colWidth + colWidth / 2, y + 5.6, { size: isArabicText(column) ? 8.4 : 7.2, style: "bold", color: [255, 255, 255], align: "center", maxWidth: colWidth - 3 });
   });
   y += 8;
 
@@ -191,7 +199,7 @@ function drawTable(doc: jsPDF, table: PdfTable, startY: number, locale: Locale) 
     doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
     doc.rect(x, y, width, 8, "FD");
     row.forEach((cell, index) => {
-      text(doc, safe(cell), x + index * colWidth + colWidth / 2, y + 5.3, { size: 7, color: TEXT, align: "center", maxWidth: colWidth - 3 });
+      text(doc, safe(cell), x + index * colWidth + colWidth / 2, y + 5.4, { size: isArabicText(safe(cell)) ? 8.2 : 7, color: TEXT, align: "center", maxWidth: colWidth - 3 });
     });
     y += 8;
   });
@@ -213,7 +221,7 @@ function drawSignatures(doc: jsPDF, y: number, approvalStatus: string, locale: L
   y = ensureSpace(doc, y, 45);
   const cards = [
     { title: locale === "ar" ? "التوقيع المخول" : "Authorized Signature", value: "Authorized Officer" },
-    { title: locale === "ar" ? "ختم الشركة" : "Company Stamp", value: "TRINSU" },
+    { title: locale === "ar" ? "ختم الشركة" : "Company Stamp", value: COMPANY_NAME_AR },
     { title: locale === "ar" ? "حالة الموافقة" : "Approval Status", value: approvalStatus }
   ];
   cards.forEach((card, index) => {
@@ -234,7 +242,7 @@ function drawSignatures(doc: jsPDF, y: number, approvalStatus: string, locale: L
   return y + 39;
 }
 
-async function drawVerificationQr(doc: jsPDF, payload: Record<string, unknown> | string, x = 154, y = 41) {
+async function drawVerificationQr(doc: jsPDF, payload: Record<string, unknown> | string, x = 154, y = 52) {
   const verificationPayload = typeof payload === "string" ? payload : JSON.stringify(payload);
   const qr = await QRCode.toDataURL(verificationPayload, PDF_QR_OPTIONS);
   doc.setFillColor(255, 255, 255);
@@ -263,7 +271,7 @@ export async function createCorporatePdf(input: CorporatePdfInput) {
     issueDate
   });
 
-  let y = input.qrPayload ? 98 : 44;
+  let y = input.qrPayload ? 108 : 56;
   if (input.qrPayload) {
     await drawVerificationQr(doc, input.qrPayload);
   }
@@ -273,11 +281,11 @@ export async function createCorporatePdf(input: CorporatePdfInput) {
 
   if (input.terms?.length) {
     y = ensureSpace(doc, y, 32);
-    text(doc, locale === "ar" ? "الشروط والأحكام" : "Terms & Conditions", locale === "ar" ? 196 : 14, y, { size: 10, style: "bold", color: NAVY, align: locale === "ar" ? "right" : "left" });
+    text(doc, locale === "ar" ? "الشروط والأحكام" : "Terms & Conditions", locale === "ar" ? 196 : 14, y, { size: locale === "ar" ? 11.8 : 10, style: "bold", color: NAVY, align: locale === "ar" ? "right" : "left" });
     y += 6;
     input.terms.forEach((term, index) => {
       y = ensureSpace(doc, y, 7);
-      text(doc, `${index + 1}. ${term}`, locale === "ar" ? 196 : 14, y, { size: 7.8, color: TEXT, align: locale === "ar" ? "right" : "left", maxWidth: 182 });
+      text(doc, `${index + 1}. ${term}`, locale === "ar" ? 196 : 14, y, { size: isArabicText(term) ? 9.2 : 7.8, color: TEXT, align: locale === "ar" ? "right" : "left", maxWidth: 182 });
       y += 6;
     });
   }
@@ -309,7 +317,7 @@ export async function createPolicyPdf(policy: {
     documentType: "Policy",
     documentNumber: policy.policyNumber,
     issueDate: policy.issueDate,
-    generatedBy: policy.issuedBy ?? "TRINSU System",
+    generatedBy: policy.issuedBy ?? COMPANY_NAME_EN,
     customerName: policy.customerName,
     qrPayload: policy.verificationUrl,
     sections: [
@@ -375,7 +383,7 @@ export async function createCertificatePdf(input: { title: string; number: strin
       }
     ],
     terms: [
-      "This certificate is issued by TRINSU Travel Insurance Management System.",
+      "This certificate is issued by Iraq Takaful Insurance Company.",
       "The certificate is valid only with a matching company record and QR verification."
     ],
     approvalStatus: "APPROVED"

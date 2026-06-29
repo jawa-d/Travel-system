@@ -21,7 +21,7 @@ export async function rowsToPdfBuffer(title: string, rows: Record<string, unknow
     title,
     documentType: "Report",
     documentNumber: `REP-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}`,
-    generatedBy: "TRINSU System",
+    generatedBy: "Iraq Takaful Insurance Company",
     qrPayload: { title, generatedAt: new Date().toISOString(), rows: rows.length },
     sections: [
       {
@@ -43,7 +43,7 @@ export async function rowsToPdfBuffer(title: string, rows: Record<string, unknow
       }
     ],
     terms: [
-      "This report is generated from TRINSU operational records.",
+      "This report is generated from Iraq Takaful Insurance Company operational records.",
       "Values are intended for internal review, regulatory support and authorized business reporting."
     ],
     approvalStatus: "GENERATED"

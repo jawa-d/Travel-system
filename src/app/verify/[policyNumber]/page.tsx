@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2, FileText, ShieldCheck } from "lucide-react";
+import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -75,9 +75,10 @@ export default async function VerifyPolicyPage({
           <VerificationDetailItem label="قسط التأمين" value={formatCurrency(String(policy.premium))} dir="ltr" />
         </div>
 
-        <div className="mt-7 flex flex-col gap-2 sm:flex-row">
-          <Button asChild className="bg-[#293545] hover:bg-[#1f2937]"><Link href="/verify"><ShieldCheck className="h-4 w-4" />التحقق من وثيقة أخرى</Link></Button>
-          <Button asChild variant="outline"><Link href="/"><FileText className="h-4 w-4" />العودة للنظام</Link></Button>
+        <div className="mt-7 flex justify-center">
+          <Button asChild className="bg-[#293545] hover:bg-[#1f2937]">
+            <Link href="/verify"><ShieldCheck className="h-4 w-4" />Verify Another Policy</Link>
+          </Button>
         </div>
       </VerificationContent>
     </VerificationCard>
