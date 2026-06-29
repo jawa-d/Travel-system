@@ -56,7 +56,7 @@ function isArabicText(value: string) {
 }
 
 function processText(doc: jsPDF, value: string) {
-  return isArabicText(value) ? doc.processArabic(value) : value;
+  return value;
 }
 
 function setFont(doc: jsPDF, value: string, style: "normal" | "bold" = "normal") {
@@ -69,11 +69,14 @@ function text(doc: jsPDF, value: string, x: number, y: number, options: { maxWid
   doc.setTextColor(color[0], color[1], color[2]);
   doc.setFontSize(options.size ?? (arabic ? 10.2 : 9));
   setFont(doc, value, options.style ?? (arabic ? "bold" : "normal"));
-  doc.text(processText(doc, value), x, y, {
+  doc.setR2L(arabic);
+  doc.text(value, x, y, {
     align: options.align ?? (arabic ? "right" : "left"),
     maxWidth: options.maxWidth,
+    isInputVisual: false,
     lineHeightFactor: options.lineHeightFactor ?? (arabic ? 1.45 : 1.2)
   });
+  if (arabic) doc.setR2L(false);
 }
 
 function safe(value: unknown) {
@@ -102,7 +105,9 @@ function drawPageWatermark(doc: jsPDF) {
     doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
     doc.setFont(ARABIC_FONT_NAME, "bold");
     doc.setFontSize(33);
-    doc.text(processText(doc, COMPANY_NAME_AR), 105, 149, { align: "center", angle: -38 });
+    doc.setR2L(true);
+    doc.text(COMPANY_NAME_AR, 105, 149, { align: "center", angle: -38, isInputVisual: false });
+    doc.setR2L(false);
   });
 }
 
