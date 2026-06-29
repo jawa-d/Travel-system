@@ -8,10 +8,14 @@ import { requirePagePermission } from "@/lib/page-guard";
 import { prisma } from "@/lib/prisma";
 
 export default async function NotificationsPage() {
-  await requirePagePermission("notificationsRead");
+  const user = await requirePagePermission("notificationsRead");
   const notifications = isDirectAccessEnabled()
     ? getDemoNotifications()
-    : await prisma.notification.findMany({ orderBy: { createdAt: "desc" }, take: 100 });
+    : await prisma.notification.findMany({
+        where: { OR: [{ userId: user.id }, { userId: null }] },
+        orderBy: { createdAt: "desc" },
+        take: 100
+      });
 
   const unread = notifications.filter((item) => item.status !== "READ").length;
   const expiry = notifications.filter((item) => item.type === "EXPIRY").length;

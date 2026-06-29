@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { auth } from "@/auth";
 import { can, type Permission } from "@/lib/rbac";
 import { directAccessUser, isDirectAccessEnabled } from "@/lib/direct-access";
@@ -12,6 +13,13 @@ export async function requirePagePermission(permission: Permission) {
     const account = await prisma.user.findUnique({ where: { id: user.id }, select: { active: true } });
     if (!account?.active) redirect("/login");
   }
-  if (!can(user.role, permission)) redirect("/");
+  if (!can(user.role, permission)) {
+    const currentPath = (await headers()).get("x-current-path") ?? "";
+    const deniedUrl = new URLSearchParams({
+      permission,
+      from: currentPath || "unknown"
+    });
+    redirect(`/access-denied?${deniedUrl.toString()}`);
+  }
   return user;
 }

@@ -42,6 +42,7 @@ export default auth(async (request) => {
   if (role === "AGENT" && !path.startsWith("/api/")) {
     const allowed =
       path === "/" ||
+      path === "/access-denied" ||
       path === "/policies" ||
       path.startsWith("/policies/") ||
       path === "/policies/new" ||
@@ -50,8 +51,17 @@ export default auth(async (request) => {
       path === "/claims" ||
       path === "/endorsements" ||
       path === "/cancellations";
-    if (!allowed) return NextResponse.redirect(new URL("/policies/new", requestOrigin(request)));
+    if (!allowed) {
+      const deniedUrl = new URL("/access-denied", requestOrigin(request));
+      deniedUrl.searchParams.set("from", `${request.nextUrl.pathname}${request.nextUrl.search}`);
+      deniedUrl.searchParams.set("reason", "agent-route");
+      return NextResponse.redirect(deniedUrl);
+    }
   }
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-current-path", `${request.nextUrl.pathname}${request.nextUrl.search}`);
+  return NextResponse.next({ request: { headers: requestHeaders } });
 });
 
 export const config = {
