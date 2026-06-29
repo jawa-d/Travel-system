@@ -15,7 +15,7 @@ const TEXT = [35, 43, 55] as const;
 const MUTED = [101, 113, 130] as const;
 const FOOTER_TEXT = [111, 121, 135] as const;
 const FOOTER_LINE = [226, 232, 240] as const;
-const COMPANY_NAME_AR = "تكافل العراق للتأمين التكافلي";
+const COMPANY_NAME_AR = "شركة تكافل العراق للتأمين التكافلي";
 const COMPANY_NAME_EN = "Iraq Takaful Insurance Company";
 const LOGO_FILE = "Screenshot 2026-06-22 194918.png";
 let arabicFontBase64: string | null = null;
@@ -106,28 +106,32 @@ function drawPageWatermark(doc: jsPDF) {
   });
 }
 
-function drawOfficialLogo(doc: jsPDF, x: number, y: number, size: number) {
+function drawOfficialLogo(doc: jsPDF, x: number, y: number, width: number) {
   logoBase64 ??= readFileSync(join(process.cwd(), "src", LOGO_FILE)).toString("base64");
-  doc.addImage(`data:image/png;base64,${logoBase64}`, "PNG", x, y, size, size);
+  const imageHeight = 64;
+  const imageWidth = imageHeight * (302 / 483);
+  const imageX = x + (width - imageWidth) / 2;
+  const imageY = y + 9 - imageHeight * (288 / 483);
+  doc.addImage(`data:image/png;base64,${logoBase64}`, "PNG", imageX, imageY, imageWidth, imageHeight);
 }
 
 function addHeader(doc: jsPDF, input: Required<Pick<CorporatePdfInput, "title" | "documentNumber" | "documentType" | "issueDate">>) {
   doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
-  doc.rect(0, 0, 210, 42, "F");
+  doc.rect(0, 0, 210, 50, "F");
   doc.setFillColor(GOLD[0], GOLD[1], GOLD[2]);
-  doc.rect(0, 42, 210, 2.4, "F");
+  doc.rect(0, 50, 210, 2.6, "F");
 
   doc.setFillColor(255, 255, 255);
-  doc.roundedRect(13, 5.5, 27, 31, 3, 3, "F");
-  drawOfficialLogo(doc, 16, 7.4, 21);
+  doc.roundedRect(12, 6, 42, 38, 3, 3, "F");
+  drawOfficialLogo(doc, 12, 6, 42);
 
-  text(doc, COMPANY_NAME_AR, 47, 15.5, { size: 18, style: "bold", color: [255, 255, 255], maxWidth: 86, lineHeightFactor: 1.35 });
-  text(doc, COMPANY_NAME_EN, 47, 24, { size: 8.4, style: "bold", color: [238, 242, 247] });
-  text(doc, "Enterprise Travel Insurance Documents", 47, 30.4, { size: 7.2, color: [219, 226, 235] });
+  text(doc, COMPANY_NAME_AR, 137, 16, { size: 20.5, style: "bold", color: [255, 255, 255], align: "right", maxWidth: 78, lineHeightFactor: 1.18 });
+  text(doc, COMPANY_NAME_EN, 59, 32.5, { size: 9.4, style: "bold", color: [238, 242, 247] });
+  text(doc, "Enterprise Travel Insurance Documents", 59, 39, { size: 7.6, color: [219, 226, 235] });
 
-  text(doc, input.title, 196, 13.4, { size: isArabicText(input.title) ? 14.5 : 12, style: "bold", color: [255, 255, 255], align: "right", maxWidth: 72, lineHeightFactor: 1.35 });
-  text(doc, `${input.documentType}: ${input.documentNumber}`, 196, 24.5, { size: 8.6, style: "bold", color: [238, 242, 247], align: "right" });
-  text(doc, `Issue Date: ${input.issueDate}`, 196, 31.2, { size: 7.4, color: [219, 226, 235], align: "right" });
+  text(doc, input.title, 196, 15.5, { size: isArabicText(input.title) ? 15.5 : 12.6, style: "bold", color: [255, 255, 255], align: "right", maxWidth: 55, lineHeightFactor: 1.3 });
+  text(doc, `${input.documentType}: ${input.documentNumber}`, 196, 28.5, { size: 8.8, style: "bold", color: [238, 242, 247], align: "right" });
+  text(doc, `Issue Date: ${input.issueDate}`, 196, 36, { size: 7.8, color: [219, 226, 235], align: "right" });
 }
 
 function addFooter(doc: jsPDF) {
@@ -152,7 +156,7 @@ function ensureSpace(doc: jsPDF, y: number, needed = 24) {
   if (y + needed <= CONTENT_BOTTOM_Y) return y;
   doc.addPage();
   drawPageWatermark(doc);
-  return 54;
+  return 62;
 }
 
 function drawSection(doc: jsPDF, section: PdfSection, startY: number, locale: Locale) {
@@ -242,7 +246,7 @@ function drawSignatures(doc: jsPDF, y: number, approvalStatus: string, locale: L
   return y + 39;
 }
 
-async function drawVerificationQr(doc: jsPDF, payload: Record<string, unknown> | string, x = 154, y = 52) {
+async function drawVerificationQr(doc: jsPDF, payload: Record<string, unknown> | string, x = 154, y = 60) {
   const verificationPayload = typeof payload === "string" ? payload : JSON.stringify(payload);
   const qr = await QRCode.toDataURL(verificationPayload, PDF_QR_OPTIONS);
   doc.setFillColor(255, 255, 255);
@@ -271,7 +275,7 @@ export async function createCorporatePdf(input: CorporatePdfInput) {
     issueDate
   });
 
-  let y = input.qrPayload ? 108 : 56;
+  let y = input.qrPayload ? 116 : 64;
   if (input.qrPayload) {
     await drawVerificationQr(doc, input.qrPayload);
   }
