@@ -71,14 +71,13 @@ function text(doc: jsPDF, value: string, x: number, y: number, options: { maxWid
   doc.setTextColor(color[0], color[1], color[2]);
   doc.setFontSize(options.size ?? (arabic ? 11.2 : 9));
   setFont(doc, value, options.style ?? (arabic ? "bold" : "normal"));
-  doc.setR2L(arabic);
+  doc.setR2L(false);
   doc.text(displayValue, x, y, {
     align: options.align ?? (arabic ? "right" : "left"),
     maxWidth: options.maxWidth,
     isInputVisual: false,
     lineHeightFactor: options.lineHeightFactor ?? (arabic ? 1.45 : 1.2)
   });
-  if (arabic) doc.setR2L(false);
 }
 
 function safe(value: unknown) {
@@ -107,9 +106,8 @@ function drawPageWatermark(doc: jsPDF) {
     doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
     doc.setFont(ARABIC_FONT_NAME, "bold");
     doc.setFontSize(33);
-    doc.setR2L(true);
-    doc.text(OFFICIAL_COMPANY_NAME_AR, 105, 149, { align: "center", angle: -38, isInputVisual: false });
     doc.setR2L(false);
+    doc.text(OFFICIAL_COMPANY_NAME_AR, 105, 149, { align: "center", angle: -38, isInputVisual: false });
   });
 }
 
@@ -132,7 +130,7 @@ function addHeader(doc: jsPDF, input: Required<Pick<CorporatePdfInput, "title" |
   doc.roundedRect(12, 8, 42, 44, 3, 3, "F");
   drawOfficialLogo(doc, 12, 8, 42);
 
-  text(doc, OFFICIAL_COMPANY_NAME_AR, 126, 20, { size: 23.8, style: "bold", color: [255, 255, 255], align: "center", lineHeightFactor: 1.1 });
+  text(doc, OFFICIAL_COMPANY_NAME_AR, 126, 20, { size: 21, style: "bold", color: [255, 255, 255], align: "center", maxWidth: 116, lineHeightFactor: 1.1 });
   text(doc, COMPANY_NAME_EN, 126, 31, { size: 9.8, style: "bold", color: [238, 242, 247], align: "center" });
   text(doc, "Enterprise Travel Insurance Documents", 126, 38, { size: 7.8, color: [219, 226, 235], align: "center" });
 
@@ -249,11 +247,11 @@ function drawSignatures(doc: jsPDF, y: number, approvalStatus: string, locale: L
     if (index === 1) {
       doc.setDrawColor(GOLD[0], GOLD[1], GOLD[2]);
       doc.setLineWidth(0.45);
-      doc.circle(x + 29, y + 19.5, 12.5);
+      doc.circle(x + 29, y + 19.2, 13.2);
       doc.setLineWidth(0.2);
-      doc.circle(x + 29, y + 19.5, 10.4);
-      text(doc, "تكافل العراق", x + 29, y + 17.8, { size: 9.2, style: "bold", color: NAVY, align: "center", lineHeightFactor: 1 });
-      text(doc, "للتأمين التكافلي", x + 29, y + 22.7, { size: 8.7, style: "bold", color: NAVY, align: "center", lineHeightFactor: 1 });
+      doc.circle(x + 29, y + 19.2, 11);
+      text(doc, "تكافل العراق", x + 29, y + 17.5, { size: 8.6, style: "bold", color: NAVY, align: "center", maxWidth: 21, lineHeightFactor: 1 });
+      text(doc, "للتأمين التكافلي", x + 29, y + 22.5, { size: 8.1, style: "bold", color: NAVY, align: "center", maxWidth: 23, lineHeightFactor: 1 });
     } else {
       doc.setDrawColor(GOLD[0], GOLD[1], GOLD[2]);
       doc.line(x + 10, y + 22, x + 48, y + 22);
