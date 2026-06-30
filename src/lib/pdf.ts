@@ -44,7 +44,6 @@ type CorporatePdfInput = {
   terms?: string[];
   approvalStatus?: string;
 };
-type ArabicCapableDoc = jsPDF & { processArabic?: (value: string) => string };
 
 function registerArabicFont(doc: jsPDF) {
   arabicFontBase64 ??= readFileSync(join(process.cwd(), "public", "fonts", ARABIC_FONT_FILE)).toString("base64");
@@ -58,7 +57,7 @@ function isArabicText(value: string) {
 }
 
 function processText(doc: jsPDF, value: string) {
-  return isArabicText(value) ? ((doc as ArabicCapableDoc).processArabic?.(value) ?? value) : value;
+  return value;
 }
 
 function setFont(doc: jsPDF, value: string, style: "normal" | "bold" = "normal") {
@@ -76,7 +75,7 @@ function text(doc: jsPDF, value: string, x: number, y: number, options: { maxWid
   doc.text(displayValue, x, y, {
     align: options.align ?? (arabic ? "right" : "left"),
     maxWidth: options.maxWidth,
-    isInputVisual: arabic,
+    isInputVisual: false,
     lineHeightFactor: options.lineHeightFactor ?? (arabic ? 1.45 : 1.2)
   });
   if (arabic) doc.setR2L(false);
@@ -109,7 +108,7 @@ function drawPageWatermark(doc: jsPDF) {
     doc.setFont(ARABIC_FONT_NAME, "bold");
     doc.setFontSize(33);
     doc.setR2L(true);
-    doc.text(processText(doc, OFFICIAL_COMPANY_NAME_AR), 105, 149, { align: "center", angle: -38, isInputVisual: true });
+    doc.text(OFFICIAL_COMPANY_NAME_AR, 105, 149, { align: "center", angle: -38, isInputVisual: false });
     doc.setR2L(false);
   });
 }
