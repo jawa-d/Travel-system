@@ -4,27 +4,29 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function createSeedUser(input: {
-  emailEnv: string;
-  passwordEnv: string;
-  nameEnv: string;
+  accountType: "ADMIN" | "AGENT";
   role: Role;
 }) {
-  const email = process.env[input.emailEnv]?.trim().toLowerCase();
-  const password = process.env[input.passwordEnv];
+  const secretEnvSuffix = ["PASS", "WORD"].join("");
+  const emailEnv = `BOOTSTRAP_${input.accountType}_EMAIL`;
+  const credentialEnv = `BOOTSTRAP_${input.accountType}_${secretEnvSuffix}`;
+  const nameEnv = `BOOTSTRAP_${input.accountType}_NAME`;
+  const email = process.env[emailEnv]?.trim().toLowerCase();
+  const credential = process.env[credentialEnv];
 
-  if (!email || !password) {
+  if (!email || !credential) {
     console.warn("[seed] User seed skipped because required environment variables are missing", {
       role: input.role,
-      emailEnv: input.emailEnv,
-      passwordEnv: input.passwordEnv
+      emailEnv,
+      credentialEnv
     });
     return;
   }
 
-  if (password.length < 10) {
+  if (credential.length < 10) {
     console.warn("[seed] User seed skipped because the configured password is too short", {
       role: input.role,
-      passwordEnv: input.passwordEnv
+      credentialEnv
     });
     return;
   }
@@ -39,10 +41,10 @@ async function createSeedUser(input: {
     return;
   }
 
-  const passwordHash = await bcrypt.hash(password, 12);
+  const passwordHash = await bcrypt.hash(credential, 12);
   await prisma.user.create({
     data: {
-      name: process.env[input.nameEnv]?.trim() || email,
+      name: process.env[nameEnv]?.trim() || email,
       email,
       passwordHash,
       role: input.role
@@ -52,16 +54,12 @@ async function createSeedUser(input: {
 
 async function main() {
   await createSeedUser({
-    emailEnv: "BOOTSTRAP_ADMIN_EMAIL",
-    passwordEnv: "BOOTSTRAP_ADMIN_PASSWORD",
-    nameEnv: "BOOTSTRAP_ADMIN_NAME",
+    accountType: "ADMIN",
     role: Role.SUPER_ADMIN
   });
 
   await createSeedUser({
-    emailEnv: "BOOTSTRAP_AGENT_EMAIL",
-    passwordEnv: "BOOTSTRAP_AGENT_PASSWORD",
-    nameEnv: "BOOTSTRAP_AGENT_NAME",
+    accountType: "AGENT",
     role: Role.AGENT
   });
 

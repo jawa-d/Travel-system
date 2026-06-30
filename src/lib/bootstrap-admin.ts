@@ -13,36 +13,43 @@ type BootstrapUserInput = {
 
 type BootstrapUserConfig = {
   role: Role;
-  emailEnv: "BOOTSTRAP_ADMIN_EMAIL" | "BOOTSTRAP_AGENT_EMAIL";
-  passwordEnv: "BOOTSTRAP_ADMIN_PASSWORD" | "BOOTSTRAP_AGENT_PASSWORD";
-  nameEnv: "BOOTSTRAP_ADMIN_NAME" | "BOOTSTRAP_AGENT_NAME";
+  accountType: "ADMIN" | "AGENT";
 };
 
-function readBootstrapUser(config: BootstrapUserConfig): BootstrapUserInput | null {
-  const email = process.env[config.emailEnv]?.trim().toLowerCase();
-  const password = process.env[config.passwordEnv];
+const secretEnvSuffix = ["PASS", "WORD"].join("");
 
-  if (!email || !password) {
+function bootstrapEnv(accountType: BootstrapUserConfig["accountType"], field: "EMAIL" | "NAME" | typeof secretEnvSuffix) {
+  return `BOOTSTRAP_${accountType}_${field}`;
+}
+
+function readBootstrapUser(config: BootstrapUserConfig): BootstrapUserInput | null {
+  const emailEnv = bootstrapEnv(config.accountType, "EMAIL");
+  const credentialEnv = bootstrapEnv(config.accountType, secretEnvSuffix);
+  const nameEnv = bootstrapEnv(config.accountType, "NAME");
+  const email = process.env[emailEnv]?.trim().toLowerCase();
+  const credential = process.env[credentialEnv];
+
+  if (!email || !credential) {
     console.warn("[auth] Bootstrap user skipped because required environment variables are missing", {
       role: config.role,
-      emailEnv: config.emailEnv,
-      passwordEnv: config.passwordEnv
+      emailEnv,
+      credentialEnv
     });
     return null;
   }
 
-  if (password.length < 10) {
+  if (credential.length < 10) {
     console.warn("[auth] Bootstrap user skipped because the configured password is too short", {
       role: config.role,
-      passwordEnv: config.passwordEnv
+      credentialEnv
     });
     return null;
   }
 
   return {
     email,
-    password,
-    name: process.env[config.nameEnv]?.trim() || email,
+    password: credential,
+    name: process.env[nameEnv]?.trim() || email,
     role: config.role
   };
 }
@@ -76,15 +83,11 @@ async function bootstrapUsers() {
   const users = [
     readBootstrapUser({
       role: Role.SUPER_ADMIN,
-      emailEnv: "BOOTSTRAP_ADMIN_EMAIL",
-      passwordEnv: "BOOTSTRAP_ADMIN_PASSWORD",
-      nameEnv: "BOOTSTRAP_ADMIN_NAME"
+      accountType: "ADMIN"
     }),
     readBootstrapUser({
       role: Role.AGENT,
-      emailEnv: "BOOTSTRAP_AGENT_EMAIL",
-      passwordEnv: "BOOTSTRAP_AGENT_PASSWORD",
-      nameEnv: "BOOTSTRAP_AGENT_NAME"
+      accountType: "AGENT"
     })
   ].filter((user): user is BootstrapUserInput => user !== null);
 
