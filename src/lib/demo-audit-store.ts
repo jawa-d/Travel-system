@@ -1,4 +1,5 @@
 import { Role } from "@prisma/client";
+import { isDemoModeEnabled } from "@/lib/direct-access";
 
 export type DemoAuditLog = {
   id: string;
@@ -73,5 +74,6 @@ const logs: DemoAuditLog[] = [
 ];
 
 export function getDemoAuditLogs() {
+  if (!isDemoModeEnabled()) return [];
   return logs;
 }

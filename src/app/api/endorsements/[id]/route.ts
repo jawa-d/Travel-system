@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { EndorsementStatus } from "@prisma/client";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { jsonError, requirePermission } from "@/lib/api";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
@@ -8,10 +9,14 @@ import { getIpAddress, writeAuditLog } from "@/lib/audit";
 import { canAccessPolicy } from "@/lib/policy-access";
 import { isWorkflowStatus, validateWorkflowTransition } from "@/lib/workflow-status";
 
+const updateEndorsementSchema = z.object({
+  status: z.enum(["OPEN", "UNDER_REVIEW", "APPROVED", "REJECTED", "CLOSED"])
+});
+
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const body = await request.json();
+    const body = updateEndorsementSchema.parse(await request.json());
     if (!isWorkflowStatus(body.status)) return NextResponse.json({ error: "حالة الملحق غير صحيحة" }, { status: 400 });
     if (isDirectAccessEnabled()) {
       const item = updateDemoEndorsementStatus(id, body.status as DemoEndorsementStatus);

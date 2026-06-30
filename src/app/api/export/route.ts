@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requirePermission, requireUser } from "@/lib/api";
 import { rowsToExcelBuffer, rowsToPdfBuffer } from "@/lib/exports";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
-import { demoClaims } from "@/lib/demo-data";
+import { getDemoClaims } from "@/lib/demo-claim-store";
 import { getDemoCustomers } from "@/lib/demo-customer-store";
 import { getDemoPolicies } from "@/lib/demo-policy-store";
 import { getDemoPlans } from "@/lib/demo-plan-store";
@@ -75,7 +75,7 @@ async function demoRows(resource: string): Promise<ExportRow[]> {
     case "agent-accounts":
       return [];
     case "claims":
-      return normalize(demoClaims.map((item) => ({
+      return normalize(getDemoClaims().map((item) => ({
         claimNumber: item.claimNumber, policyNumber: item.policy.policyNumber,
         customer: item.customer.arabicName, type: item.claimType,
         status: item.status, description: item.description, createdAt: item.createdAt
@@ -114,7 +114,7 @@ async function demoRows(resource: string): Promise<ExportRow[]> {
         { metric: "Total customers", value: getDemoCustomers().length },
         { metric: "Total policies", value: policies.length },
         { metric: "Total premiums", value: policies.reduce((sum, item) => sum + Number(item.premium), 0) },
-        { metric: "Total claims", value: demoClaims.length }
+        { metric: "Total claims", value: getDemoClaims().length }
       ]);
     }
     default:

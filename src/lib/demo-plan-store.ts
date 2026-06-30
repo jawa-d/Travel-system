@@ -1,4 +1,5 @@
 import { demoPlans } from "@/lib/demo-data";
+import { isDemoModeEnabled } from "@/lib/direct-access";
 
 export type DemoPlan = {
   id: string;
@@ -35,11 +36,13 @@ function initialPlans(): DemoPlan[] {
 }
 
 export function getDemoPlans() {
+  if (!isDemoModeEnabled()) return [];
   globalStore.__trinsuDemoPlans ??= initialPlans();
   return globalStore.__trinsuDemoPlans;
 }
 
 export function createDemoPlan(data: Omit<DemoPlan, "id" | "createdAt" | "updatedAt">) {
+  if (!isDemoModeEnabled()) return null;
   const now = new Date();
   const plan: DemoPlan = {
     ...data,
@@ -52,6 +55,7 @@ export function createDemoPlan(data: Omit<DemoPlan, "id" | "createdAt" | "update
 }
 
 export function updateDemoPlan(id: string, data: Omit<DemoPlan, "id" | "createdAt" | "updatedAt">) {
+  if (!isDemoModeEnabled()) return null;
   const plans = getDemoPlans();
   const index = plans.findIndex((plan) => plan.id === id);
   if (index === -1) return null;
@@ -60,6 +64,7 @@ export function updateDemoPlan(id: string, data: Omit<DemoPlan, "id" | "createdA
 }
 
 export function deleteDemoPlan(id: string) {
+  if (!isDemoModeEnabled()) return false;
   const plans = getDemoPlans();
   const index = plans.findIndex((plan) => plan.id === id);
   if (index === -1) return false;

@@ -9,8 +9,8 @@ import {
   VerificationContent,
   VerificationDetailItem
 } from "@/components/policy-verification-ui";
-import { demoPolicies } from "@/lib/demo-data";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
+import { getDemoPolicies } from "@/lib/demo-policy-store";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { isValidPolicyVerificationToken } from "@/lib/policy-verification";
@@ -29,7 +29,7 @@ export default async function VerifyPolicyPage({
   if (token && !isValidPolicyVerificationToken(decodedPolicyNumber, token)) notFound();
 
   const policy = isDirectAccessEnabled()
-    ? demoPolicies.find((item) => item.policyNumber === decodedPolicyNumber) ?? null
+    ? getDemoPolicies().find((item) => item.policyNumber === decodedPolicyNumber) ?? null
     : await prisma.policy.findFirst({
         where: { policyNumber: decodedPolicyNumber, deletedAt: null },
         include: { customer: true, destinationCountry: true, travelPlan: true, issuedBy: true, agency: true }

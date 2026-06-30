@@ -1,5 +1,5 @@
 import QRCode from "qrcode";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 const QR_OPTIONS = {
   errorCorrectionLevel: "H",
@@ -11,12 +11,28 @@ const QR_OPTIONS = {
   }
 } as const;
 
+let developmentVerificationSecret: string | null = null;
+let warnedAboutMissingVerificationSecret = false;
+
 export function getAppBaseUrl() {
   return (process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
 }
 
 function getVerificationSecret() {
-  return process.env.POLICY_VERIFICATION_SECRET || process.env.NEXTAUTH_SECRET || "trinsu-local-policy-verification";
+  const secret = process.env.POLICY_VERIFICATION_SECRET || process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
+  if (secret) return secret;
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Policy verification secret is not configured");
+  }
+
+  if (!warnedAboutMissingVerificationSecret) {
+    warnedAboutMissingVerificationSecret = true;
+    console.warn("[security] POLICY_VERIFICATION_SECRET is missing; using an ephemeral development secret");
+  }
+
+  developmentVerificationSecret ??= randomBytes(32).toString("base64url");
+  return developmentVerificationSecret;
 }
 
 export function createPolicyVerificationToken(policyNumber: string) {

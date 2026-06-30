@@ -3,41 +3,73 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
-async function main() {
-  const passwordHash = await bcrypt.hash("Admin@12345", 12);
+async function createSeedUser(input: {
+  emailEnv: string;
+  passwordEnv: string;
+  nameEnv: string;
+  role: Role;
+}) {
+  const email = process.env[input.emailEnv]?.trim().toLowerCase();
+  const password = process.env[input.passwordEnv];
 
-  await prisma.user.upsert({
-    where: { email: "admin@trinsu.local" },
-    update: {
-      name: "مدير النظام"
-    },
-    create: {
-      name: "مدير النظام",
-      email: "admin@trinsu.local",
-      passwordHash,
-      role: Role.SUPER_ADMIN
-    }
+  if (!email || !password) {
+    console.warn("[seed] User seed skipped because required environment variables are missing", {
+      role: input.role,
+      emailEnv: input.emailEnv,
+      passwordEnv: input.passwordEnv
+    });
+    return;
+  }
+
+  if (password.length < 10) {
+    console.warn("[seed] User seed skipped because the configured password is too short", {
+      role: input.role,
+      passwordEnv: input.passwordEnv
+    });
+    return;
+  }
+
+  const existingUser = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true }
   });
 
-  const agentHash = await bcrypt.hash("Agent@12345", 12);
-  await prisma.user.upsert({
-    where: { email: "agent@trinsu.local" },
-    update: {
-      name: "وكيل المبيعات"
-    },
-    create: {
-      name: "وكيل المبيعات",
-      email: "agent@trinsu.local",
-      passwordHash: agentHash,
-      role: Role.AGENT
+  if (existingUser) {
+    console.info("[seed] User already exists; no changes applied", { role: input.role });
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  await prisma.user.create({
+    data: {
+      name: process.env[input.nameEnv]?.trim() || email,
+      email,
+      passwordHash,
+      role: input.role
     }
+  });
+}
+
+async function main() {
+  await createSeedUser({
+    emailEnv: "BOOTSTRAP_ADMIN_EMAIL",
+    passwordEnv: "BOOTSTRAP_ADMIN_PASSWORD",
+    nameEnv: "BOOTSTRAP_ADMIN_NAME",
+    role: Role.SUPER_ADMIN
+  });
+
+  await createSeedUser({
+    emailEnv: "BOOTSTRAP_AGENT_EMAIL",
+    passwordEnv: "BOOTSTRAP_AGENT_PASSWORD",
+    nameEnv: "BOOTSTRAP_AGENT_NAME",
+    role: Role.AGENT
   });
 
   await prisma.travelPlan.createMany({
     skipDuplicates: true,
     data: [
       {
-        name: "الخطة الأساسية",
+        name: "Basic Plan",
         price: 25,
         medicalCoverage: 10000,
         baggageCoverage: 500,
@@ -47,7 +79,7 @@ async function main() {
         personalLiability: 10000
       },
       {
-        name: "الخطة الذهبية",
+        name: "Gold Plan",
         price: 55,
         medicalCoverage: 50000,
         baggageCoverage: 1500,
@@ -62,11 +94,11 @@ async function main() {
   await prisma.country.createMany({
     skipDuplicates: true,
     data: [
-      { nameAr: "تركيا", nameEn: "Turkey", isoCode: "TR", category: "ALLOWED" },
-      { nameAr: "الإمارات", nameEn: "United Arab Emirates", isoCode: "AE", category: "ALLOWED" },
-      { nameAr: "المملكة المتحدة", nameEn: "United Kingdom", isoCode: "GB", category: "ALLOWED" },
-      { nameAr: "أفغانستان", nameEn: "Afghanistan", isoCode: "AF", category: "HIGH_RISK", additionalRiskFee: 45 },
-      { nameAr: "سوريا", nameEn: "Syria", isoCode: "SY", category: "RESTRICTED", additionalRiskFee: 30 }
+      { nameAr: "Turkey", nameEn: "Turkey", isoCode: "TR", category: "ALLOWED" },
+      { nameAr: "United Arab Emirates", nameEn: "United Arab Emirates", isoCode: "AE", category: "ALLOWED" },
+      { nameAr: "United Kingdom", nameEn: "United Kingdom", isoCode: "GB", category: "ALLOWED" },
+      { nameAr: "Afghanistan", nameEn: "Afghanistan", isoCode: "AF", category: "HIGH_RISK", additionalRiskFee: 45 },
+      { nameAr: "Syria", nameEn: "Syria", isoCode: "SY", category: "RESTRICTED", additionalRiskFee: 30 }
     ]
   });
 
@@ -74,14 +106,14 @@ async function main() {
     data: [
       {
         type: "SYSTEM",
-        title: "مرحبا بك",
-        message: "تم تجهيز منصة TRINSU لإدارة تأمين السفر.",
+        title: "Welcome",
+        message: "TRINSU travel insurance management platform is ready.",
         status: "PENDING"
       },
       {
         type: "EMAIL",
-        title: "إعداد البريد",
-        message: "أضف بيانات SMTP في ملف البيئة لتفعيل إرسال ملفات PDF.",
+        title: "Email setup",
+        message: "Configure SMTP environment variables to enable PDF email delivery.",
         status: "PENDING"
       }
     ]

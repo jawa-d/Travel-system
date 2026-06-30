@@ -1,4 +1,5 @@
 import { demoPolicies } from "@/lib/demo-data";
+import { isDemoModeEnabled } from "@/lib/direct-access";
 
 export type DemoPolicyStatus = "DRAFT" | "ACTIVE" | "EXPIRED" | "CANCELLED";
 
@@ -56,16 +57,19 @@ function initialPolicies(): DemoPolicy[] {
 }
 
 export function getDemoPolicies() {
+  if (!isDemoModeEnabled()) return [];
   globalStore.__trinsuDemoPolicies ??= initialPolicies();
   return globalStore.__trinsuDemoPolicies;
 }
 
 export function createDemoPolicy(policy: DemoPolicy) {
+  if (!isDemoModeEnabled()) return null;
   getDemoPolicies().unshift(policy);
   return policy;
 }
 
 export function updateDemoPolicyStatus(id: string, status: DemoPolicyStatus) {
+  if (!isDemoModeEnabled()) return null;
   const policies = getDemoPolicies();
   const index = policies.findIndex((policy) => policy.id === id);
   if (index === -1) return null;

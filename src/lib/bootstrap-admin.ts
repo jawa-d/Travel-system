@@ -4,28 +4,64 @@ import { prisma } from "@/lib/prisma";
 
 let bootstrapPromise: Promise<void> | null = null;
 
-async function upsertBootstrapUser(input: {
+type BootstrapUserInput = {
   email: string;
   password: string;
   name: string;
   role: Role;
-}) {
-  const { email, password, name, role } = input;
+};
+
+type BootstrapUserConfig = {
+  role: Role;
+  emailEnv: "BOOTSTRAP_ADMIN_EMAIL" | "BOOTSTRAP_AGENT_EMAIL";
+  passwordEnv: "BOOTSTRAP_ADMIN_PASSWORD" | "BOOTSTRAP_AGENT_PASSWORD";
+  nameEnv: "BOOTSTRAP_ADMIN_NAME" | "BOOTSTRAP_AGENT_NAME";
+};
+
+function readBootstrapUser(config: BootstrapUserConfig): BootstrapUserInput | null {
+  const email = process.env[config.emailEnv]?.trim().toLowerCase();
+  const password = process.env[config.passwordEnv];
+
+  if (!email || !password) {
+    console.warn("[auth] Bootstrap user skipped because required environment variables are missing", {
+      role: config.role,
+      emailEnv: config.emailEnv,
+      passwordEnv: config.passwordEnv
+    });
+    return null;
+  }
+
   if (password.length < 10) {
-    console.error("[auth] Bootstrap password must contain at least 10 characters", { email });
+    console.warn("[auth] Bootstrap user skipped because the configured password is too short", {
+      role: config.role,
+      passwordEnv: config.passwordEnv
+    });
+    return null;
+  }
+
+  return {
+    email,
+    password,
+    name: process.env[config.nameEnv]?.trim() || email,
+    role: config.role
+  };
+}
+
+async function createBootstrapUserIfMissing(input: BootstrapUserInput) {
+  const { email, password, name, role } = input;
+  const existingUser = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true }
+  });
+
+  if (existingUser) {
+    console.info("[auth] Bootstrap user already exists; no changes applied", { role });
     return;
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
-  await prisma.user.upsert({
-    where: { email },
-    update: {
-      name,
-      passwordHash,
-      role,
-      active: true
-    },
-    create: {
+  await prisma.user.create({
+    data: {
       name,
       email,
       passwordHash,
@@ -33,30 +69,28 @@ async function upsertBootstrapUser(input: {
       active: true
     }
   });
+  console.info("[auth] Bootstrap user created", { role });
 }
 
 async function bootstrapUsers() {
-  const adminEmail = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase() || "admin@trinsu.local";
-  const adminPassword = process.env.BOOTSTRAP_ADMIN_PASSWORD || "Admin@12345";
-  const adminName = process.env.BOOTSTRAP_ADMIN_NAME?.trim() || "System Administrator";
-  const agentEmail = process.env.BOOTSTRAP_AGENT_EMAIL?.trim().toLowerCase() || "agent@trinsu.local";
-  const agentPassword = process.env.BOOTSTRAP_AGENT_PASSWORD || "Agent@12345";
-  const agentName = process.env.BOOTSTRAP_AGENT_NAME?.trim() || "Sales Agent";
+  const users = [
+    readBootstrapUser({
+      role: Role.SUPER_ADMIN,
+      emailEnv: "BOOTSTRAP_ADMIN_EMAIL",
+      passwordEnv: "BOOTSTRAP_ADMIN_PASSWORD",
+      nameEnv: "BOOTSTRAP_ADMIN_NAME"
+    }),
+    readBootstrapUser({
+      role: Role.AGENT,
+      emailEnv: "BOOTSTRAP_AGENT_EMAIL",
+      passwordEnv: "BOOTSTRAP_AGENT_PASSWORD",
+      nameEnv: "BOOTSTRAP_AGENT_NAME"
+    })
+  ].filter((user): user is BootstrapUserInput => user !== null);
 
-  await upsertBootstrapUser({
-    email: adminEmail,
-    password: adminPassword,
-    name: adminName,
-    role: Role.SUPER_ADMIN
-  });
-  await upsertBootstrapUser({
-    email: agentEmail,
-    password: agentPassword,
-    name: agentName,
-    role: Role.AGENT
-  });
-
-  console.info("[auth] Bootstrap users are ready", { adminEmail, agentEmail });
+  for (const user of users) {
+    await createBootstrapUserIfMissing(user);
+  }
 }
 
 export function ensureBootstrapUsers() {

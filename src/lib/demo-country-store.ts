@@ -1,4 +1,5 @@
 import { demoCountries } from "@/lib/demo-data";
+import { isDemoModeEnabled } from "@/lib/direct-access";
 
 export type DemoCountry = {
   id: string;
@@ -28,11 +29,13 @@ function initialCountries(): DemoCountry[] {
 }
 
 export function getDemoCountries() {
+  if (!isDemoModeEnabled()) return [];
   globalStore.__trinsuDemoCountries ??= initialCountries();
   return globalStore.__trinsuDemoCountries;
 }
 
 export function createDemoCountry(data: Omit<DemoCountry, "id" | "createdAt" | "updatedAt">) {
+  if (!isDemoModeEnabled()) return null;
   const now = new Date();
   const country: DemoCountry = {
     ...data,
@@ -45,6 +48,7 @@ export function createDemoCountry(data: Omit<DemoCountry, "id" | "createdAt" | "
 }
 
 export function updateDemoCountry(id: string, data: Omit<DemoCountry, "id" | "createdAt" | "updatedAt">) {
+  if (!isDemoModeEnabled()) return null;
   const countries = getDemoCountries();
   const index = countries.findIndex((country) => country.id === id);
   if (index === -1) return null;
@@ -53,6 +57,7 @@ export function updateDemoCountry(id: string, data: Omit<DemoCountry, "id" | "cr
 }
 
 export function deleteDemoCountry(id: string) {
+  if (!isDemoModeEnabled()) return false;
   const countries = getDemoCountries();
   const index = countries.findIndex((country) => country.id === id);
   if (index === -1) return false;

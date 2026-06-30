@@ -1,4 +1,5 @@
 import { demoNotifications } from "@/lib/demo-data";
+import { isDemoModeEnabled } from "@/lib/direct-access";
 
 export type DemoNotificationType = "SYSTEM" | "EXPIRY" | "EMAIL";
 export type DemoNotificationStatus = "PENDING" | "SENT" | "READ" | "FAILED";
@@ -36,11 +37,13 @@ function initialNotifications(): DemoNotification[] {
 }
 
 export function getDemoNotifications() {
+  if (!isDemoModeEnabled()) return [];
   globalStore.__trinsuDemoNotifications ??= initialNotifications();
   return globalStore.__trinsuDemoNotifications;
 }
 
 export function markDemoNotificationRead(id: string) {
+  if (!isDemoModeEnabled()) return null;
   const notifications = getDemoNotifications();
   const index = notifications.findIndex((item) => item.id === id);
   if (index === -1) return null;
@@ -49,6 +52,7 @@ export function markDemoNotificationRead(id: string) {
 }
 
 export function markAllDemoNotificationsRead() {
+  if (!isDemoModeEnabled()) return [];
   const notifications = getDemoNotifications();
   notifications.forEach((item, index) => {
     notifications[index] = { ...item, status: "READ" };

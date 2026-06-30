@@ -34,10 +34,9 @@ npm run db:seed
 npm run dev
 ```
 
-Default seeded user:
-
-- Email: `admin@trinsu.local`
-- Password: `Admin@12345`
+No default credentials are stored in source code. To create the first administrator, set
+`BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`, and optionally `BOOTSTRAP_ADMIN_NAME`
+in your local environment before running the seed or first credentials login.
 
 ## Vercel authentication
 
@@ -49,8 +48,9 @@ AUTH_SECRET=<a cryptographically random value of at least 32 characters>
 AUTH_URL=https://your-production-domain.example
 AUTH_TRUST_HOST=true
 BOOTSTRAP_ADMIN_NAME=System Administrator
-BOOTSTRAP_ADMIN_EMAIL=admin@example.com
+BOOTSTRAP_ADMIN_EMAIL=<administrator email>
 BOOTSTRAP_ADMIN_PASSWORD=<a strong password of at least 12 characters>
+POLICY_VERIFICATION_SECRET=<a separate cryptographically random value>
 ```
 
 `NEXTAUTH_SECRET` and `NEXTAUTH_URL` remain supported as legacy aliases. Do not configure
@@ -58,8 +58,8 @@ BOOTSTRAP_ADMIN_PASSWORD=<a strong password of at least 12 characters>
 Auth.js v5 can infer the Vercel host, so `AUTH_URL` may be omitted when no custom base path is used.
 
 The bootstrap administrator is created lazily on the first credentials login attempt only when
-the `User` table is empty. Remove `BOOTSTRAP_ADMIN_PASSWORD` from Vercel after the account has
-been created.
+the configured account does not already exist. Existing users are never overwritten or reset.
+Remove `BOOTSTRAP_ADMIN_PASSWORD` from Vercel after the account has been created.
 
 The Vercel build command runs `prisma migrate deploy` before `next build`, applying only reviewed
 production migrations. The existing Neon database has been baselined in Prisma migration history.

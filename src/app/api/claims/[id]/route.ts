@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ClaimStatus } from "@prisma/client";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { jsonError, requirePermission, requireUser } from "@/lib/api";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
@@ -7,6 +8,10 @@ import { updateDemoClaimStatus, type DemoClaimStatus } from "@/lib/demo-claim-st
 import { canAccessPolicy } from "@/lib/policy-access";
 import { getIpAddress, writeAuditLog } from "@/lib/audit";
 import { isWorkflowStatus, validateWorkflowTransition } from "@/lib/workflow-status";
+
+const updateClaimSchema = z.object({
+  status: z.enum(["OPEN", "UNDER_REVIEW", "APPROVED", "REJECTED", "CLOSED"])
+});
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
@@ -20,7 +25,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const body = await request.json();
+    const body = updateClaimSchema.parse(await request.json());
     if (!isWorkflowStatus(body.status)) return NextResponse.json({ error: "حالة المطالبة غير صحيحة" }, { status: 400 });
     const status = body.status as ClaimStatus;
     if (isDirectAccessEnabled()) {

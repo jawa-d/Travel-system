@@ -1,4 +1,6 @@
 import { demoClaims } from "@/lib/demo-data";
+import { isDemoModeEnabled } from "@/lib/direct-access";
+import { createSequence } from "@/lib/numbers";
 
 export type DemoClaimStatus = "OPEN" | "UNDER_REVIEW" | "APPROVED" | "REJECTED" | "CLOSED";
 export type DemoClaimType = "MEDICAL" | "BAGGAGE" | "TRIP_DELAY" | "CANCELLATION" | "OTHER";
@@ -34,16 +36,18 @@ function initialClaims(): DemoClaim[] {
 }
 
 export function getDemoClaims() {
+  if (!isDemoModeEnabled()) return [];
   globalStore.__trinsuDemoClaims ??= initialClaims();
   return globalStore.__trinsuDemoClaims;
 }
 
 export function createDemoClaim(data: Omit<DemoClaim, "id" | "claimNumber" | "createdAt" | "updatedAt">) {
+  if (!isDemoModeEnabled()) return null;
   const now = new Date();
   const claim: DemoClaim = {
     ...data,
     id: `demo-claim-${crypto.randomUUID()}`,
-    claimNumber: `CLM-${now.toISOString().slice(0, 10).replaceAll("-", "")}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+    claimNumber: createSequence("CLM"),
     createdAt: now,
     updatedAt: now
   };
@@ -52,6 +56,7 @@ export function createDemoClaim(data: Omit<DemoClaim, "id" | "claimNumber" | "cr
 }
 
 export function updateDemoClaimStatus(id: string, status: DemoClaimStatus) {
+  if (!isDemoModeEnabled()) return null;
   const claims = getDemoClaims();
   const index = claims.findIndex((claim) => claim.id === id);
   if (index === -1) return null;

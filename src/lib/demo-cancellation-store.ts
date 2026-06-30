@@ -1,4 +1,6 @@
 import { getDemoPolicies, updateDemoPolicyStatus } from "@/lib/demo-policy-store";
+import { isDemoModeEnabled } from "@/lib/direct-access";
+import { createSequence } from "@/lib/numbers";
 
 export type DemoCancellationReason =
   | "VISA_REJECTION"
@@ -52,6 +54,7 @@ function initialCancellations(): DemoCancellation[] {
 }
 
 export function getDemoCancellations() {
+  if (!isDemoModeEnabled()) return [];
   globalStore.__trinsuDemoCancellations ??= initialCancellations();
   return globalStore.__trinsuDemoCancellations;
 }
@@ -62,6 +65,7 @@ export function createDemoCancellation(input: {
   notes?: string;
   administrativeFees: number;
 }) {
+  if (!isDemoModeEnabled()) return null;
   const policy = getDemoPolicies().find((item) => item.id === input.policyId);
   if (!policy) return null;
   if (getDemoCancellations().some((item) => item.policy.id === policy.id)) return "DUPLICATE" as const;
@@ -69,7 +73,7 @@ export function createDemoCancellation(input: {
   const now = new Date();
   const item: DemoCancellation = {
     id: `demo-cancellation-${crypto.randomUUID()}`,
-    cancellationNumber: `CAN-${now.toISOString().slice(0, 10).replaceAll("-", "")}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+    cancellationNumber: createSequence("CAN"),
     policy: {
       id: policy.id,
       policyNumber: policy.policyNumber,

@@ -11,15 +11,15 @@ import {
 } from "@/components/policy-verification-ui";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { demoPolicies } from "@/lib/demo-data";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
+import { getDemoPolicies } from "@/lib/demo-policy-store";
 import { getPolicyVerificationUrl } from "@/lib/policy-verification";
 
 export default async function VerifySearchPage({ searchParams }: { searchParams: Promise<{ policyNumber?: string }> }) {
   const { policyNumber = "" } = await searchParams;
   const policy = policyNumber
     ? isDirectAccessEnabled()
-      ? demoPolicies.find((item) => item.policyNumber === policyNumber) ?? null
+      ? getDemoPolicies().find((item) => item.policyNumber === policyNumber) ?? null
       : await prisma.policy.findFirst({ where: { policyNumber, deletedAt: null }, include: { customer: true, destinationCountry: true, travelPlan: true } })
     : null;
 

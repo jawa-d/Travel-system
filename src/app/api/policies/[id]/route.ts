@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { jsonError, requirePermission, requireUser } from "@/lib/api";
 import { getIpAddress, writeAuditLog } from "@/lib/audit";
@@ -6,6 +7,11 @@ import { createSystemNotification } from "@/lib/notifications";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
 import { getDemoPolicies, updateDemoPolicyStatus, type DemoPolicyStatus } from "@/lib/demo-policy-store";
 import { canAccessPolicy } from "@/lib/policy-access";
+
+const updatePolicySchema = z.union([
+  z.object({ action: z.literal("restore") }),
+  z.object({ status: z.enum(["DRAFT", "ACTIVE", "EXPIRED", "CANCELLED"]) })
+]);
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -30,8 +36,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const body = await request.json();
-    if (body.action === "restore") {
+    const body = updatePolicySchema.parse(await request.json());
+    if ("action" in body && body.action === "restore") {
       if (isDirectAccessEnabled()) return NextResponse.json({ error: "Not available in demo mode" }, { status: 400 });
       const user = await requirePermission("policiesDelete");
       const policy = await prisma.policy.update({
@@ -44,12 +50,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       });
       return NextResponse.json(policy);
     }
-    const allowedStatuses = ["DRAFT", "ACTIVE", "EXPIRED", "CANCELLED"] as const;
-    if (!allowedStatuses.includes(body.status)) {
-      return NextResponse.json({ error: "حالة الوثيقة غير صحيحة" }, { status: 400 });
+    if (!("status" in body)) {
+      return NextResponse.json({ error: "Invalid policy update request" }, { status: 400 });
     }
+    const { status } = body;
     if (isDirectAccessEnabled()) {
-      const policy = updateDemoPolicyStatus(id, body.status as DemoPolicyStatus);
+      const policy = updateDemoPolicyStatus(id, status as DemoPolicyStatus);
       if (!policy) return NextResponse.json({ error: "الوثيقة غير موجودة" }, { status: 404 });
       return NextResponse.json(policy);
     }
@@ -64,20 +70,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (!canAccessPolicy(user, existingPolicy)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    const policy = await prisma.policy.update({ where: { id }, data: { status: body.status } });
+    const policy = await prisma.policy.update({ where: { id }, data: { status } });
     await writeAuditLog({
       userId: user.id,
       role: user.role,
-      action: body.status === "CANCELLED" ? "POLICY_CANCELLED" : "POLICY_UPDATED",
+      action: status === "CANCELLED" ? "POLICY_CANCELLED" : "POLICY_UPDATED",
       entity: "Policy",
       entityId: policy.id,
       ipAddress: getIpAddress(request.headers),
-      metadata: { status: body.status }
+      metadata: { status }
     });
     await createSystemNotification({
       userId: user.id,
-      title: body.status === "CANCELLED" ? "Policy cancelled" : "Policy updated",
-      message: `Policy ${policy.policyNumber} status changed to ${body.status}`,
+      title: status === "CANCELLED" ? "Policy cancelled" : "Policy updated",
+      message: `Policy ${policy.policyNumber} status changed to ${status}`,
       entity: "Policy",
       entityId: policy.id
     });

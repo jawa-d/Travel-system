@@ -1,4 +1,5 @@
 import { demoCustomers } from "@/lib/demo-data";
+import { isDemoModeEnabled } from "@/lib/direct-access";
 
 export type DemoCustomer = {
   id: string;
@@ -34,11 +35,13 @@ function initialCustomers(): DemoCustomer[] {
 }
 
 export function getDemoCustomers() {
+  if (!isDemoModeEnabled()) return [];
   globalStore.__trinsuDemoCustomers ??= initialCustomers();
   return globalStore.__trinsuDemoCustomers;
 }
 
 export function createDemoCustomer(input: Omit<DemoCustomer, "id" | "createdAt" | "updatedAt">) {
+  if (!isDemoModeEnabled()) return null;
   const duplicate = getDemoCustomers().some(
     (customer) => customer.passportNumber.toUpperCase() === input.passportNumber.toUpperCase()
   );
@@ -57,6 +60,7 @@ export function createDemoCustomer(input: Omit<DemoCustomer, "id" | "createdAt" 
 }
 
 export function updateDemoCustomer(id: string, input: Omit<DemoCustomer, "id" | "createdAt" | "updatedAt">) {
+  if (!isDemoModeEnabled()) return null;
   const customers = getDemoCustomers();
   const index = customers.findIndex((customer) => customer.id === id);
   if (index === -1) return null;

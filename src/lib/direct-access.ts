@@ -1,7 +1,21 @@
 import { Role } from "@prisma/client";
 
+let warnedAboutProductionDemo = false;
+
+export function isDemoModeEnabled() {
+  const requested = process.env.NODE_ENV === "development" || process.env.DEMO_MODE === "true";
+  if (process.env.NODE_ENV === "production") {
+    if (requested && !warnedAboutProductionDemo) {
+      warnedAboutProductionDemo = true;
+      console.warn("[security] Demo mode is disabled in production");
+    }
+    return false;
+  }
+  return requested;
+}
+
 export function isDirectAccessEnabled() {
-  return process.env.DIRECT_ACCESS === "true";
+  return isDemoModeEnabled() && process.env.DIRECT_ACCESS === "true";
 }
 
 export const directAccessUser = {

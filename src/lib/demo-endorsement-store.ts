@@ -1,4 +1,6 @@
 import { getDemoPolicies } from "@/lib/demo-policy-store";
+import { isDemoModeEnabled } from "@/lib/direct-access";
+import { createSequence } from "@/lib/numbers";
 
 export type DemoEndorsementStatus = "OPEN" | "UNDER_REVIEW" | "APPROVED" | "REJECTED" | "CLOSED";
 export type DemoEndorsementType =
@@ -42,16 +44,18 @@ function initialEndorsements(): DemoEndorsement[] {
 }
 
 export function getDemoEndorsements() {
+  if (!isDemoModeEnabled()) return [];
   globalStore.__trinsuDemoEndorsements ??= initialEndorsements();
   return globalStore.__trinsuDemoEndorsements;
 }
 
 export function createDemoEndorsement(data: Omit<DemoEndorsement, "id" | "endorsementNumber" | "createdAt" | "updatedAt">) {
+  if (!isDemoModeEnabled()) return null;
   const now = new Date();
   const item: DemoEndorsement = {
     ...data,
     id: `demo-endorsement-${crypto.randomUUID()}`,
-    endorsementNumber: `END-${now.toISOString().slice(0, 10).replaceAll("-", "")}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+    endorsementNumber: createSequence("END"),
     createdAt: now,
     updatedAt: now
   };
@@ -60,6 +64,7 @@ export function createDemoEndorsement(data: Omit<DemoEndorsement, "id" | "endors
 }
 
 export function updateDemoEndorsementStatus(id: string, status: DemoEndorsementStatus) {
+  if (!isDemoModeEnabled()) return null;
   const items = getDemoEndorsements();
   const index = items.findIndex((item) => item.id === id);
   if (index === -1) return null;
