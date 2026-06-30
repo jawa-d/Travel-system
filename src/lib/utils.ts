@@ -15,7 +15,7 @@ export function formatCurrency(value: number | string) {
 }
 
 export function formatDate(value: Date | string) {
-  return toEnglishDigits(new Intl.DateTimeFormat("ar-IQ-u-nu-latn", {
+  return toEnglishDigits(new Intl.DateTimeFormat("en-US-u-nu-latn", {
     year: "numeric",
     month: "long",
     day: "numeric"

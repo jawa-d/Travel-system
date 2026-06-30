@@ -6,7 +6,7 @@ export const localeMeta = {
     nativeLabel: "العربية",
     dir: "rtl",
     htmlLang: "ar",
-    dateLocale: "ar-IQ-u-nu-latn",
+    dateLocale: "en-US-u-nu-latn",
     numberLocale: "en-US",
     fontClass: "font-arabic"
   },
@@ -15,7 +15,7 @@ export const localeMeta = {
     nativeLabel: "English",
     dir: "rtl",
     htmlLang: "ar",
-    dateLocale: "ar-IQ-u-nu-latn",
+    dateLocale: "en-US-u-nu-latn",
     numberLocale: "en-US",
     fontClass: "font-arabic"
   }

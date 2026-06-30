@@ -40,7 +40,7 @@ export async function createAccessDeniedNotification(input: {
     `الصفحة المطلوبة: ${input.path}`,
     permissionText.trim() || null,
     reasonText.trim() || null,
-    `وقت المحاولة: ${new Date().toLocaleString("ar-IQ", { timeZone: "Asia/Baghdad" })}`
+    `وقت المحاولة: ${new Date().toLocaleString("en-US-u-nu-latn", { timeZone: "Asia/Baghdad" })}`
   ].filter(Boolean).join("\n");
 
   const superAdmins = await prisma.user.findMany({
