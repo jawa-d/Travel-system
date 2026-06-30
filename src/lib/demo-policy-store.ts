@@ -10,6 +10,7 @@ export type DemoPolicy = {
     arabicName: string;
     englishName: string;
     passportNumber: string;
+    nationality: string;
     dateOfBirth: Date;
     mobile: string;
     email: string | null;
@@ -37,6 +38,7 @@ function initialPolicies(): DemoPolicy[] {
       arabicName: policy.customer.arabicName,
       englishName: policy.customer.englishName,
       passportNumber: policy.customer.passportNumber,
+      nationality: policy.customer.nationality,
       dateOfBirth: new Date(policy.customer.dateOfBirth),
       mobile: policy.customer.mobile,
       email: policy.customer.email

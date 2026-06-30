@@ -20,8 +20,10 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       customerName: policy.customer.englishName,
       arabicCustomerName: policy.customer.arabicName,
       passportNumber: policy.customer.passportNumber,
+      nationality: policy.customer.nationality,
       destination: policy.destinationCountry.nameAr,
       coverageAmount: String(policy.coverageAmount),
+      agency: "Demo Agency",
       policyType: policy.policyType,
       planName: policy.travelPlan.name,
       departureDate: formatDate(policy.departureDate),
@@ -42,7 +44,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   const user = await requireUser();
   const policy = await prisma.policy.findUniqueOrThrow({
     where: { id },
-    include: { customer: true, destinationCountry: true, travelPlan: true, issuedBy: true }
+    include: { customer: true, destinationCountry: true, travelPlan: true, issuedBy: true, agency: true }
   });
   if (policy.deletedAt || !canAccessPolicy(user, policy)) {
     return new Response("Forbidden", { status: 403 });
@@ -53,8 +55,10 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     customerName: policy.customer.englishName,
     arabicCustomerName: policy.customer.arabicName,
     passportNumber: policy.customer.passportNumber,
+    nationality: policy.customer.nationality,
     destination: policy.destinationCountry.nameEn,
     coverageAmount: String(policy.coverageAmount),
+    agency: policy.agency?.name ?? policy.issuedByAgency ?? "-",
     policyType: policy.policyType,
     planName: policy.travelPlan.name,
     departureDate: formatDate(policy.departureDate),

@@ -5,7 +5,7 @@ import QRCode from "qrcode";
 import { toEnglishDigits } from "@/lib/i18n";
 
 const ARABIC_FONT_FILE = "ArabicTypesetting.ttf";
-const ARABIC_FONT_NAME = "Tajawal";
+const ARABIC_FONT_NAME = "ArabicTypesetting";
 const ENGLISH_FONT_NAME = "helvetica";
 const NAVY = [41, 53, 69] as const;
 const GOLD = [174, 143, 80] as const;
@@ -17,6 +17,7 @@ const FOOTER_TEXT = [111, 121, 135] as const;
 const FOOTER_LINE = [226, 232, 240] as const;
 const COMPANY_NAME_AR = "شركة تكافل العراق للتأمين التكافلي";
 const COMPANY_NAME_EN = "Iraq Takaful Insurance Company";
+const OFFICIAL_COMPANY_NAME_AR = "تكافل العراق للتأمين التكافلي";
 const LOGO_FILE = "Screenshot 2026-06-22 194918.png";
 let arabicFontBase64: string | null = null;
 let logoBase64: string | null = null;
@@ -43,6 +44,7 @@ type CorporatePdfInput = {
   terms?: string[];
   approvalStatus?: string;
 };
+type ArabicCapableDoc = jsPDF & { processArabic?: (value: string) => string };
 
 function registerArabicFont(doc: jsPDF) {
   arabicFontBase64 ??= readFileSync(join(process.cwd(), "public", "fonts", ARABIC_FONT_FILE)).toString("base64");
@@ -56,7 +58,7 @@ function isArabicText(value: string) {
 }
 
 function processText(doc: jsPDF, value: string) {
-  return value;
+  return isArabicText(value) ? ((doc as ArabicCapableDoc).processArabic?.(value) ?? value) : value;
 }
 
 function setFont(doc: jsPDF, value: string, style: "normal" | "bold" = "normal") {
@@ -64,16 +66,17 @@ function setFont(doc: jsPDF, value: string, style: "normal" | "bold" = "normal")
 }
 
 function text(doc: jsPDF, value: string, x: number, y: number, options: { maxWidth?: number; align?: "left" | "right" | "center"; size?: number; style?: "normal" | "bold"; color?: readonly number[]; lineHeightFactor?: number } = {}) {
+  const displayValue = processText(doc, value);
   const color = options.color ?? TEXT;
   const arabic = isArabicText(value);
   doc.setTextColor(color[0], color[1], color[2]);
-  doc.setFontSize(options.size ?? (arabic ? 10.2 : 9));
+  doc.setFontSize(options.size ?? (arabic ? 11.2 : 9));
   setFont(doc, value, options.style ?? (arabic ? "bold" : "normal"));
   doc.setR2L(arabic);
-  doc.text(value, x, y, {
+  doc.text(displayValue, x, y, {
     align: options.align ?? (arabic ? "right" : "left"),
     maxWidth: options.maxWidth,
-    isInputVisual: false,
+    isInputVisual: arabic,
     lineHeightFactor: options.lineHeightFactor ?? (arabic ? 1.45 : 1.2)
   });
   if (arabic) doc.setR2L(false);
@@ -106,7 +109,7 @@ function drawPageWatermark(doc: jsPDF) {
     doc.setFont(ARABIC_FONT_NAME, "bold");
     doc.setFontSize(33);
     doc.setR2L(true);
-    doc.text(COMPANY_NAME_AR, 105, 149, { align: "center", angle: -38, isInputVisual: false });
+    doc.text(processText(doc, OFFICIAL_COMPANY_NAME_AR), 105, 149, { align: "center", angle: -38, isInputVisual: true });
     doc.setR2L(false);
   });
 }
@@ -130,7 +133,7 @@ function addHeader(doc: jsPDF, input: Required<Pick<CorporatePdfInput, "title" |
   doc.roundedRect(12, 8, 42, 44, 3, 3, "F");
   drawOfficialLogo(doc, 12, 8, 42);
 
-  text(doc, COMPANY_NAME_AR, 126, 20, { size: 22.5, style: "bold", color: [255, 255, 255], align: "center", lineHeightFactor: 1.1 });
+  text(doc, OFFICIAL_COMPANY_NAME_AR, 126, 20, { size: 23.8, style: "bold", color: [255, 255, 255], align: "center", lineHeightFactor: 1.1 });
   text(doc, COMPANY_NAME_EN, 126, 31, { size: 9.8, style: "bold", color: [238, 242, 247], align: "center" });
   text(doc, "Enterprise Travel Insurance Documents", 126, 38, { size: 7.8, color: [219, 226, 235], align: "center" });
 
@@ -169,7 +172,7 @@ function drawSection(doc: jsPDF, section: PdfSection, startY: number, locale: Lo
   doc.setFillColor(LIGHT[0], LIGHT[1], LIGHT[2]);
   doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
   doc.roundedRect(14, y, 182, 9, 2, 2, "FD");
-  text(doc, section.title, locale === "ar" ? 192 : 18, y + 6.4, { size: locale === "ar" ? 11.8 : 10, style: "bold", color: NAVY, align: locale === "ar" ? "right" : "left" });
+  text(doc, section.title, locale === "ar" ? 192 : 18, y + 6.4, { size: locale === "ar" ? 12.6 : 10, style: "bold", color: NAVY, align: locale === "ar" ? "right" : "left" });
   y += 13;
 
   const colWidth = 88;
@@ -182,15 +185,15 @@ function drawSection(doc: jsPDF, section: PdfSection, startY: number, locale: Lo
     doc.setFillColor(255, 255, 255);
     doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
     doc.roundedRect(x, y, colWidth, rowHeight, 2, 2, "FD");
-    text(doc, field.label, locale === "ar" ? x + colWidth - 4 : x + 4, y + 5.4, { size: locale === "ar" ? 8.8 : 7.5, style: "bold", color: MUTED, align: locale === "ar" ? "right" : "left" });
-    text(doc, safe(field.value), locale === "ar" ? x + colWidth - 4 : x + 4, y + 11.8, { size: locale === "ar" ? 10.2 : 9, style: "bold", color: TEXT, align: locale === "ar" ? "right" : "left", maxWidth: colWidth - 8 });
+    text(doc, field.label, locale === "ar" ? x + colWidth - 4 : x + 4, y + 5.4, { size: locale === "ar" ? 9.6 : 7.5, style: "bold", color: MUTED, align: locale === "ar" ? "right" : "left" });
+    text(doc, safe(field.value), locale === "ar" ? x + colWidth - 4 : x + 4, y + 11.8, { size: locale === "ar" ? 11 : 9, style: "bold", color: TEXT, align: locale === "ar" ? "right" : "left", maxWidth: colWidth - 8 });
   });
   return y + rowHeight + 8;
 }
 
 function drawTable(doc: jsPDF, table: PdfTable, startY: number, locale: Locale) {
   let y = ensureSpace(doc, startY, 34);
-  text(doc, table.title, locale === "ar" ? 196 : 14, y, { size: locale === "ar" ? 11.8 : 10, style: "bold", color: NAVY, align: locale === "ar" ? "right" : "left" });
+  text(doc, table.title, locale === "ar" ? 196 : 14, y, { size: locale === "ar" ? 12.6 : 10, style: "bold", color: NAVY, align: locale === "ar" ? "right" : "left" });
   y += 5;
   const x = 14;
   const width = 182;
@@ -233,6 +236,12 @@ function drawSignatures(doc: jsPDF, y: number, approvalStatus: string, locale: L
     { title: locale === "ar" ? "ختم الشركة" : "Company Stamp", value: COMPANY_NAME_AR },
     { title: locale === "ar" ? "حالة الموافقة" : "Approval Status", value: approvalStatus }
   ];
+  if (locale === "ar") {
+    cards[0].title = "التوقيع المخول";
+    cards[1].title = "ختم الشركة";
+    cards[2].title = "حالة الموافقة";
+  }
+  cards[1].value = OFFICIAL_COMPANY_NAME_AR;
   cards.forEach((card, index) => {
     const x = 14 + index * 62;
     doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
@@ -240,8 +249,12 @@ function drawSignatures(doc: jsPDF, y: number, approvalStatus: string, locale: L
     text(doc, card.title, x + 29, y + 7, { size: 8, color: MUTED, align: "center" });
     if (index === 1) {
       doc.setDrawColor(GOLD[0], GOLD[1], GOLD[2]);
-      doc.circle(x + 29, y + 19, 9);
-      text(doc, card.value, x + 29, y + 21, { size: 8, style: "bold", color: NAVY, align: "center" });
+      doc.setLineWidth(0.45);
+      doc.circle(x + 29, y + 19.5, 12.5);
+      doc.setLineWidth(0.2);
+      doc.circle(x + 29, y + 19.5, 10.4);
+      text(doc, "تكافل العراق", x + 29, y + 17.8, { size: 9.2, style: "bold", color: NAVY, align: "center", lineHeightFactor: 1 });
+      text(doc, "للتأمين التكافلي", x + 29, y + 22.7, { size: 8.7, style: "bold", color: NAVY, align: "center", lineHeightFactor: 1 });
     } else {
       doc.setDrawColor(GOLD[0], GOLD[1], GOLD[2]);
       doc.line(x + 10, y + 22, x + 48, y + 22);
@@ -309,8 +322,10 @@ export async function createPolicyPdf(policy: {
   customerName: string;
   arabicCustomerName?: string;
   passportNumber: string;
+  nationality?: string;
   destination: string;
   coverageAmount?: string;
+  agency?: string;
   policyType?: string;
   planName?: string;
   departureDate: string;
@@ -336,7 +351,7 @@ export async function createPolicyPdf(policy: {
           { label: "Customer Name", value: policy.customerName },
           { label: "Arabic Name", value: policy.arabicCustomerName },
           { label: "Passport Number", value: policy.passportNumber },
-          { label: "Issued By", value: policy.issuedBy }
+          { label: "Nationality", value: policy.nationality }
         ]
       },
       {
@@ -345,7 +360,7 @@ export async function createPolicyPdf(policy: {
           { label: "Policy Number", value: policy.policyNumber },
           { label: "Policy Type", value: policy.policyType },
           { label: "Travel Plan", value: policy.planName },
-          { label: "Approval Status", value: "APPROVED" }
+          { label: "Agency", value: policy.agency }
         ]
       },
       {
@@ -353,7 +368,7 @@ export async function createPolicyPdf(policy: {
         fields: [
           { label: "Destination", value: policy.destination },
           { label: "Departure Date", value: policy.departureDate },
-          { label: "Return Date", value: policy.returnDate },
+          { label: "Expiry Date", value: policy.returnDate },
           { label: "Issue Date", value: policy.issueDate }
         ]
       },
@@ -362,8 +377,9 @@ export async function createPolicyPdf(policy: {
         fields: [
           { label: "Coverage Amount", value: policy.coverageAmount },
           { label: "Premium", value: policy.premium },
+          { label: "Issued By", value: policy.issuedBy },
           { label: "Issuer Role", value: policy.issuedByRole },
-          { label: "Verification", value: "QR enabled" }
+          { label: "QR Code", value: "Enabled" }
         ]
       }
     ],

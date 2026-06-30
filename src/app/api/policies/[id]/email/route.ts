@@ -15,7 +15,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { email } = emailPdfSchema.parse(await request.json());
     const policy = await prisma.policy.findUniqueOrThrow({
       where: { id },
-      include: { customer: true, destinationCountry: true, travelPlan: true }
+      include: { customer: true, destinationCountry: true, travelPlan: true, issuedBy: true, agency: true }
     });
     if (!canAccessPolicy(user, policy) || policy.deletedAt) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -26,14 +26,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       customerName: policy.customer.englishName,
       arabicCustomerName: policy.customer.arabicName,
       passportNumber: policy.customer.passportNumber,
+      nationality: policy.customer.nationality,
       destination: policy.destinationCountry.nameEn,
       coverageAmount: String(policy.coverageAmount),
+      agency: policy.agency?.name ?? policy.issuedByAgency ?? "-",
       policyType: policy.policyType,
       planName: policy.travelPlan.name,
       departureDate: formatDate(policy.departureDate),
       returnDate: formatDate(policy.returnDate),
       premium: formatCurrency(String(policy.premium)),
-      verificationUrl
+      verificationUrl,
+      issueDate: formatDate(policy.issuedAt ?? policy.createdAt),
+      issuedBy: policy.issuedByName ?? policy.issuedBy?.name ?? "-",
+      issuedByRole: policy.issuedByRole ?? policy.issuedBy?.role ?? "-"
     });
     const buffer = Buffer.from(doc.output("arraybuffer"));
     const result = await sendEmail({

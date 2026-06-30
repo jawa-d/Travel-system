@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
           arabicName: customerData.arabicName,
           englishName: customerData.englishName,
           passportNumber: customerData.passportNumber,
+          nationality: customerData.nationality,
           dateOfBirth: new Date(customerData.dateOfBirth),
           mobile: customerData.mobile,
           email: customerData.email || null
