@@ -59,7 +59,7 @@ export const demoCountries = [
 export const demoPlans = [
   {
     id: "demo-plan-1",
-    name: "الخطة الأساسية",
+    name: "Basic Plan",
     price: 25,
     medicalCoverage: 10000,
     baggageCoverage: 500,
@@ -73,7 +73,7 @@ export const demoPlans = [
   },
   {
     id: "demo-plan-2",
-    name: "الخطة الذهبية",
+    name: "Gold Plan",
     price: 55,
     medicalCoverage: 50000,
     baggageCoverage: 1500,

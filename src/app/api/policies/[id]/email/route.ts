@@ -5,8 +5,16 @@ import { requireUser, jsonError } from "@/lib/api";
 import { createPolicyPdf } from "@/lib/pdf";
 import { sendEmail } from "@/lib/email";
 import { emailPdfSchema } from "@/lib/validators";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import { getPolicyVerificationUrl } from "@/lib/policy-verification";
+
+function formatPdfDate(value: Date | string) {
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  }).format(new Date(value));
+}
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -24,7 +32,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const doc = await createPolicyPdf({
       policyNumber: policy.policyNumber,
       customerName: policy.customer.englishName,
-      arabicCustomerName: policy.customer.arabicName,
       passportNumber: policy.customer.passportNumber,
       nationality: policy.customer.nationality,
       destination: policy.destinationCountry.nameEn,
@@ -32,11 +39,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       agency: policy.agency?.name ?? policy.issuedByAgency ?? "-",
       policyType: policy.policyType,
       planName: policy.travelPlan.name,
-      departureDate: formatDate(policy.departureDate),
-      returnDate: formatDate(policy.returnDate),
+      departureDate: formatPdfDate(policy.departureDate),
+      returnDate: formatPdfDate(policy.returnDate),
       premium: formatCurrency(String(policy.premium)),
       verificationUrl,
-      issueDate: formatDate(policy.issuedAt ?? policy.createdAt),
+      issueDate: formatPdfDate(policy.issuedAt ?? policy.createdAt),
       issuedBy: policy.issuedByName ?? policy.issuedBy?.name ?? "-",
       issuedByRole: policy.issuedByRole ?? policy.issuedBy?.role ?? "-"
     });

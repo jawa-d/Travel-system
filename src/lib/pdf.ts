@@ -4,8 +4,6 @@ import jsPDF from "jspdf";
 import QRCode from "qrcode";
 import { toEnglishDigits } from "@/lib/i18n";
 
-const ARABIC_FONT_FILE = "ArabicTypesetting.ttf";
-const ARABIC_FONT_NAME = "ArabicTypesetting";
 const ENGLISH_FONT_NAME = "helvetica";
 const NAVY = [41, 53, 69] as const;
 const GOLD = [174, 143, 80] as const;
@@ -15,11 +13,8 @@ const TEXT = [35, 43, 55] as const;
 const MUTED = [101, 113, 130] as const;
 const FOOTER_TEXT = [111, 121, 135] as const;
 const FOOTER_LINE = [226, 232, 240] as const;
-const COMPANY_NAME_AR = "شركة تكافل العراق للتأمين التكافلي";
 const COMPANY_NAME_EN = "Iraq Takaful Insurance Company";
-const OFFICIAL_COMPANY_NAME_AR = "تكافل العراق للتأمين التكافلي";
 const LOGO_FILE = "Screenshot 2026-06-22 194918.png";
-let arabicFontBase64: string | null = null;
 let logoBase64: string | null = null;
 const PDF_QR_OPTIONS = { margin: 2, width: 512, errorCorrectionLevel: "H" as const };
 const FOOTER_TOP_Y = 276;
@@ -45,44 +40,37 @@ type CorporatePdfInput = {
   approvalStatus?: string;
 };
 
-function registerArabicFont(doc: jsPDF) {
-  arabicFontBase64 ??= readFileSync(join(process.cwd(), "public", "fonts", ARABIC_FONT_FILE)).toString("base64");
-  doc.addFileToVFS(ARABIC_FONT_FILE, arabicFontBase64);
-  doc.addFont(ARABIC_FONT_FILE, ARABIC_FONT_NAME, "normal");
-  doc.addFont(ARABIC_FONT_FILE, ARABIC_FONT_NAME, "bold");
-}
-
 function isArabicText(value: string) {
   return /[\u0600-\u06ff]/.test(value);
 }
 
-function processText(doc: jsPDF, value: string) {
+function processText(_doc: jsPDF, value: string) {
   return value;
 }
 
-function setFont(doc: jsPDF, value: string, style: "normal" | "bold" = "normal") {
-  doc.setFont(isArabicText(value) ? ARABIC_FONT_NAME : ENGLISH_FONT_NAME, style);
+function setFont(doc: jsPDF, _value: string, style: "normal" | "bold" = "normal") {
+  doc.setFont(ENGLISH_FONT_NAME, style);
 }
 
 function text(doc: jsPDF, value: string, x: number, y: number, options: { maxWidth?: number; align?: "left" | "right" | "center"; size?: number; style?: "normal" | "bold"; color?: readonly number[]; lineHeightFactor?: number } = {}) {
   const displayValue = processText(doc, value);
   const color = options.color ?? TEXT;
-  const arabic = isArabicText(value);
   doc.setTextColor(color[0], color[1], color[2]);
-  doc.setFontSize(options.size ?? (arabic ? 11.2 : 9));
-  setFont(doc, value, options.style ?? (arabic ? "bold" : "normal"));
+  doc.setFontSize(options.size ?? 9);
+  setFont(doc, value, options.style ?? "normal");
   doc.setR2L(false);
   doc.text(displayValue, x, y, {
-    align: options.align ?? (arabic ? "right" : "left"),
+    align: options.align ?? "left",
     maxWidth: options.maxWidth,
     isInputVisual: false,
-    lineHeightFactor: options.lineHeightFactor ?? (arabic ? 1.45 : 1.2)
+    lineHeightFactor: options.lineHeightFactor ?? 1.2
   });
 }
 
 function safe(value: unknown) {
   if (value === null || value === undefined || value === "") return "-";
-  return toEnglishDigits(String(value));
+  const normalized = toEnglishDigits(String(value));
+  return isArabicText(normalized) ? "-" : normalized;
 }
 
 function withOpacity(doc: jsPDF, opacity: number, draw: () => void) {
@@ -104,10 +92,10 @@ function withOpacity(doc: jsPDF, opacity: number, draw: () => void) {
 function drawPageWatermark(doc: jsPDF) {
   withOpacity(doc, 0.06, () => {
     doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
-    doc.setFont(ARABIC_FONT_NAME, "bold");
-    doc.setFontSize(33);
+    doc.setFont(ENGLISH_FONT_NAME, "bold");
+    doc.setFontSize(30);
     doc.setR2L(false);
-    doc.text(OFFICIAL_COMPANY_NAME_AR, 105, 149, { align: "center", angle: -38, isInputVisual: false });
+    doc.text(COMPANY_NAME_EN, 105, 149, { align: "center", angle: -38, isInputVisual: false });
   });
 }
 
@@ -130,11 +118,10 @@ function addHeader(doc: jsPDF, input: Required<Pick<CorporatePdfInput, "title" |
   doc.roundedRect(12, 8, 42, 44, 3, 3, "F");
   drawOfficialLogo(doc, 12, 8, 42);
 
-  text(doc, OFFICIAL_COMPANY_NAME_AR, 126, 20, { size: 21, style: "bold", color: [255, 255, 255], align: "center", maxWidth: 116, lineHeightFactor: 1.1 });
-  text(doc, COMPANY_NAME_EN, 126, 31, { size: 9.8, style: "bold", color: [238, 242, 247], align: "center" });
-  text(doc, "Enterprise Travel Insurance Documents", 126, 38, { size: 7.8, color: [219, 226, 235], align: "center" });
+  text(doc, COMPANY_NAME_EN, 126, 22, { size: 16.2, style: "bold", color: [255, 255, 255], align: "center", maxWidth: 116, lineHeightFactor: 1.1 });
+  text(doc, "Enterprise Travel Insurance Documents", 126, 33.5, { size: 8.2, color: [219, 226, 235], align: "center" });
 
-  text(doc, input.title, 196, 47, { size: isArabicText(input.title) ? 14.5 : 11.2, style: "bold", color: [255, 255, 255], align: "right", maxWidth: 70, lineHeightFactor: 1.25 });
+  text(doc, input.title, 196, 47, { size: 11.2, style: "bold", color: [255, 255, 255], align: "right", maxWidth: 70, lineHeightFactor: 1.25 });
   text(doc, `${input.documentType}: ${input.documentNumber}`, 196, 55, { size: 8.2, style: "bold", color: [238, 242, 247], align: "right" });
   text(doc, `Issue Date: ${input.issueDate}`, 126, 55, { size: 7.2, color: [219, 226, 235], align: "center" });
 }
@@ -152,7 +139,7 @@ function addFooter(doc: jsPDF) {
     text(doc, "System Administrator", 105, 285.1, { size: 7.4, style: "bold", color: FOOTER_TEXT, align: "center" });
     text(doc, "it_main@iraq-takaful.com", 196, 282.5, { size: 7.2, color: FOOTER_TEXT, align: "right" });
 
-    text(doc, `© ${new Date().getFullYear()} ${COMPANY_NAME_EN}.`, 105, 291, { size: 7, color: FOOTER_TEXT, align: "center" });
+    text(doc, `Copyright ${new Date().getFullYear()} ${COMPANY_NAME_EN}.`, 105, 291, { size: 7, color: FOOTER_TEXT, align: "center" });
     text(doc, "All Rights Reserved.", 105, 294.6, { size: 6.6, color: FOOTER_TEXT, align: "center" });
   }
 }
@@ -164,12 +151,12 @@ function ensureSpace(doc: jsPDF, y: number, needed = 24) {
   return 76;
 }
 
-function drawSection(doc: jsPDF, section: PdfSection, startY: number, locale: Locale) {
+function drawSection(doc: jsPDF, section: PdfSection, startY: number) {
   let y = ensureSpace(doc, startY, 28);
   doc.setFillColor(LIGHT[0], LIGHT[1], LIGHT[2]);
   doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
   doc.roundedRect(14, y, 182, 9, 2, 2, "FD");
-  text(doc, section.title, locale === "ar" ? 192 : 18, y + 6.4, { size: locale === "ar" ? 12.6 : 10, style: "bold", color: NAVY, align: locale === "ar" ? "right" : "left" });
+  text(doc, section.title, 18, y + 6.4, { size: 10, style: "bold", color: NAVY, align: "left" });
   y += 13;
 
   const colWidth = 88;
@@ -177,20 +164,20 @@ function drawSection(doc: jsPDF, section: PdfSection, startY: number, locale: Lo
   section.fields.forEach((field, index) => {
     y = ensureSpace(doc, y, rowHeight + 2);
     const col = index % 2;
-    const x = locale === "ar" ? (col === 0 ? 108 : 14) : (col === 0 ? 14 : 108);
+    const x = col === 0 ? 14 : 108;
     if (index > 0 && col === 0) y += rowHeight + 2;
     doc.setFillColor(255, 255, 255);
     doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
     doc.roundedRect(x, y, colWidth, rowHeight, 2, 2, "FD");
-    text(doc, field.label, locale === "ar" ? x + colWidth - 4 : x + 4, y + 5.4, { size: locale === "ar" ? 9.6 : 7.5, style: "bold", color: MUTED, align: locale === "ar" ? "right" : "left" });
-    text(doc, safe(field.value), locale === "ar" ? x + colWidth - 4 : x + 4, y + 11.8, { size: locale === "ar" ? 11 : 9, style: "bold", color: TEXT, align: locale === "ar" ? "right" : "left", maxWidth: colWidth - 8 });
+    text(doc, field.label, x + 4, y + 5.4, { size: 7.5, style: "bold", color: MUTED, align: "left" });
+    text(doc, safe(field.value), x + 4, y + 11.8, { size: 9, style: "bold", color: TEXT, align: "left", maxWidth: colWidth - 8 });
   });
   return y + rowHeight + 8;
 }
 
-function drawTable(doc: jsPDF, table: PdfTable, startY: number, locale: Locale) {
+function drawTable(doc: jsPDF, table: PdfTable, startY: number) {
   let y = ensureSpace(doc, startY, 34);
-  text(doc, table.title, locale === "ar" ? 196 : 14, y, { size: locale === "ar" ? 12.6 : 10, style: "bold", color: NAVY, align: locale === "ar" ? "right" : "left" });
+  text(doc, table.title, 14, y, { size: 10, style: "bold", color: NAVY, align: "left" });
   y += 5;
   const x = 14;
   const width = 182;
@@ -198,7 +185,7 @@ function drawTable(doc: jsPDF, table: PdfTable, startY: number, locale: Locale) 
   doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
   doc.rect(x, y, width, 8, "F");
   table.columns.forEach((column, index) => {
-    text(doc, column, x + index * colWidth + colWidth / 2, y + 5.6, { size: isArabicText(column) ? 8.4 : 7.2, style: "bold", color: [255, 255, 255], align: "center", maxWidth: colWidth - 3 });
+    text(doc, column, x + index * colWidth + colWidth / 2, y + 5.6, { size: 7.2, style: "bold", color: [255, 255, 255], align: "center", maxWidth: colWidth - 3 });
   });
   y += 8;
 
@@ -208,7 +195,7 @@ function drawTable(doc: jsPDF, table: PdfTable, startY: number, locale: Locale) 
     doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
     doc.rect(x, y, width, 8, "FD");
     row.forEach((cell, index) => {
-      text(doc, safe(cell), x + index * colWidth + colWidth / 2, y + 5.4, { size: isArabicText(safe(cell)) ? 8.2 : 7, color: TEXT, align: "center", maxWidth: colWidth - 3 });
+      text(doc, safe(cell), x + index * colWidth + colWidth / 2, y + 5.4, { size: 7, color: TEXT, align: "center", maxWidth: colWidth - 3 });
     });
     y += 8;
   });
@@ -226,19 +213,13 @@ function drawTable(doc: jsPDF, table: PdfTable, startY: number, locale: Locale) 
   return y + 5;
 }
 
-function drawSignatures(doc: jsPDF, y: number, approvalStatus: string, locale: Locale) {
+function drawSignatures(doc: jsPDF, y: number, approvalStatus: string) {
   y = ensureSpace(doc, y, 45);
   const cards = [
-    { title: locale === "ar" ? "التوقيع المخول" : "Authorized Signature", value: "Authorized Officer" },
-    { title: locale === "ar" ? "ختم الشركة" : "Company Stamp", value: COMPANY_NAME_AR },
-    { title: locale === "ar" ? "حالة الموافقة" : "Approval Status", value: approvalStatus }
+    { title: "Authorized Signature", value: "Authorized Officer" },
+    { title: "Company Stamp", value: COMPANY_NAME_EN },
+    { title: "Approval Status", value: approvalStatus }
   ];
-  if (locale === "ar") {
-    cards[0].title = "التوقيع المخول";
-    cards[1].title = "ختم الشركة";
-    cards[2].title = "حالة الموافقة";
-  }
-  cards[1].value = OFFICIAL_COMPANY_NAME_AR;
   cards.forEach((card, index) => {
     const x = 14 + index * 62;
     doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
@@ -250,8 +231,8 @@ function drawSignatures(doc: jsPDF, y: number, approvalStatus: string, locale: L
       doc.circle(x + 29, y + 19.2, 13.2);
       doc.setLineWidth(0.2);
       doc.circle(x + 29, y + 19.2, 11);
-      text(doc, "تكافل العراق", x + 29, y + 17.5, { size: 8.6, style: "bold", color: NAVY, align: "center", maxWidth: 21, lineHeightFactor: 1 });
-      text(doc, "للتأمين التكافلي", x + 29, y + 22.5, { size: 8.1, style: "bold", color: NAVY, align: "center", maxWidth: 23, lineHeightFactor: 1 });
+      text(doc, "IRAQ TAKAFUL", x + 29, y + 18, { size: 6.8, style: "bold", color: NAVY, align: "center", maxWidth: 23, lineHeightFactor: 1 });
+      text(doc, "INSURANCE", x + 29, y + 22.3, { size: 6.4, style: "bold", color: NAVY, align: "center", maxWidth: 23, lineHeightFactor: 1 });
     } else {
       doc.setDrawColor(GOLD[0], GOLD[1], GOLD[2]);
       doc.line(x + 10, y + 22, x + 48, y + 22);
@@ -279,8 +260,6 @@ async function drawVerificationQr(doc: jsPDF, payload: Record<string, unknown> |
 
 export async function createCorporatePdf(input: CorporatePdfInput) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", putOnlyUsedFonts: true, compress: true });
-  registerArabicFont(doc);
-  const locale = input.locale ?? "en";
   const issueDate = input.issueDate ?? new Date().toISOString().slice(0, 10);
   drawPageWatermark(doc);
   addHeader(doc, {
@@ -295,21 +274,21 @@ export async function createCorporatePdf(input: CorporatePdfInput) {
     await drawVerificationQr(doc, input.qrPayload);
   }
 
-  for (const section of input.sections ?? []) y = drawSection(doc, section, y, locale);
-  for (const table of input.tables ?? []) y = drawTable(doc, table, y, locale);
+  for (const section of input.sections ?? []) y = drawSection(doc, section, y);
+  for (const table of input.tables ?? []) y = drawTable(doc, table, y);
 
   if (input.terms?.length) {
     y = ensureSpace(doc, y, 32);
-    text(doc, locale === "ar" ? "الشروط والأحكام" : "Terms & Conditions", locale === "ar" ? 196 : 14, y, { size: locale === "ar" ? 11.8 : 10, style: "bold", color: NAVY, align: locale === "ar" ? "right" : "left" });
+    text(doc, "Terms & Conditions", 14, y, { size: 10, style: "bold", color: NAVY, align: "left" });
     y += 6;
     input.terms.forEach((term, index) => {
       y = ensureSpace(doc, y, 7);
-      text(doc, `${index + 1}. ${term}`, locale === "ar" ? 196 : 14, y, { size: isArabicText(term) ? 9.2 : 7.8, color: TEXT, align: locale === "ar" ? "right" : "left", maxWidth: 182 });
+      text(doc, `${index + 1}. ${safe(term)}`, 14, y, { size: 7.8, color: TEXT, align: "left", maxWidth: 182 });
       y += 6;
     });
   }
 
-  drawSignatures(doc, y + 4, input.approvalStatus ?? "APPROVED", locale);
+  drawSignatures(doc, y + 4, input.approvalStatus ?? "APPROVED");
   addFooter(doc);
   return doc;
 }
@@ -317,7 +296,6 @@ export async function createCorporatePdf(input: CorporatePdfInput) {
 export async function createPolicyPdf(policy: {
   policyNumber: string;
   customerName: string;
-  arabicCustomerName?: string;
   passportNumber: string;
   nationality?: string;
   destination: string;
@@ -346,7 +324,6 @@ export async function createPolicyPdf(policy: {
         title: "Customer Information",
         fields: [
           { label: "Customer Name", value: policy.customerName },
-          { label: "Arabic Name", value: policy.arabicCustomerName },
           { label: "Passport Number", value: policy.passportNumber },
           { label: "Nationality", value: policy.nationality }
         ]
@@ -413,6 +390,5 @@ export async function createCertificatePdf(input: { title: string; number: strin
 }
 
 export function registerPdfArabicFont(doc: jsPDF) {
-  registerArabicFont(doc);
-  return { fontName: ARABIC_FONT_NAME, process: (value: string) => processText(doc, value) };
+  return { fontName: ENGLISH_FONT_NAME, process: (value: string) => processText(doc, value) };
 }

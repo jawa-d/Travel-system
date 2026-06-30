@@ -15,7 +15,7 @@ export type DemoPolicy = {
     mobile: string;
     email: string | null;
   };
-  destinationCountry: { id: string; nameAr: string };
+  destinationCountry: { id: string; nameAr: string; nameEn: string };
   travelPlan: { id: string; name: string };
   departureDate: Date;
   returnDate: Date;
@@ -43,7 +43,7 @@ function initialPolicies(): DemoPolicy[] {
       mobile: policy.customer.mobile,
       email: policy.customer.email
     },
-    destinationCountry: { id: policy.destinationCountry.id, nameAr: policy.destinationCountry.nameAr },
+    destinationCountry: { id: policy.destinationCountry.id, nameAr: policy.destinationCountry.nameAr, nameEn: policy.destinationCountry.nameEn },
     travelPlan: { id: policy.travelPlan.id, name: policy.travelPlan.name },
     departureDate: new Date(policy.departureDate),
     returnDate: new Date(policy.returnDate),

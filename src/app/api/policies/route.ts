@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
           mobile: customerData.mobile,
           email: customerData.email || null
         },
-        destinationCountry: { id: country.id, nameAr: country.nameAr },
+        destinationCountry: { id: country.id, nameAr: country.nameAr, nameEn: country.nameEn },
         travelPlan: { id: plan.id, name: plan.name },
         departureDate: payload.departureDate,
         returnDate: payload.returnDate,

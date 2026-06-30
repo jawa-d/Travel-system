@@ -3,11 +3,19 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/api";
 import { getIpAddress, writeAuditLog } from "@/lib/audit";
 import { createPolicyPdf } from "@/lib/pdf";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
 import { getDemoPolicies } from "@/lib/demo-policy-store";
 import { canAccessPolicy } from "@/lib/policy-access";
 import { getPolicyVerificationUrl } from "@/lib/policy-verification";
+
+function formatPdfDate(value: Date | string) {
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  }).format(new Date(value));
+}
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,19 +26,18 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     const doc = await createPolicyPdf({
       policyNumber: policy.policyNumber,
       customerName: policy.customer.englishName,
-      arabicCustomerName: policy.customer.arabicName,
       passportNumber: policy.customer.passportNumber,
       nationality: policy.customer.nationality,
-      destination: policy.destinationCountry.nameAr,
+      destination: policy.destinationCountry.nameEn,
       coverageAmount: String(policy.coverageAmount),
       agency: "Demo Agency",
       policyType: policy.policyType,
       planName: policy.travelPlan.name,
-      departureDate: formatDate(policy.departureDate),
-      returnDate: formatDate(policy.returnDate),
+      departureDate: formatPdfDate(policy.departureDate),
+      returnDate: formatPdfDate(policy.returnDate),
       premium: formatCurrency(policy.premium),
       verificationUrl,
-      issueDate: formatDate(policy.createdAt),
+      issueDate: formatPdfDate(policy.createdAt),
       issuedBy: "Iraq Takaful Demo",
       issuedByRole: "SUPER_ADMIN"
     });
@@ -53,7 +60,6 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   const doc = await createPolicyPdf({
     policyNumber: policy.policyNumber,
     customerName: policy.customer.englishName,
-    arabicCustomerName: policy.customer.arabicName,
     passportNumber: policy.customer.passportNumber,
     nationality: policy.customer.nationality,
     destination: policy.destinationCountry.nameEn,
@@ -61,11 +67,11 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     agency: policy.agency?.name ?? policy.issuedByAgency ?? "-",
     policyType: policy.policyType,
     planName: policy.travelPlan.name,
-    departureDate: formatDate(policy.departureDate),
-    returnDate: formatDate(policy.returnDate),
+    departureDate: formatPdfDate(policy.departureDate),
+    returnDate: formatPdfDate(policy.returnDate),
     premium: formatCurrency(String(policy.premium)),
     verificationUrl,
-    issueDate: formatDate(policy.issuedAt ?? policy.createdAt),
+    issueDate: formatPdfDate(policy.issuedAt ?? policy.createdAt),
     issuedBy: policy.issuedByName ?? policy.issuedBy?.name ?? "-",
     issuedByRole: policy.issuedByRole ?? policy.issuedBy?.role ?? "-"
   });
