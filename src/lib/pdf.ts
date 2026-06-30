@@ -18,7 +18,7 @@ const LOGO_FILE = "Screenshot 2026-06-22 194918.png";
 let logoBase64: string | null = null;
 const PDF_QR_OPTIONS = { margin: 2, width: 512, errorCorrectionLevel: "H" as const };
 const FOOTER_TOP_Y = 276;
-const CONTENT_BOTTOM_Y = 268;
+const CONTENT_BOTTOM_Y = 260;
 
 type Locale = "ar" | "en";
 type PdfField = { label: string; value?: string | number | null };
@@ -155,18 +155,18 @@ function ensureSpace(doc: jsPDF, y: number, needed = 24) {
   if (y + needed <= CONTENT_BOTTOM_Y) return y;
   doc.addPage();
   drawPageWatermark(doc);
-  return 76;
+  return 70;
 }
 
 function drawSection(doc: jsPDF, section: PdfSection, startY: number) {
-  let y = ensureSpace(doc, startY, 45);
+  let y = ensureSpace(doc, startY, 38);
   doc.setFillColor(LIGHT[0], LIGHT[1], LIGHT[2]);
   doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
   doc.roundedRect(14, y, 182, 9, 2, 2, "FD");
   text(doc, section.title, 18, y + 6.4, { size: 10, style: "bold", color: NAVY, align: "left" });
   y += 13;
 
-  const fieldGap = 4;
+  const fieldGap = 2.6;
   const colWidth = 88;
   const valueMaxWidth = colWidth - 8;
   for (let index = 0; index < section.fields.length; index += 2) {
@@ -177,11 +177,21 @@ function drawSection(doc: jsPDF, section: PdfSection, startY: number) {
         field,
         x: col === 0 ? 14 : 108,
         valueLines,
-        height: Math.max(17, 12 + valueLines.length * 4.6)
+        height: Math.max(14.5, 10.4 + valueLines.length * 4.2)
       };
     });
     const rowHeight = Math.max(...row.map((item) => item.height));
-    y = ensureSpace(doc, y, rowHeight + fieldGap);
+    const nextY = ensureSpace(doc, y, rowHeight + fieldGap);
+    if (nextY < y) {
+      y = nextY;
+      doc.setFillColor(LIGHT[0], LIGHT[1], LIGHT[2]);
+      doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
+      doc.roundedRect(14, y, 182, 9, 2, 2, "FD");
+      text(doc, section.title, 18, y + 6.4, { size: 10, style: "bold", color: NAVY, align: "left" });
+      y += 13;
+    } else {
+      y = nextY;
+    }
 
     row.forEach((item) => {
       doc.setFillColor(255, 255, 255);
@@ -189,12 +199,12 @@ function drawSection(doc: jsPDF, section: PdfSection, startY: number) {
       doc.roundedRect(item.x, y, colWidth, rowHeight, 2, 2, "FD");
       text(doc, item.field.label, item.x + 4, y + 5.4, { size: 7.5, style: "bold", color: MUTED, align: "left" });
       item.valueLines.forEach((line, lineIndex) => {
-        text(doc, line, item.x + 4, y + 11.8 + lineIndex * 4.6, { size: 9, style: "bold", color: TEXT, align: "left", maxWidth: valueMaxWidth });
+        text(doc, line, item.x + 4, y + 10.9 + lineIndex * 4.2, { size: 8.8, style: "bold", color: TEXT, align: "left", maxWidth: valueMaxWidth });
       });
     });
     y += rowHeight + fieldGap;
   }
-  return y + 4;
+  return y + 2;
 }
 
 function drawTable(doc: jsPDF, table: PdfTable, startY: number) {
@@ -268,20 +278,21 @@ function drawSignatures(doc: jsPDF, y: number, approvalStatus: string) {
   return y + 39;
 }
 
-async function drawVerificationQr(doc: jsPDF, payload: Record<string, unknown> | string, x = 154, y = 74) {
+async function drawVerificationQr(doc: jsPDF, payload: Record<string, unknown> | string, x = 154, y = 74, size = 42) {
   const verificationPayload = typeof payload === "string" ? payload : JSON.stringify(payload);
   const qr = await QRCode.toDataURL(verificationPayload, PDF_QR_OPTIONS);
   doc.setFillColor(255, 255, 255);
   doc.setDrawColor(GOLD[0], GOLD[1], GOLD[2]);
-  doc.roundedRect(x, y, 42, 50, 2.4, 2.4, "FD");
-  doc.addImage(qr, "PNG", x + 4, y + 4, 34, 34);
-  doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
-  doc.line(x + 5, y + 40, x + 37, y + 40);
-  text(doc, "Scan QR Code", x + 21, y + 44.8, { size: 6.6, style: "bold", color: NAVY, align: "center" });
-  text(doc, "to Verify Policy", x + 21, y + 48.2, { size: 6.2, color: MUTED, align: "center" });
+  doc.roundedRect(x, y, size, size, 2.4, 2.4, "FD");
+  doc.addImage(qr, "PNG", x + 2.5, y + 2.5, size - 5, size - 5);
   if (/^https?:\/\//i.test(verificationPayload)) {
-    doc.link(x, y, 42, 50, { url: verificationPayload });
+    doc.link(x, y, size, size, { url: verificationPayload });
   }
+}
+
+async function drawHeaderVerificationQr(doc: jsPDF, payload: Record<string, unknown> | string) {
+  await drawVerificationQr(doc, payload, 58, 34, 19);
+  text(doc, "Verify", 67.5, 56, { size: 5.8, style: "bold", color: [238, 242, 247], align: "center" });
 }
 
 export async function createCorporatePdf(input: CorporatePdfInput) {
@@ -295,9 +306,9 @@ export async function createCorporatePdf(input: CorporatePdfInput) {
     issueDate
   });
 
-  let y = input.qrPayload ? 130 : 78;
+  let y = 70;
   if (input.qrPayload) {
-    await drawVerificationQr(doc, input.qrPayload);
+    await drawHeaderVerificationQr(doc, input.qrPayload);
   }
 
   for (const section of input.sections ?? []) y = drawSection(doc, section, y);
