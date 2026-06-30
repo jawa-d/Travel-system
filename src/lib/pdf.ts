@@ -67,6 +67,13 @@ function text(doc: jsPDF, value: string, x: number, y: number, options: { maxWid
   });
 }
 
+function splitText(doc: jsPDF, value: unknown, maxWidth: number, size = 9, style: "normal" | "bold" = "normal") {
+  const normalized = safe(value);
+  doc.setFont(ENGLISH_FONT_NAME, style);
+  doc.setFontSize(size);
+  return doc.splitTextToSize(normalized, maxWidth) as string[];
+}
+
 function safe(value: unknown) {
   if (value === null || value === undefined || value === "") return "-";
   const normalized = toEnglishDigits(String(value));
@@ -152,27 +159,42 @@ function ensureSpace(doc: jsPDF, y: number, needed = 24) {
 }
 
 function drawSection(doc: jsPDF, section: PdfSection, startY: number) {
-  let y = ensureSpace(doc, startY, 28);
+  let y = ensureSpace(doc, startY, 45);
   doc.setFillColor(LIGHT[0], LIGHT[1], LIGHT[2]);
   doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
   doc.roundedRect(14, y, 182, 9, 2, 2, "FD");
   text(doc, section.title, 18, y + 6.4, { size: 10, style: "bold", color: NAVY, align: "left" });
   y += 13;
 
+  const fieldGap = 4;
   const colWidth = 88;
-  const rowHeight = 15;
-  section.fields.forEach((field, index) => {
-    y = ensureSpace(doc, y, rowHeight + 2);
-    const col = index % 2;
-    const x = col === 0 ? 14 : 108;
-    if (index > 0 && col === 0) y += rowHeight + 2;
-    doc.setFillColor(255, 255, 255);
-    doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
-    doc.roundedRect(x, y, colWidth, rowHeight, 2, 2, "FD");
-    text(doc, field.label, x + 4, y + 5.4, { size: 7.5, style: "bold", color: MUTED, align: "left" });
-    text(doc, safe(field.value), x + 4, y + 11.8, { size: 9, style: "bold", color: TEXT, align: "left", maxWidth: colWidth - 8 });
-  });
-  return y + rowHeight + 8;
+  const valueMaxWidth = colWidth - 8;
+  for (let index = 0; index < section.fields.length; index += 2) {
+    const rowFields = section.fields.slice(index, index + 2);
+    const row = rowFields.map((field, col) => {
+      const valueLines = splitText(doc, field.value, valueMaxWidth, 9, "bold");
+      return {
+        field,
+        x: col === 0 ? 14 : 108,
+        valueLines,
+        height: Math.max(17, 12 + valueLines.length * 4.6)
+      };
+    });
+    const rowHeight = Math.max(...row.map((item) => item.height));
+    y = ensureSpace(doc, y, rowHeight + fieldGap);
+
+    row.forEach((item) => {
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
+      doc.roundedRect(item.x, y, colWidth, rowHeight, 2, 2, "FD");
+      text(doc, item.field.label, item.x + 4, y + 5.4, { size: 7.5, style: "bold", color: MUTED, align: "left" });
+      item.valueLines.forEach((line, lineIndex) => {
+        text(doc, line, item.x + 4, y + 11.8 + lineIndex * 4.6, { size: 9, style: "bold", color: TEXT, align: "left", maxWidth: valueMaxWidth });
+      });
+    });
+    y += rowHeight + fieldGap;
+  }
+  return y + 4;
 }
 
 function drawTable(doc: jsPDF, table: PdfTable, startY: number) {
@@ -190,14 +212,18 @@ function drawTable(doc: jsPDF, table: PdfTable, startY: number) {
   y += 8;
 
   table.rows.forEach((row, rowIndex) => {
-    y = ensureSpace(doc, y, 8);
+    const cellLines = row.map((cell) => splitText(doc, cell, colWidth - 3, 7));
+    const rowHeight = Math.max(8, 5 + Math.max(...cellLines.map((lines) => lines.length)) * 3.8);
+    y = ensureSpace(doc, y, rowHeight + 1);
     doc.setFillColor(rowIndex % 2 === 0 ? 255 : 249, rowIndex % 2 === 0 ? 255 : 250, rowIndex % 2 === 0 ? 255 : 247);
     doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
-    doc.rect(x, y, width, 8, "FD");
-    row.forEach((cell, index) => {
-      text(doc, safe(cell), x + index * colWidth + colWidth / 2, y + 5.4, { size: 7, color: TEXT, align: "center", maxWidth: colWidth - 3 });
+    doc.rect(x, y, width, rowHeight, "FD");
+    cellLines.forEach((lines, index) => {
+      lines.forEach((line, lineIndex) => {
+        text(doc, line, x + index * colWidth + colWidth / 2, y + 5.4 + lineIndex * 3.8, { size: 7, color: TEXT, align: "center", maxWidth: colWidth - 3 });
+      });
     });
-    y += 8;
+    y += rowHeight;
   });
 
   if (table.totals?.length) {
@@ -282,9 +308,12 @@ export async function createCorporatePdf(input: CorporatePdfInput) {
     text(doc, "Terms & Conditions", 14, y, { size: 10, style: "bold", color: NAVY, align: "left" });
     y += 6;
     input.terms.forEach((term, index) => {
-      y = ensureSpace(doc, y, 7);
-      text(doc, `${index + 1}. ${safe(term)}`, 14, y, { size: 7.8, color: TEXT, align: "left", maxWidth: 182 });
-      y += 6;
+      const lines = splitText(doc, `${index + 1}. ${safe(term)}`, 182, 7.8);
+      y = ensureSpace(doc, y, lines.length * 4.3 + 2);
+      lines.forEach((line, lineIndex) => {
+        text(doc, line, 14, y + lineIndex * 4.3, { size: 7.8, color: TEXT, align: "left", maxWidth: 182 });
+      });
+      y += lines.length * 4.3 + 2;
     });
   }
 
