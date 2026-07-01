@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { FileText, Loader2, Search, UserRound, X } from "lucide-react";
+import { CarFront, FileText, Loader2, Search, UserRound, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-type Result = { id: string; title: string; subtitle: string; href: string; type: "customer" | "policy" };
+type Result = { id: string; title: string; subtitle: string; href: string; type: "customer" | "policy" | "motorRequest" };
 
 export function GlobalSearch() {
   const [open, setOpen] = useState(false);
@@ -65,7 +65,9 @@ export function GlobalSearch() {
             <div className="max-h-[55vh] overflow-y-auto p-2">
               {results.map((result) => (
                 <Link key={`${result.type}-${result.id}`} href={result.href} onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl p-3 hover:bg-muted">
-                  <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary/10 text-primary">{result.type === "customer" ? <UserRound className="h-4 w-4" /> : <FileText className="h-4 w-4" />}</span>
+                  <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary/10 text-primary">
+                    {result.type === "customer" ? <UserRound className="h-4 w-4" /> : result.type === "motorRequest" ? <CarFront className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+                  </span>
                   <span><strong className="block text-sm">{result.title}</strong><span className="text-xs text-muted-foreground">{result.subtitle}</span></span>
                 </Link>
               ))}

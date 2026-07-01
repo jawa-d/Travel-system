@@ -1,3 +1,4 @@
+import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/api";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
@@ -19,12 +20,13 @@ export async function GET(request: NextRequest) {
     const policies = getDemoPolicies()
       .filter((item) => `${item.policyNumber} ${item.customer.arabicName} ${item.destinationCountry.nameAr}`.toLowerCase().includes(text))
       .slice(0, 6)
-      .map((item) => ({ id: item.id, title: item.policyNumber, subtitle: `${item.customer.arabicName} — ${item.destinationCountry.nameAr}`, href: `/policies/${item.id}`, type: "policy" }));
+      .map((item) => ({ id: item.id, title: item.policyNumber, subtitle: `${item.customer.arabicName} - ${item.destinationCountry.nameAr}`, href: `/policies/${item.id}`, type: "policy" }));
     return NextResponse.json([...customers, ...policies]);
   }
 
   const user = await requireUser();
-  const [customers, policies] = await Promise.all([
+  const motorRequestWhere = user.role === Role.AGENT ? { agentId: user.id } : {};
+  const [customers, policies, motorRequests] = await Promise.all([
     prisma.customer.findMany({
       where: {
         AND: [
@@ -52,11 +54,52 @@ export async function GET(request: NextRequest) {
       },
       include: { customer: true, destinationCountry: true },
       take: 6
+    }),
+    prisma.motorInsuranceRequest.findMany({
+      where: {
+        AND: [
+          motorRequestWhere,
+          { OR: [
+            { requestNumber: { contains: query, mode: "insensitive" } },
+            { customerFullName: { contains: query, mode: "insensitive" } },
+            { customerNationalId: { contains: query, mode: "insensitive" } },
+            { plateNumber: { contains: query, mode: "insensitive" } },
+            { chassisNumber: { contains: query, mode: "insensitive" } }
+          ] }
+        ]
+      },
+      select: {
+        id: true,
+        requestNumber: true,
+        customerFullName: true,
+        plateNumber: true,
+        status: true
+      },
+      take: 6
     })
   ]);
 
   return NextResponse.json([
-    ...customers.map((item) => ({ id: item.id, title: item.arabicName, subtitle: item.passportNumber, href: `/customers/${item.id}`, type: "customer" })),
-    ...policies.map((item) => ({ id: item.id, title: item.policyNumber, subtitle: `${item.customer.arabicName} — ${item.destinationCountry.nameAr}`, href: `/policies/${item.id}`, type: "policy" }))
+    ...customers.map((item) => ({
+      id: item.id,
+      title: item.arabicName,
+      subtitle: item.passportNumber,
+      href: `/customers/${item.id}`,
+      type: "customer"
+    })),
+    ...policies.map((item) => ({
+      id: item.id,
+      title: item.policyNumber,
+      subtitle: `${item.customer.arabicName} - ${item.destinationCountry.nameAr}`,
+      href: `/policies/${item.id}`,
+      type: "policy"
+    })),
+    ...motorRequests.map((item) => ({
+      id: item.id,
+      title: item.requestNumber,
+      subtitle: `${item.customerFullName} - ${item.plateNumber} - ${item.status}`,
+      href: `/motor-requests/${item.id}`,
+      type: "motorRequest"
+    }))
   ]);
 }
