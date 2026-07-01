@@ -46,9 +46,9 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             {user.role !== "AGENT" ? <ExportActions locale={locale} /> : null}
             <ThemeToggle locale={locale} />
             <Button asChild className="hidden rounded-xl px-3 shadow-sm md:inline-flex">
-              <Link href="/policies/new">
+              <Link href={user.role === "AGENT" ? "/motor-requests/new" : "/policies/new"}>
                 <Plus className="h-4 w-4" />
-                {t.issuePolicy}
+                {user.role === "AGENT" ? "طلب تأمين مركبة" : t.issuePolicy}
               </Link>
             </Button>
             {user.role !== "AGENT" ? (

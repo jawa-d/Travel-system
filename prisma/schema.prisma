@@ -116,6 +116,11 @@ enum LookupCategory {
   CANCELLATION_REASON
 }
 
+enum MotorRequestStatus {
+  DRAFT
+  SUBMITTED
+}
+
 model Agency {
   id        String   @id @default(cuid())
   name      String
@@ -146,6 +151,7 @@ model User {
   customers     Customer[]  @relation("CustomerCreator")
   policies      Policy[]   @relation("PolicyIssuer")
   ownedPolicies Policy[]   @relation("PolicyOwner")
+  motorRequests MotorInsuranceRequest[] @relation("MotorRequestAgent")
   claims        Claim[]     @relation("ClaimCreator")
   notifications Notification[]
   auditLogs     AuditLog[]
@@ -153,6 +159,48 @@ model User {
   updatedAt     DateTime   @updatedAt
 
   @@index([agencyId])
+}
+
+model MotorInsuranceRequest {
+  id                    String             @id @default(cuid())
+  requestNumber         String             @unique
+  submissionToken       String             @unique
+  status                MotorRequestStatus @default(SUBMITTED)
+  customerFullName      String
+  customerMobile        String
+  customerEmail         String?
+  customerNationalId    String
+  customerAddress       String
+  customerCity          String
+  vehicleType           String
+  manufacturer          String
+  model                 String
+  manufacturingYear     Int
+  color                 String
+  plateNumber           String
+  chassisNumber         String
+  engineNumber          String
+  estimatedVehicleValue Decimal            @db.Decimal(12, 2)
+  vehicleImages         Json
+  customerDocuments     Json
+  notes                 String?            @db.Text
+  agentId               String?
+  agent                 User?              @relation("MotorRequestAgent", fields: [agentId], references: [id], onDelete: SetNull)
+  agentName             String
+  agentEmail            String?
+  agentRole             Role?
+  agentAgency           String?
+  userId                String?
+  createdDate           DateTime           @default(now())
+  createdTime           String
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  @@index([status])
+  @@index([agentId])
+  @@index([createdAt])
+  @@index([customerNationalId])
+  @@index([plateNumber])
 }
 
 model Account {
