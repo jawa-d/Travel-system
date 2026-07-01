@@ -119,6 +119,10 @@ enum LookupCategory {
 enum MotorRequestStatus {
   DRAFT
   SUBMITTED
+  UNDER_REVIEW
+  NEEDS_INFO
+  APPROVED
+  REJECTED
 }
 
 model Agency {
@@ -193,6 +197,10 @@ model MotorInsuranceRequest {
   userId                String?
   createdDate           DateTime           @default(now())
   createdTime           String
+  reviewedById          String?
+  reviewedByName        String?
+  reviewedAt            DateTime?
+  managerNotes          String?            @db.Text
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
 

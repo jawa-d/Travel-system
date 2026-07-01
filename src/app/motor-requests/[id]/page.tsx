@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, CalendarDays, CarFront, FileImage, FileText, UserRound } from "lucide-react";
-import { Role } from "@prisma/client";
+import { MotorRequestStatus, Role } from "@prisma/client";
 import { AppShell } from "@/components/app-shell";
+import { MotorRequestStatusManager } from "@/components/motor-request-status-manager";
 import { StoredImage } from "@/components/stored-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requirePagePermission } from "@/lib/page-guard";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 type VehicleImage = { id: string; category: string; name: string; size: number; type: string };
@@ -23,6 +25,7 @@ export default async function MotorRequestDetailsPage({ params }: { params: Prom
 
   const images = request.vehicleImages as VehicleImage[];
   const documents = request.customerDocuments as CustomerDocument[];
+  const canManage = can(user.role, "motorRequestsManage");
 
   return (
     <AppShell>
@@ -33,7 +36,7 @@ export default async function MotorRequestDetailsPage({ params }: { params: Prom
           </Button>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="font-mono text-2xl font-black text-primary sm:text-3xl" dir="ltr">{request.requestNumber}</h1>
-            <Badge>{request.status === "SUBMITTED" ? "Submitted" : "Draft"}</Badge>
+            <Badge className={statusClasses[request.status]}>{statusLabels[request.status]}</Badge>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">ملف طلب تأمين المركبة المرسل من الوكيل.</p>
         </div>
@@ -101,19 +104,41 @@ export default async function MotorRequestDetailsPage({ params }: { params: Prom
             <CardHeader><CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-primary" />معلومات الطلب</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <Detail label="رقم الطلب" value={request.requestNumber} dir="ltr" />
-              <Detail label="الحالة" value={request.status} dir="ltr" />
+              <Detail label="الحالة" value={statusLabels[request.status]} />
               <Detail label="تاريخ الإنشاء" value={formatDate(request.createdDate)} />
               <Detail label="وقت الإنشاء" value={request.createdTime} dir="ltr" />
               <Detail label="اسم الوكيل" value={request.agentName} />
               <Detail label="بريد الوكيل" value={request.agentEmail ?? "-"} dir="ltr" />
               <Detail label="الوكالة" value={request.agentAgency ?? "-"} />
+              <Detail label="آخر مراجع" value={request.reviewedByName ?? "-"} />
+              <Detail label="تاريخ المراجعة" value={request.reviewedAt ? formatDate(request.reviewedAt) : "-"} />
             </CardContent>
           </Card>
+
+          {canManage ? (
+            <Card>
+              <CardHeader><CardTitle>إدارة الطلب</CardTitle></CardHeader>
+              <CardContent>
+                <MotorRequestStatusManager
+                  requestId={request.id}
+                  currentStatus={request.status}
+                  initialNotes={request.managerNotes}
+                />
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card>
             <CardHeader><CardTitle>ملاحظات إضافية</CardTitle></CardHeader>
             <CardContent>
               <p className="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{request.notes || "لا توجد ملاحظات."}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>ملاحظات الإدارة</CardTitle></CardHeader>
+            <CardContent>
+              <p className="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{request.managerNotes || "لا توجد ملاحظات إدارية."}</p>
             </CardContent>
           </Card>
         </div>
@@ -130,3 +155,21 @@ function Detail({ label, value, dir }: { label: string; value: React.ReactNode; 
     </div>
   );
 }
+
+const statusLabels: Record<MotorRequestStatus, string> = {
+  DRAFT: "مسودة",
+  SUBMITTED: "مرسل",
+  UNDER_REVIEW: "قيد المراجعة",
+  NEEDS_INFO: "بحاجة معلومات",
+  APPROVED: "مقبول",
+  REJECTED: "مرفوض"
+};
+
+const statusClasses: Record<MotorRequestStatus, string> = {
+  DRAFT: "bg-slate-100 text-slate-700 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-200",
+  SUBMITTED: "bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-200",
+  UNDER_REVIEW: "bg-cyan-100 text-cyan-700 hover:bg-cyan-100 dark:bg-cyan-950 dark:text-cyan-200",
+  NEEDS_INFO: "bg-amber-100 text-amber-700 hover:bg-amber-100 dark:bg-amber-950 dark:text-amber-200",
+  APPROVED: "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-200",
+  REJECTED: "bg-red-100 text-red-700 hover:bg-red-100 dark:bg-red-950 dark:text-red-200"
+};

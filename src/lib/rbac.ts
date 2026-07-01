@@ -36,6 +36,7 @@ const permissions = {
   agentAccountsRead: [Role.SUPER_ADMIN],
   motorRequestsCreate: [Role.AGENT],
   motorRequestsRead: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.AGENT],
+  motorRequestsManage: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER],
   systemManage: [Role.SUPER_ADMIN, Role.ADMIN]
   ,lookupsManage: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER]
 } as const;

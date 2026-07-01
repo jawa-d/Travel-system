@@ -1,0 +1,12 @@
+-- AlterEnum
+ALTER TYPE "MotorRequestStatus" ADD VALUE IF NOT EXISTS 'UNDER_REVIEW';
+ALTER TYPE "MotorRequestStatus" ADD VALUE IF NOT EXISTS 'NEEDS_INFO';
+ALTER TYPE "MotorRequestStatus" ADD VALUE IF NOT EXISTS 'APPROVED';
+ALTER TYPE "MotorRequestStatus" ADD VALUE IF NOT EXISTS 'REJECTED';
+
+-- AlterTable
+ALTER TABLE "MotorInsuranceRequest"
+ADD COLUMN "reviewedById" TEXT,
+ADD COLUMN "reviewedByName" TEXT,
+ADD COLUMN "reviewedAt" TIMESTAMP(3),
+ADD COLUMN "managerNotes" TEXT;

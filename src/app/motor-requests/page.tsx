@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CalendarDays, CarFront, FileText, Plus, UserRound } from "lucide-react";
-import { Role } from "@prisma/client";
+import { MotorRequestStatus, Role } from "@prisma/client";
 import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,8 @@ export default async function MotorRequestsPage() {
   });
 
   const submitted = requests.filter((request) => request.status === "SUBMITTED").length;
-  const drafts = requests.filter((request) => request.status === "DRAFT").length;
+  const inProgress = requests.filter((request) => request.status === "UNDER_REVIEW" || request.status === "NEEDS_INFO").length;
+  const decided = requests.filter((request) => request.status === "APPROVED" || request.status === "REJECTED").length;
 
   return (
     <AppShell>
@@ -42,8 +43,8 @@ export default async function MotorRequestsPage() {
 
       <div className="mb-6 grid gap-4 md:grid-cols-3">
         <Metric title="إجمالي الطلبات" value={requests.length} icon={FileText} />
-        <Metric title="الطلبات المرسلة" value={submitted} icon={CarFront} />
-        <Metric title="المسودات" value={drafts} icon={CalendarDays} />
+        <Metric title="المرسلة وقيد المراجعة" value={submitted + inProgress} icon={CarFront} />
+        <Metric title="المحسومة" value={decided} icon={CalendarDays} />
       </div>
 
       <Card>
@@ -77,7 +78,7 @@ export default async function MotorRequestsPage() {
                     <p className="mt-1 text-xs text-muted-foreground">{formatDate(request.createdDate)} - {request.createdTime}</p>
                   </div>
                   <div className="flex items-center gap-2 lg:justify-end">
-                    <Badge>{request.status === "SUBMITTED" ? "Submitted" : "Draft"}</Badge>
+                    <Badge className={statusClasses[request.status]}>{statusLabels[request.status]}</Badge>
                     <Button asChild size="sm" variant="outline">
                       <span>عرض</span>
                     </Button>
@@ -119,3 +120,21 @@ function Metric({ title, value, icon: Icon }: { title: string; value: number; ic
     </Card>
   );
 }
+
+const statusLabels: Record<MotorRequestStatus, string> = {
+  DRAFT: "مسودة",
+  SUBMITTED: "مرسل",
+  UNDER_REVIEW: "قيد المراجعة",
+  NEEDS_INFO: "بحاجة معلومات",
+  APPROVED: "مقبول",
+  REJECTED: "مرفوض"
+};
+
+const statusClasses: Record<MotorRequestStatus, string> = {
+  DRAFT: "bg-slate-100 text-slate-700 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-200",
+  SUBMITTED: "bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-200",
+  UNDER_REVIEW: "bg-cyan-100 text-cyan-700 hover:bg-cyan-100 dark:bg-cyan-950 dark:text-cyan-200",
+  NEEDS_INFO: "bg-amber-100 text-amber-700 hover:bg-amber-100 dark:bg-amber-950 dark:text-amber-200",
+  APPROVED: "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-200",
+  REJECTED: "bg-red-100 text-red-700 hover:bg-red-100 dark:bg-red-950 dark:text-red-200"
+};
