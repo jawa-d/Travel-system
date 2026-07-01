@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  BriefcaseBusiness, ClipboardList, FileCheck2, FileClock,
+  BriefcaseBusiness, CarFront, ClipboardList, FileCheck2, FileClock,
   FileText, ShieldCheck, ShieldX, Sparkles, TrendingUp, Users
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +35,8 @@ export type ExecutiveDashboardData = {
     totalEndorsements: number;
     totalCancellations: number;
     totalAgents: number;
+    totalMotorRequests: number;
+    pendingMotorRequests: number;
   };
   policiesByMonth: ChartPoint[];
   customerGrowth: ChartPoint[];
@@ -43,6 +45,7 @@ export type ExecutiveDashboardData = {
   latestPolicies: ActivityItem[];
   latestClaims: ActivityItem[];
   latestEndorsements: ActivityItem[];
+  latestMotorRequests: ActivityItem[];
   latestActivity: ActivityItem[];
 };
 
@@ -53,7 +56,9 @@ const metricCards = [
   { key: "totalClaims", label: "إجمالي المطالبات", icon: ClipboardList },
   { key: "totalEndorsements", label: "إجمالي الملاحق", icon: FileClock },
   { key: "totalCancellations", label: "إجمالي الإلغاءات", icon: ShieldX },
-  { key: "totalAgents", label: "إجمالي الوكلاء", icon: BriefcaseBusiness }
+  { key: "totalAgents", label: "إجمالي الوكلاء", icon: BriefcaseBusiness },
+  { key: "totalMotorRequests", label: "طلبات تأمين المركبات", icon: CarFront },
+  { key: "pendingMotorRequests", label: "طلبات مركبات قيد المتابعة", icon: FileCheck2 }
 ] as const;
 
 const statusColors: Record<string, string> = {
@@ -63,6 +68,15 @@ const statusColors: Record<string, string> = {
 
 const policyLabels: Record<string, string> = {
   ACTIVE: "فعالة", DRAFT: "مسودة", EXPIRED: "منتهية", CANCELLED: "ملغاة"
+};
+
+const motorRequestLabels: Record<string, string> = {
+  SUBMITTED: "مرسل",
+  UNDER_REVIEW: "قيد المراجعة",
+  NEEDS_INFO: "بحاجة معلومات",
+  APPROVED: "مقبول",
+  REJECTED: "مرفوض",
+  DRAFT: "مسودة"
 };
 
 export function ExecutiveDashboard({ data }: { data: ExecutiveDashboardData }) {
@@ -90,7 +104,7 @@ export function ExecutiveDashboard({ data }: { data: ExecutiveDashboardData }) {
         </div>
       </motion.section>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-9">
         {metricCards.map((card, index) => {
           const Icon = card.icon;
           const value = data.metrics[card.key];
@@ -125,8 +139,9 @@ export function ExecutiveDashboard({ data }: { data: ExecutiveDashboardData }) {
         </ChartCard>
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-2 2xl:grid-cols-4">
+      <div className="mt-6 grid gap-6 xl:grid-cols-2 2xl:grid-cols-5">
         <ActivityCard title="أحدث الوثائق" href="/policies" detailHref={(item) => `/policies/${item.id}`} items={data.latestPolicies} />
+        <ActivityCard title="أحدث طلبات المركبات" href="/motor-requests" detailHref={(item) => `/motor-requests/${item.id}`} items={data.latestMotorRequests} />
         <ActivityCard title="أحدث المطالبات" href="/claims" items={data.latestClaims} />
         <ActivityCard title="أحدث الملاحق" href="/endorsements" items={data.latestEndorsements} />
         <ActivityCard title="آخر نشاطات النظام" href="/audit" items={data.latestActivity} />
@@ -229,10 +244,16 @@ function ActivityCard({ title, href, items, detailHref }: { title: string; href:
 function statusLabel(status: string) {
   if (status in workflowStatusDetails) return workflowStatusDetails[status as keyof typeof workflowStatusDetails].labelAr;
   if (status === "ACTIVITY") return "نشاط";
+  if (status in motorRequestLabels) return motorRequestLabels[status];
   return policyLabels[status] ?? status;
 }
 
 function statusClass(status: string) {
   if (status in workflowStatusDetails) return workflowStatusDetails[status as keyof typeof workflowStatusDetails].className;
+  if (status === "APPROVED") return "bg-emerald-50 text-emerald-700";
+  if (status === "REJECTED") return "bg-red-50 text-red-700";
+  if (status === "NEEDS_INFO") return "bg-amber-50 text-amber-700";
+  if (status === "UNDER_REVIEW") return "bg-cyan-50 text-cyan-700";
+  if (status === "SUBMITTED") return "bg-blue-50 text-blue-700";
   return status === "ACTIVE" ? "bg-emerald-50 text-emerald-700" : status === "CANCELLED" ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-700";
 }

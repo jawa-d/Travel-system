@@ -12,6 +12,7 @@ export default async function DashboardPage() {
   const policyWhere = visiblePolicyWhere(user);
   const customerWhere = visibleCustomerWhere(user);
   const isSuperAdmin = user.role === "SUPER_ADMIN";
+  const motorRequestWhere = user.role === "AGENT" ? { agentId: user.id } : {};
   const since = new Date();
   since.setMonth(since.getMonth() - 11, 1);
   since.setHours(0, 0, 0, 0);
@@ -24,6 +25,8 @@ export default async function DashboardPage() {
     totalEndorsements,
     totalCancellations,
     totalAgents,
+    totalMotorRequests,
+    pendingMotorRequests,
     policyDates,
     customerDates,
     policyStatuses,
@@ -31,6 +34,7 @@ export default async function DashboardPage() {
     latestPolicies,
     latestClaims,
     latestEndorsements,
+    latestMotorRequests,
     latestActivity
   ] = await Promise.all([
     prisma.customer.count({ where: customerWhere }),
@@ -40,6 +44,8 @@ export default async function DashboardPage() {
     prisma.endorsement.count({ where: { policy: policyWhere } }),
     prisma.cancellation.count({ where: { policy: policyWhere } }),
     isSuperAdmin ? prisma.user.count({ where: { role: "AGENT" } }) : Promise.resolve(1),
+    prisma.motorInsuranceRequest.count({ where: motorRequestWhere }),
+    prisma.motorInsuranceRequest.count({ where: { AND: [motorRequestWhere, { status: { in: ["SUBMITTED", "UNDER_REVIEW", "NEEDS_INFO"] } }] } }),
     prisma.policy.findMany({ where: { AND: [policyWhere, { createdAt: { gte: since } }] }, select: { createdAt: true } }),
     prisma.customer.findMany({ where: { AND: [customerWhere, { createdAt: { gte: since } }] }, select: { createdAt: true } }),
     prisma.policy.groupBy({ by: ["status"], where: policyWhere, _count: true }),
@@ -69,6 +75,20 @@ export default async function DashboardPage() {
       select: {
         id: true, endorsementNumber: true, status: true, endorsementType: true, createdAt: true,
         policy: { select: { policyNumber: true } }
+      }
+    }),
+    prisma.motorInsuranceRequest.findMany({
+      where: motorRequestWhere,
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: {
+        id: true,
+        requestNumber: true,
+        status: true,
+        customerFullName: true,
+        manufacturer: true,
+        model: true,
+        createdAt: true
       }
     }),
     prisma.activity.findMany({
@@ -110,7 +130,9 @@ export default async function DashboardPage() {
       totalClaims,
       totalEndorsements,
       totalCancellations,
-      totalAgents
+      totalAgents,
+      totalMotorRequests,
+      pendingMotorRequests
     },
     policiesByMonth: months.map(({ label, policies }) => ({ label, value: policies })),
     customerGrowth: months.map(({ label, customers }) => ({ label, value: customers })),
@@ -137,6 +159,14 @@ export default async function DashboardPage() {
       title: item.policy.policyNumber,
       status: item.status,
       subtitle: item.endorsementType,
+      createdAt: item.createdAt.toISOString()
+    })),
+    latestMotorRequests: latestMotorRequests.map((item) => ({
+      id: item.id,
+      code: item.requestNumber,
+      title: item.customerFullName,
+      status: item.status,
+      subtitle: `${item.manufacturer} ${item.model}`,
       createdAt: item.createdAt.toISOString()
     })),
     latestActivity: latestActivity.map((item) => ({
