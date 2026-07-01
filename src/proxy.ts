@@ -48,6 +48,8 @@ export default auth(async (request) => {
       path === "/policies/new" ||
       path === "/customers" ||
       path.startsWith("/customers/") ||
+      path === "/motor-requests" ||
+      path.startsWith("/motor-requests/") ||
       path === "/claims" ||
       path === "/endorsements" ||
       path === "/cancellations";

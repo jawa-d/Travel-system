@@ -17,7 +17,7 @@ const permissions = {
   policiesRead: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.FINANCE, Role.AGENT, Role.VIEWER],
   plansWrite: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER],
   countriesWrite: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER],
-  policiesWrite: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.AGENT],
+  policiesWrite: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER],
   policiesManage: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER],
   policiesDelete: [Role.SUPER_ADMIN],
   financeRead: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE],
