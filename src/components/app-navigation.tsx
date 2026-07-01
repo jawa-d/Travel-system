@@ -6,6 +6,7 @@ import {
   BarChart3,
   Bell,
   BriefcaseBusiness,
+  CarFront,
   ChevronDown,
   CircleDollarSign,
   ClipboardList,
@@ -41,6 +42,7 @@ const groups: Array<{ label: string; items: NavItem[]; collapsible?: boolean }> 
     label: "الرئيسية",
     items: [
       { href: "/", label: "لوحة التحكم", icon: Home, permission: "dashboard" },
+      { href: "/motor-requests/new", label: "طلب تأمين مركبة", icon: CarFront, featured: true, permission: "motorRequestsCreate" },
       { href: "/policies/new", label: "إصدار وثيقة", icon: FilePlus2, featured: true, permission: "policiesWrite" }
     ]
   },
