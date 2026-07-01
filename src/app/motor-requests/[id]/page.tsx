@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowRight, CalendarDays, CarFront, FileImage, FileText, UserRound } from "lucide-react";
 import { MotorRequestStatus, Role } from "@prisma/client";
 import { AppShell } from "@/components/app-shell";
+import { MotorRequestFileDownloads } from "@/components/motor-request-file-downloads";
 import { MotorRequestStatusManager } from "@/components/motor-request-status-manager";
 import { StoredImage } from "@/components/stored-image";
 import { Badge } from "@/components/ui/badge";
@@ -100,6 +101,17 @@ export default async function MotorRequestDetailsPage({ params }: { params: Prom
         </div>
 
         <div className="space-y-6">
+          <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" />تحميل الملفات</CardTitle></CardHeader>
+            <CardContent>
+              <MotorRequestFileDownloads
+                requestNumber={request.requestNumber}
+                vehicleImages={images}
+                documents={documents}
+              />
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-primary" />معلومات الطلب</CardTitle></CardHeader>
             <CardContent className="space-y-3">
