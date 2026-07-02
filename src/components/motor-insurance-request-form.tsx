@@ -26,6 +26,12 @@ import { cn } from "@/lib/utils";
 type Locale = "ar" | "en";
 type VehicleImage = { id: string; category: string; name: string; size: number; type: string };
 type CustomerDocument = { key: string; label: string; id: string; name: string; size: number; type: string };
+type ReviewValues = {
+  fullName: string;
+  manufacturer: string;
+  model: string;
+  manufacturingYear: string;
+};
 
 const maxFileSize = 5 * 1024 * 1024;
 const imageTypes = ["image/jpeg", "image/png", "image/webp"];
@@ -67,6 +73,11 @@ const copy = {
     submitted: "Submitted",
     draftStatus: "Draft",
     agentLocked: "يتم ربط الطلب بالوكيل المسجل دخولياً ولا يمكن تعديل رقم الوكيل من النموذج.",
+    reviewSummary: "Review Summary",
+    summaryCustomer: "Customer",
+    summaryVehicle: "Vehicle",
+    summaryImages: "Vehicle images",
+    summaryDocuments: "Customer documents",
     fields: {
       fullName: "الاسم الكامل",
       mobile: "رقم الهاتف",
@@ -111,6 +122,11 @@ const copy = {
     submitted: "Submitted",
     draftStatus: "Draft",
     agentLocked: "The request is assigned automatically to the logged-in agent and cannot be changed from this form.",
+    reviewSummary: "Review Summary",
+    summaryCustomer: "Customer",
+    summaryVehicle: "Vehicle",
+    summaryImages: "Vehicle images",
+    summaryDocuments: "Customer documents",
     fields: {
       fullName: "Full Name",
       mobile: "Mobile Number",
@@ -140,10 +156,18 @@ export function MotorInsuranceRequestForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState<{ id: string; requestNumber: string; status: string } | null>(null);
   const [submissionToken, setSubmissionToken] = useState(() => crypto.randomUUID());
+  const [reviewValues, setReviewValues] = useState<ReviewValues>({
+    fullName: "",
+    manufacturer: "",
+    model: "",
+    manufacturingYear: ""
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const intentRef = useRef<"draft" | "submit">("submit");
   const t = copy[locale];
   const dir = locale === "ar" ? "rtl" : "ltr";
+  const uploadedDocumentCount = documentSlots.filter((slot) => documents.some((document) => document.key === slot.key)).length;
+  const vehicleSummary = [reviewValues.manufacturer, reviewValues.model, reviewValues.manufacturingYear].filter(Boolean).join(" ");
 
   const completedSections = useMemo(() => {
     let completed = 0;
@@ -226,6 +250,16 @@ export function MotorInsuranceRequestForm() {
     return true;
   }
 
+  function updateReviewValues(form: HTMLFormElement) {
+    const data = new FormData(form);
+    setReviewValues({
+      fullName: String(data.get("fullName") ?? "").trim(),
+      manufacturer: String(data.get("manufacturer") ?? "").trim(),
+      model: String(data.get("model") ?? "").trim(),
+      manufacturingYear: String(data.get("manufacturingYear") ?? "").trim()
+    });
+  }
+
   async function submit(event: React.FormEvent<HTMLFormElement>, intent: "draft" | "submit") {
     event.preventDefault();
     if (busy) {
@@ -284,6 +318,7 @@ export function MotorInsuranceRequestForm() {
     setVehicleImages([]);
     setDocuments([]);
     setError("");
+    setReviewValues({ fullName: "", manufacturer: "", model: "", manufacturingYear: "" });
     setSubmissionToken(crypto.randomUUID());
   }
 
@@ -314,7 +349,7 @@ export function MotorInsuranceRequestForm() {
   }
 
   return (
-    <form dir={dir} onSubmit={(event) => submit(event, intentRef.current)} className="space-y-6">
+    <form dir={dir} onInput={(event) => updateReviewValues(event.currentTarget)} onSubmit={(event) => submit(event, intentRef.current)} className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="mb-2 text-sm font-semibold text-primary">TRINSU</div>
@@ -438,6 +473,15 @@ export function MotorInsuranceRequestForm() {
           <CardHeader><CardTitle className="text-base">{t.submit}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div className="rounded-lg border bg-muted/15 p-3 text-xs leading-5 text-muted-foreground">{t.agentLocked}</div>
+            <div className="rounded-lg border bg-muted/10 p-3">
+              <p className="mb-3 text-xs font-black uppercase tracking-normal text-muted-foreground">{t.reviewSummary}</p>
+              <div className="space-y-2">
+                <SummaryRow label={t.summaryCustomer} value={reviewValues.fullName || "-"} />
+                <SummaryRow label={t.summaryVehicle} value={vehicleSummary || "-"} dir="ltr" />
+                <SummaryRow label={t.summaryImages} value={`${vehicleImages.length} / 5`} dir="ltr" />
+                <SummaryRow label={t.summaryDocuments} value={`${uploadedDocumentCount} / ${documentSlots.length}`} dir="ltr" />
+              </div>
+            </div>
             {error ? <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200">{error}</div> : null}
             <Button type="submit" variant="outline" className="w-full" disabled={busy} onClick={() => { intentRef.current = "draft"; }}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -451,6 +495,15 @@ export function MotorInsuranceRequestForm() {
         </Card>
       </motion.div>
     </form>
+  );
+}
+
+function SummaryRow({ label, value, dir }: { label: string; value: string; dir?: "ltr" | "rtl" }) {
+  return (
+    <div className="flex items-start justify-between gap-3 text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="max-w-[55%] truncate text-right font-bold" dir={dir}>{value}</span>
+    </div>
   );
 }
 
