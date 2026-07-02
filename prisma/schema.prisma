@@ -190,6 +190,7 @@ model MotorInsuranceRequest {
   notes                 String?            @db.Text
   agentId               String?
   agent                 User?              @relation("MotorRequestAgent", fields: [agentId], references: [id], onDelete: SetNull)
+  source                String             @default("Internal")
   agentName             String
   agentEmail            String?
   agentRole             Role?

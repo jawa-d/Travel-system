@@ -4,26 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { jsonError, requireUser } from "@/lib/api";
 import { getIpAddress, writeAuditLog } from "@/lib/audit";
 import { motorInsuranceRequestSchema } from "@/lib/validators";
-
-const REQUEST_PREFIX = "MTR-REQ";
-
-function requestYear(date = new Date()) {
-  return date.getFullYear();
-}
-
-async function createMotorRequestNumber(tx: Prisma.TransactionClient, year: number) {
-  const start = new Date(Date.UTC(year, 0, 1));
-  const end = new Date(Date.UTC(year + 1, 0, 1));
-  const count = await tx.motorInsuranceRequest.count({
-    where: {
-      createdAt: {
-        gte: start,
-        lt: end
-      }
-    }
-  });
-  return `${REQUEST_PREFIX}-${year}-${String(count + 1).padStart(6, "0")}`;
-}
+import { createMotorRequestNumber, motorRequestYear } from "@/lib/motor-request-number";
 
 async function getAgentSnapshot(userId: string) {
   return prisma.user.findUnique({
@@ -72,7 +53,7 @@ export async function POST(request: NextRequest) {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
         created = await prisma.$transaction(async (tx) => {
-          const requestNumber = await createMotorRequestNumber(tx, requestYear(now));
+          const requestNumber = await createMotorRequestNumber(tx, motorRequestYear(now));
           return tx.motorInsuranceRequest.create({
             data: {
               requestNumber,
@@ -96,6 +77,7 @@ export async function POST(request: NextRequest) {
               vehicleImages: payload.vehicleImages,
               customerDocuments: payload.documents,
               notes: payload.notes || null,
+              source: "Internal",
               agentId: agent.id,
               agentName: agent.name ?? "Agent",
               agentEmail: agent.email,
