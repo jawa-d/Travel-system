@@ -1,8 +1,22 @@
 "use client";
 
+import * as Dialog from "@radix-ui/react-dialog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Download, Loader2, Save, Stamp, Trash2, UploadCloud } from "lucide-react";
+import {
+  CheckCircle2,
+  Download,
+  FileSignature,
+  FileText,
+  Loader2,
+  PencilLine,
+  ReceiptText,
+  Save,
+  Stamp,
+  Trash2,
+  UploadCloud,
+  X
+} from "lucide-react";
 import type React from "react";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -64,6 +78,7 @@ export function MotorRequestEnterpriseManager({ request, permissions }: Props) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [activePanel, setActivePanel] = useState<"pricing" | "terms" | "assets" | "edit" | null>(null);
 
   async function submitJson(endpoint: string, body: unknown, successMessage: string, method = "PATCH") {
     setBusy(endpoint);
@@ -81,6 +96,7 @@ export function MotorRequestEnterpriseManager({ request, permissions }: Props) {
       return;
     }
     setMessage(successMessage);
+    setActivePanel(null);
     router.refresh();
   }
 
@@ -169,28 +185,84 @@ export function MotorRequestEnterpriseManager({ request, permissions }: Props) {
       {message ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-700">{message}</div> : null}
       {error ? <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-bold text-red-700">{error}</div> : null}
 
-      <div className="flex flex-col gap-2">
-        <Button asChild variant="outline">
-          <Link href={`/api/motor-requests/${request.id}/pdf`} target="_blank"><Download className="h-4 w-4" />PDF</Link>
-        </Button>
+      <div className="grid gap-3">
+        <ActionCard
+          icon={Download}
+          title="PDF Document"
+          description="Open the generated professional policy document."
+          action={(
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/api/motor-requests/${request.id}/pdf`} target="_blank">PDF</Link>
+            </Button>
+          )}
+        />
+        {permissions.canEditPricing ? (
+          <ActionCard
+            icon={ReceiptText}
+            title="Pricing"
+            description={`Net premium: ${request.netPremium} ${request.pricingCurrency}`}
+            onOpen={() => setActivePanel("pricing")}
+          />
+        ) : null}
+        {permissions.canEditTerms ? (
+          <ActionCard
+            icon={FileText}
+            title="Policy Terms & Special Conditions"
+            description={request.termsApprovedByName ? `Approved by ${request.termsApprovedByName}` : "Create, edit, and approve special policy terms."}
+            onOpen={() => setActivePanel("terms")}
+          />
+        ) : null}
+        {(permissions.canUploadUnderwriterSignature || permissions.canUploadManagerAssets) ? (
+          <ActionCard
+            icon={FileSignature}
+            title="Digital Signatures & Stamp"
+            description="Upload underwriter signature, manager signature, and company stamp."
+            onOpen={() => setActivePanel("assets")}
+          />
+        ) : null}
+        {permissions.canEdit ? (
+          <ActionCard
+            icon={PencilLine}
+            title="Edit Request"
+            description="Update customer, vehicle, and coverage information."
+            onOpen={() => setActivePanel("edit")}
+          />
+        ) : null}
       </div>
 
-      {permissions.canEditPricing ? (
-        <form action={savePricing} className="space-y-3 rounded-lg border bg-muted/10 p-3">
-          <h3 className="text-sm font-black">Pricing</h3>
-          <MoneyField label="Insurance Premium" name="insurancePremium" defaultValue={request.insurancePremium} />
-          <MoneyField label="Discount" name="discount" defaultValue={request.discount} />
-          <MoneyField label="Additional Fees" name="additionalFees" defaultValue={request.additionalFees} />
-          <MoneyField label="Taxes" name="taxes" defaultValue={request.taxes} />
-          <Field label="Currency" name="currency" defaultValue={request.pricingCurrency} />
+      {permissions.canDelete ? (
+        <Button type="button" variant="destructive" className="w-full" disabled={busy === "delete"} onClick={deleteRequest}>
+          {busy === "delete" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+          Delete Request
+        </Button>
+      ) : null}
+
+      <PanelDialog
+        open={activePanel === "pricing"}
+        onOpenChange={(open) => setActivePanel(open ? "pricing" : null)}
+        title="Pricing"
+        description="Update the premium, discounts, fees, taxes, and internal pricing notes."
+      >
+        <form action={savePricing} className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <MoneyField label="Insurance Premium" name="insurancePremium" defaultValue={request.insurancePremium} />
+            <MoneyField label="Discount" name="discount" defaultValue={request.discount} />
+            <MoneyField label="Additional Fees" name="additionalFees" defaultValue={request.additionalFees} />
+            <MoneyField label="Taxes" name="taxes" defaultValue={request.taxes} />
+            <Field label="Currency" name="currency" defaultValue={request.pricingCurrency} />
+          </div>
           <Textarea label="Notes" name="pricingNotes" defaultValue={request.pricingNotes ?? ""} />
           <Button className="w-full" disabled={Boolean(busy)}><Save className="h-4 w-4" />Save Pricing</Button>
         </form>
-      ) : null}
+      </PanelDialog>
 
-      {permissions.canEditTerms ? (
-        <div className="space-y-3 rounded-lg border bg-muted/10 p-3">
-          <h3 className="text-sm font-black">Policy Terms & Special Conditions</h3>
+      <PanelDialog
+        open={activePanel === "terms"}
+        onOpenChange={(open) => setActivePanel(open ? "terms" : null)}
+        title="Policy Terms & Special Conditions"
+        description="Maintain the policy text that appears inside the generated PDF."
+      >
+        <div className="space-y-4">
           <div className="flex gap-2">
             <Button type="button" size="sm" variant="outline" onClick={() => document.execCommand("bold")}>B</Button>
             <Button type="button" size="sm" variant="outline" onClick={() => document.execCommand("insertUnorderedList")}>List</Button>
@@ -199,7 +271,7 @@ export function MotorRequestEnterpriseManager({ request, permissions }: Props) {
             ref={termsRef}
             contentEditable
             suppressContentEditableWarning
-            className="min-h-40 rounded-md border bg-background p-3 text-sm leading-7 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="min-h-56 rounded-md border bg-background p-3 text-sm leading-7 outline-none focus-visible:ring-2 focus-visible:ring-ring"
             dangerouslySetInnerHTML={{ __html: request.policyTermsHtml ?? "" }}
           />
           <Button type="button" className="w-full" disabled={Boolean(busy)} onClick={() => saveTerms(false)}><Save className="h-4 w-4" />Save Terms</Button>
@@ -208,48 +280,120 @@ export function MotorRequestEnterpriseManager({ request, permissions }: Props) {
           ) : null}
           {request.termsApprovedByName ? <p className="text-xs text-muted-foreground">Approved by {request.termsApprovedByName}</p> : null}
         </div>
-      ) : null}
+      </PanelDialog>
 
-      {(permissions.canUploadUnderwriterSignature || permissions.canUploadManagerAssets) ? (
-        <div className="space-y-3 rounded-lg border bg-muted/10 p-3">
-          <h3 className="text-sm font-black">Digital Signatures & Stamp</h3>
+      <PanelDialog
+        open={activePanel === "assets"}
+        onOpenChange={(open) => setActivePanel(open ? "assets" : null)}
+        title="Digital Signatures & Stamp"
+        description="Upload secure approval assets that will be inserted into the PDF."
+      >
+        <div className="grid gap-3">
           {permissions.canUploadUnderwriterSignature ? <AssetUpload label="Underwriter Signature" kind="underwriterSignature" asset={request.underwriterSignature} progress={uploadProgress.underwriterSignature} busy={busy} onUpload={uploadAsset} /> : null}
           {permissions.canUploadManagerAssets ? <AssetUpload label="General Manager Signature" kind="managerSignature" asset={request.managerSignature} progress={uploadProgress.managerSignature} busy={busy} onUpload={uploadAsset} /> : null}
           {permissions.canUploadManagerAssets ? <AssetUpload label="Company Stamp" kind="companyStamp" asset={request.companyStamp} progress={uploadProgress.companyStamp} busy={busy} onUpload={uploadAsset} icon={<Stamp className="h-4 w-4" />} /> : null}
         </div>
-      ) : null}
+      </PanelDialog>
 
-      {permissions.canEdit ? (
-        <form action={saveEdit} className="space-y-3 rounded-lg border bg-muted/10 p-3">
-          <h3 className="text-sm font-black">Edit Request</h3>
-          <Field label="Customer Name" name="customerFullName" defaultValue={request.customerFullName} />
-          <Field label="Mobile" name="customerMobile" defaultValue={request.customerMobile} />
-          <Field label="Email" name="customerEmail" defaultValue={request.customerEmail ?? ""} />
-          <Field label="National ID" name="customerNationalId" defaultValue={request.customerNationalId} />
-          <Field label="Address" name="customerAddress" defaultValue={request.customerAddress} />
-          <Field label="City" name="customerCity" defaultValue={request.customerCity} />
-          <Field label="Vehicle Type" name="vehicleType" defaultValue={request.vehicleType} />
-          <Field label="Manufacturer" name="manufacturer" defaultValue={request.manufacturer} />
-          <Field label="Model" name="model" defaultValue={request.model} />
-          <Field label="Year" name="manufacturingYear" type="number" defaultValue={String(request.manufacturingYear)} />
-          <Field label="Color" name="color" defaultValue={request.color} />
-          <Field label="Plate Number" name="plateNumber" defaultValue={request.plateNumber} />
-          <Field label="Chassis Number" name="chassisNumber" defaultValue={request.chassisNumber} />
-          <Field label="Engine Number" name="engineNumber" defaultValue={request.engineNumber} />
-          <MoneyField label="Estimated Value" name="estimatedVehicleValue" defaultValue={request.estimatedVehicleValue} />
-          <Field label="Coverage Type" name="coverageType" defaultValue={request.coverageType ?? ""} />
+      <PanelDialog
+        open={activePanel === "edit"}
+        onOpenChange={(open) => setActivePanel(open ? "edit" : null)}
+        title="Edit Request"
+        description="Edit request data while preserving request history."
+      >
+        <form action={saveEdit} className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Customer Name" name="customerFullName" defaultValue={request.customerFullName} />
+            <Field label="Mobile" name="customerMobile" defaultValue={request.customerMobile} />
+            <Field label="Email" name="customerEmail" defaultValue={request.customerEmail ?? ""} />
+            <Field label="National ID" name="customerNationalId" defaultValue={request.customerNationalId} />
+            <Field label="Address" name="customerAddress" defaultValue={request.customerAddress} />
+            <Field label="City" name="customerCity" defaultValue={request.customerCity} />
+            <Field label="Vehicle Type" name="vehicleType" defaultValue={request.vehicleType} />
+            <Field label="Manufacturer" name="manufacturer" defaultValue={request.manufacturer} />
+            <Field label="Model" name="model" defaultValue={request.model} />
+            <Field label="Year" name="manufacturingYear" type="number" defaultValue={String(request.manufacturingYear)} />
+            <Field label="Color" name="color" defaultValue={request.color} />
+            <Field label="Plate Number" name="plateNumber" defaultValue={request.plateNumber} />
+            <Field label="Chassis Number" name="chassisNumber" defaultValue={request.chassisNumber} />
+            <Field label="Engine Number" name="engineNumber" defaultValue={request.engineNumber} />
+            <MoneyField label="Estimated Value" name="estimatedVehicleValue" defaultValue={request.estimatedVehicleValue} />
+            <Field label="Coverage Type" name="coverageType" defaultValue={request.coverageType ?? ""} />
+          </div>
           <Textarea label="Coverage Notes" name="coverageNotes" defaultValue={request.coverageNotes ?? ""} />
           <Button className="w-full" disabled={Boolean(busy)}><Save className="h-4 w-4" />Save Request</Button>
         </form>
-      ) : null}
-
-      {permissions.canDelete ? (
-        <Button type="button" variant="destructive" className="w-full" disabled={busy === "delete"} onClick={deleteRequest}>
-          {busy === "delete" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-          Delete Request
-        </Button>
-      ) : null}
+      </PanelDialog>
     </div>
+  );
+}
+
+function ActionCard({
+  icon: Icon,
+  title,
+  description,
+  onOpen,
+  action
+}: {
+  icon: typeof Download;
+  title: string;
+  description: string;
+  onOpen?: () => void;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border bg-card p-3 shadow-sm">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+        <Icon className="h-5 w-5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-black">{title}</p>
+        <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{description}</p>
+      </div>
+      {action ?? (
+        <Button type="button" size="sm" variant="outline" onClick={onOpen}>
+          فتح
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function PanelDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-[80] bg-slate-950/55 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-[81] max-h-[88vh] w-[calc(100%-2rem)] max-w-3xl -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-2xl focus:outline-none">
+          <div className="flex items-start justify-between gap-4 border-b bg-muted/20 p-5">
+            <div className="min-w-0">
+              <Dialog.Title className="text-lg font-black">{title}</Dialog.Title>
+              <Dialog.Description className="mt-1 text-sm leading-6 text-muted-foreground">{description}</Dialog.Description>
+            </div>
+            <Dialog.Close asChild>
+              <button className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted" aria-label="إغلاق">
+                <X className="h-4 w-4" />
+              </button>
+            </Dialog.Close>
+          </div>
+          <div className="max-h-[calc(88vh-104px)] overflow-y-auto p-5">
+            {children}
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 

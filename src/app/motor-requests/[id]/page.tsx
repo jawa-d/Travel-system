@@ -5,7 +5,7 @@ import { MotorRequestStatus, Role } from "@prisma/client";
 import { AppShell } from "@/components/app-shell";
 import { MotorRequestEnterpriseManager } from "@/components/motor-request-enterprise-manager";
 import { MotorRequestFileDownloads } from "@/components/motor-request-file-downloads";
-import { MotorRequestStatusManager } from "@/components/motor-request-status-manager";
+import { MotorRequestStatusCard } from "@/components/motor-request-status-card";
 import { StoredImage } from "@/components/stored-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -164,7 +164,7 @@ export default async function MotorRequestDetailsPage({ params }: { params: Prom
             <Card>
               <CardHeader><CardTitle>إدارة الطلب</CardTitle></CardHeader>
               <CardContent>
-                <MotorRequestStatusManager
+                <MotorRequestStatusCard
                   requestId={request.id}
                   currentStatus={request.status}
                   initialNotes={request.managerNotes}
