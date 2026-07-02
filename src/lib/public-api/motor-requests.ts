@@ -12,6 +12,7 @@ const documentLabels: Record<string, string> = {
   residenceCardFront: "Residence Card Front",
   residenceCardBack: "Residence Card Back"
 };
+const REQUEST_NUMBER_RETRY_LIMIT = 5;
 
 export const publicMotorRequestPayloadSchema = z.object({
   customer: z.object({
@@ -90,51 +91,57 @@ export async function createPublicMotorRequest(input: ReturnType<typeof parsePub
     timeZone: "Asia/Baghdad"
   }).format(now);
 
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < REQUEST_NUMBER_RETRY_LIMIT; attempt += 1) {
     try {
-      const requestNumber = await prisma.$transaction((tx) => createMotorRequestNumber(tx, motorRequestYear(now)));
-      const storedFiles = await savePublicMotorFiles({
-        requestNumber,
-        vehicleImages: input.vehicleImages,
-        documents: input.documents
-      });
-
-      return await prisma.motorInsuranceRequest.create({
-        data: {
+      return await prisma.$transaction(async (tx) => {
+        const requestNumber = await createMotorRequestNumber(tx, motorRequestYear(now));
+        const storedFiles = await savePublicMotorFiles({
           requestNumber,
-          submissionToken: crypto.randomUUID(),
-          status: MotorRequestStatus.SUBMITTED,
-          customerFullName: input.payload.customer.fullName,
-          customerMobile: input.payload.customer.mobile,
-          customerEmail: input.payload.customer.email || null,
-          customerNationalId: input.payload.customer.nationalId,
-          customerAddress: input.payload.customer.address,
-          customerCity: input.payload.customer.city,
-          vehicleType: input.payload.vehicle.vehicleType,
-          manufacturer: input.payload.vehicle.manufacturer,
-          model: input.payload.vehicle.model,
-          manufacturingYear: input.payload.vehicle.manufacturingYear,
-          color: input.payload.vehicle.color,
-          plateNumber: input.payload.vehicle.plateNumber,
-          chassisNumber: input.payload.vehicle.chassisNumber,
-          engineNumber: input.payload.vehicle.engineNumber,
-          estimatedVehicleValue: input.payload.vehicle.estimatedVehicleValue,
-          vehicleImages: storedFiles.vehicleImages,
-          customerDocuments: storedFiles.customerDocuments,
-          uploadFailures: storedFiles.failures,
-          notes: input.payload.notes || null,
-          source: "Public Portal",
-          agentName: input.payload.agentCode || "Public Portal",
-          agentEmail: null,
-          agentRole: null,
-          agentAgency: null,
-          createdDate: now,
-          createdTime
-        },
-        select: publicMotorRequestSelect()
+          vehicleImages: input.vehicleImages,
+          documents: input.documents
+        });
+
+        return tx.motorInsuranceRequest.create({
+          data: {
+            requestNumber,
+            submissionToken: crypto.randomUUID(),
+            status: MotorRequestStatus.SUBMITTED,
+            customerFullName: input.payload.customer.fullName,
+            customerMobile: input.payload.customer.mobile,
+            customerEmail: input.payload.customer.email || null,
+            customerNationalId: input.payload.customer.nationalId,
+            customerAddress: input.payload.customer.address,
+            customerCity: input.payload.customer.city,
+            vehicleType: input.payload.vehicle.vehicleType,
+            manufacturer: input.payload.vehicle.manufacturer,
+            model: input.payload.vehicle.model,
+            manufacturingYear: input.payload.vehicle.manufacturingYear,
+            color: input.payload.vehicle.color,
+            plateNumber: input.payload.vehicle.plateNumber,
+            chassisNumber: input.payload.vehicle.chassisNumber,
+            engineNumber: input.payload.vehicle.engineNumber,
+            estimatedVehicleValue: input.payload.vehicle.estimatedVehicleValue,
+            vehicleImages: storedFiles.vehicleImages,
+            customerDocuments: storedFiles.customerDocuments,
+            uploadFailures: storedFiles.failures,
+            notes: input.payload.notes || null,
+            source: "Public Portal",
+            agentName: input.payload.agentCode || "Public Portal",
+            agentEmail: null,
+            agentRole: null,
+            agentAgency: null,
+            createdDate: now,
+            createdTime
+          },
+          select: publicMotorRequestSelect()
+        });
       });
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002" && attempt < 2) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002" &&
+        attempt < REQUEST_NUMBER_RETRY_LIMIT - 1
+      ) {
         continue;
       }
       throw error;

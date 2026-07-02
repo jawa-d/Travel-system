@@ -6,6 +6,8 @@ import { getIpAddress, writeAuditLog } from "@/lib/audit";
 import { motorInsuranceRequestSchema } from "@/lib/validators";
 import { createMotorRequestNumber, motorRequestYear } from "@/lib/motor-request-number";
 
+const REQUEST_NUMBER_RETRY_LIMIT = 5;
+
 async function getAgentSnapshot(userId: string) {
   return prisma.user.findUnique({
     where: { id: userId },
@@ -62,7 +64,7 @@ export async function POST(request: NextRequest) {
     const status = payload.intent === "draft" ? MotorRequestStatus.DRAFT : MotorRequestStatus.SUBMITTED;
 
     let created;
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    for (let attempt = 0; attempt < REQUEST_NUMBER_RETRY_LIMIT; attempt += 1) {
       try {
         created = await prisma.$transaction(async (tx) => {
           const requestNumber = await createMotorRequestNumber(tx, motorRequestYear(now));
@@ -113,7 +115,7 @@ export async function POST(request: NextRequest) {
         if (
           error instanceof Prisma.PrismaClientKnownRequestError &&
           error.code === "P2002" &&
-          attempt < 2
+          attempt < REQUEST_NUMBER_RETRY_LIMIT - 1
         ) {
           continue;
         }

@@ -1,21 +1,29 @@
 import { Prisma } from "@prisma/client";
 
 const REQUEST_PREFIX = "MTR-REQ";
+const REQUEST_NUMBER_PADDING = 6;
 
 export function motorRequestYear(date = new Date()) {
   return date.getFullYear();
 }
 
 export async function createMotorRequestNumber(tx: Prisma.TransactionClient, year: number) {
-  const start = new Date(Date.UTC(year, 0, 1));
-  const end = new Date(Date.UTC(year + 1, 0, 1));
-  const count = await tx.motorInsuranceRequest.count({
+  const prefix = `${REQUEST_PREFIX}-${year}-`;
+
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`motor-request-number:${year}`}))`;
+
+  const latest = await tx.motorInsuranceRequest.findFirst({
     where: {
-      createdAt: {
-        gte: start,
-        lt: end
-      }
-    }
+      requestNumber: { startsWith: prefix }
+    },
+    orderBy: { requestNumber: "desc" },
+    select: { requestNumber: true }
   });
-  return `${REQUEST_PREFIX}-${year}-${String(count + 1).padStart(6, "0")}`;
+
+  const latestSequence = latest?.requestNumber.startsWith(prefix)
+    ? Number.parseInt(latest.requestNumber.slice(prefix.length), 10)
+    : 0;
+  const nextSequence = Number.isFinite(latestSequence) ? latestSequence + 1 : 1;
+
+  return `${prefix}${String(nextSequence).padStart(REQUEST_NUMBER_PADDING, "0")}`;
 }
