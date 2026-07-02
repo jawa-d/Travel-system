@@ -1,46 +1,141 @@
 # TRINSU Public Motor Insurance API v1
 
-External portals must communicate with TRINSU only through these REST endpoints. The portal must not connect to PostgreSQL, Prisma, or internal dashboard routes.
+This document is for frontend developers, mobile app developers, and external portal teams integrating with TRINSU.
 
-## Authentication
+External applications must communicate with TRINSU only through REST APIs. They must never connect directly to PostgreSQL, Prisma, internal tables, or dashboard routes.
 
-All endpoints require an API key in the `x-api-key` header. Configure allowed keys in the `PUBLIC_API_KEYS` environment variable as a comma-separated list.
+## 1. Base URL
 
-Invalid or missing keys return:
+Production:
 
-```json
-{
-  "success": false,
-  "error": "Unauthorized"
-}
+```text
+https://<your-trinsu-domain>
 ```
 
-## Create Motor Insurance Request
+Local development:
 
-`POST /api/v1/public/motor-requests`
+```text
+http://localhost:3000
+```
 
-Content type: `multipart/form-data`
+All endpoint examples below use:
 
-Headers:
+```text
+{{baseUrl}} = https://<your-trinsu-domain>
+```
+
+## 2. API Version
+
+Current version:
+
+```text
+v1
+```
+
+Base API path:
+
+```text
+/api/v1/public
+```
+
+Versioned endpoint example:
+
+```text
+/api/v1/public/motor-requests
+```
+
+Future versions must use new paths, for example:
+
+```text
+/api/v2/public/motor-requests
+```
+
+## 3. Authentication
+
+All endpoints require an API key.
+
+Header:
 
 ```http
 x-api-key: <portal-api-key>
 ```
 
+API keys are configured on the TRINSU server with `PUBLIC_API_KEYS`. Multiple keys can be provided as comma-separated values.
+
+Never hardcode API keys in public frontend bundles. Browser-based integrations should call their own backend, and that backend should call TRINSU with the API key.
+
+## 4. Required Headers
+
+For JSON-style `GET` requests:
+
+```http
+x-api-key: <portal-api-key>
+Accept: application/json
+```
+
+For `POST /motor-requests`:
+
+```http
+x-api-key: <portal-api-key>
+Accept: application/json
+Content-Type: multipart/form-data
+```
+
+When using `fetch`, Axios, or Postman with `FormData`, let the client set the multipart boundary automatically.
+
+## 5. All Endpoints
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `POST` | `/api/v1/public/motor-requests` | Create a motor insurance request. |
+| `GET` | `/api/v1/public/motor-requests/{requestNumber}` | Retrieve request status and summary. |
+| `GET` | `/api/v1/public/motor-requests/{requestNumber}/documents` | Retrieve uploaded document metadata and stored paths. |
+| `GET` | `/api/v1/public/motor-requests/{requestNumber}/policy` | Download issued policy PDF when available. Currently returns `404` until a policy is linked. |
+
+## 6. Create Motor Insurance Request
+
+```http
+POST /api/v1/public/motor-requests
+```
+
+Content type:
+
+```text
+multipart/form-data
+```
+
+### File Upload Format
+
 Form fields:
 
-- `payload`: JSON string containing customer, vehicle, notes, and optional agent code.
-- `vehicleImages`: repeat this file field at least 5 times. Allowed: JPG, PNG, WEBP.
-- `documents.nationalIdFront`: required file. Allowed: JPG, PNG, WEBP, PDF.
-- `documents.nationalIdBack`: required file.
-- `documents.drivingLicense`: required file.
-- `documents.vehicleRegistration`: required file.
-- `documents.residenceCardFront`: required file.
-- `documents.residenceCardBack`: required file.
+| Field | Type | Required | Rules |
+| --- | --- | --- | --- |
+| `payload` | JSON string | Yes | Contains customer, vehicle, notes, and optional agent code. |
+| `vehicleImages` | File, repeated | Yes | Minimum 5 files. JPG, JPEG, PNG, WEBP only. |
+| `documents.nationalIdFront` | File | Yes | JPG, JPEG, PNG, WEBP, or PDF. |
+| `documents.nationalIdBack` | File | Yes | JPG, JPEG, PNG, WEBP, or PDF. |
+| `documents.drivingLicense` | File | Yes | JPG, JPEG, PNG, WEBP, or PDF. |
+| `documents.vehicleRegistration` | File | Yes | JPG, JPEG, PNG, WEBP, or PDF. |
+| `documents.residenceCardFront` | File | Yes | JPG, JPEG, PNG, WEBP, or PDF. |
+| `documents.residenceCardBack` | File | Yes | JPG, JPEG, PNG, WEBP, or PDF. |
 
-Maximum file size defaults to 5 MB and can be changed with `PUBLIC_API_MAX_FILE_SIZE_MB`.
+Default maximum file size:
 
-Example `payload`:
+```text
+5 MB per file
+```
+
+Server variable:
+
+```text
+PUBLIC_API_MAX_FILE_SIZE_MB=5
+```
+
+TRINSU stores uploaded files using the configured server upload directory and saves only file metadata and relative paths in the database.
+
+### Request Body Example
+
+The `payload` form field must be a JSON string:
 
 ```json
 {
@@ -68,7 +163,9 @@ Example `payload`:
 }
 ```
 
-Success response:
+### Success Response
+
+HTTP `200`
 
 ```json
 {
@@ -79,31 +176,622 @@ Success response:
 }
 ```
 
-## Retrieve Request Status
+### cURL Example
 
-`GET /api/v1/public/motor-requests/{requestNumber}`
+```bash
+curl -X POST "{{baseUrl}}/api/v1/public/motor-requests" \
+  -H "x-api-key: {{apiKey}}" \
+  -H "Accept: application/json" \
+  -F 'payload={
+    "customer": {
+      "fullName": "Ahmed Ali",
+      "mobile": "+9647700000000",
+      "email": "ahmed@example.com",
+      "nationalId": "1234567890",
+      "address": "Karrada",
+      "city": "Baghdad"
+    },
+    "vehicle": {
+      "vehicleType": "Sedan",
+      "manufacturer": "Toyota",
+      "model": "Camry",
+      "manufacturingYear": 2024,
+      "color": "White",
+      "plateNumber": "BGD-12345",
+      "chassisNumber": "JTDBR32E720000001",
+      "engineNumber": "ENG123456",
+      "estimatedVehicleValue": 25000
+    },
+    "notes": "Customer prefers WhatsApp updates.",
+    "agentCode": "AGT-001"
+  }' \
+  -F "vehicleImages=@./files/front.jpg" \
+  -F "vehicleImages=@./files/back.jpg" \
+  -F "vehicleImages=@./files/left.jpg" \
+  -F "vehicleImages=@./files/right.jpg" \
+  -F "vehicleImages=@./files/interior.jpg" \
+  -F "documents.nationalIdFront=@./files/national-id-front.pdf" \
+  -F "documents.nationalIdBack=@./files/national-id-back.pdf" \
+  -F "documents.drivingLicense=@./files/driving-license.pdf" \
+  -F "documents.vehicleRegistration=@./files/vehicle-registration.pdf" \
+  -F "documents.residenceCardFront=@./files/residence-front.pdf" \
+  -F "documents.residenceCardBack=@./files/residence-back.pdf"
+```
 
-Returns request status and safe summary fields.
+### JavaScript fetch() Example
 
-## Retrieve Uploaded Documents
+```ts
+const formData = new FormData();
 
-`GET /api/v1/public/motor-requests/{requestNumber}/documents`
+formData.append("payload", JSON.stringify({
+  customer: {
+    fullName: "Ahmed Ali",
+    mobile: "+9647700000000",
+    email: "ahmed@example.com",
+    nationalId: "1234567890",
+    address: "Karrada",
+    city: "Baghdad"
+  },
+  vehicle: {
+    vehicleType: "Sedan",
+    manufacturer: "Toyota",
+    model: "Camry",
+    manufacturingYear: 2024,
+    color: "White",
+    plateNumber: "BGD-12345",
+    chassisNumber: "JTDBR32E720000001",
+    engineNumber: "ENG123456",
+    estimatedVehicleValue: 25000
+  },
+  notes: "Customer prefers WhatsApp updates.",
+  agentCode: "AGT-001"
+}));
 
-Returns stored file metadata for vehicle images and customer documents. Database records store only relative file paths, not binary content.
+vehicleImageFiles.forEach((file) => {
+  formData.append("vehicleImages", file);
+});
 
-## Download Issued Policy PDF
+formData.append("documents.nationalIdFront", nationalIdFrontFile);
+formData.append("documents.nationalIdBack", nationalIdBackFile);
+formData.append("documents.drivingLicense", drivingLicenseFile);
+formData.append("documents.vehicleRegistration", vehicleRegistrationFile);
+formData.append("documents.residenceCardFront", residenceCardFrontFile);
+formData.append("documents.residenceCardBack", residenceCardBackFile);
 
-`GET /api/v1/public/motor-requests/{requestNumber}/policy`
+const response = await fetch(`${baseUrl}/api/v1/public/motor-requests`, {
+  method: "POST",
+  headers: {
+    "x-api-key": apiKey,
+    "Accept": "application/json"
+  },
+  body: formData
+});
 
-Returns `404` until a policy has been issued and linked to the motor request.
+const result = await response.json();
+if (!response.ok) throw new Error(result.error ?? "Request failed");
+```
 
-## Error Codes
+### Axios Example
 
-- `400`: validation error, malformed JSON payload, invalid files, missing required documents.
-- `401`: missing or invalid API key.
-- `404`: request or policy not found.
-- `500`: unexpected server error.
+```ts
+import axios from "axios";
 
-## Audit Logging
+const formData = new FormData();
+formData.append("payload", JSON.stringify(payload));
+vehicleImageFiles.forEach((file) => formData.append("vehicleImages", file));
+formData.append("documents.nationalIdFront", nationalIdFrontFile);
+formData.append("documents.nationalIdBack", nationalIdBackFile);
+formData.append("documents.drivingLicense", drivingLicenseFile);
+formData.append("documents.vehicleRegistration", vehicleRegistrationFile);
+formData.append("documents.residenceCardFront", residenceCardFrontFile);
+formData.append("documents.residenceCardBack", residenceCardBackFile);
 
-Request creation writes an audit log with action `PUBLIC_MOTOR_REQUEST_CREATED`, request number, API-key fingerprint, IP address, user agent, and timestamp.
+const { data } = await axios.post(
+  `${baseUrl}/api/v1/public/motor-requests`,
+  formData,
+  {
+    headers: {
+      "x-api-key": apiKey,
+      "Accept": "application/json"
+    }
+  }
+);
+```
+
+## 7. Retrieve Request Status
+
+```http
+GET /api/v1/public/motor-requests/{requestNumber}
+```
+
+### Response Body Example
+
+HTTP `200`
+
+```json
+{
+  "success": true,
+  "requestNumber": "MTR-REQ-2026-000001",
+  "status": "Submitted",
+  "source": "Public Portal",
+  "customer": {
+    "fullName": "Ahmed Ali",
+    "mobile": "+9647700000000",
+    "email": "ahmed@example.com",
+    "nationalId": "1234567890",
+    "city": "Baghdad"
+  },
+  "vehicle": {
+    "vehicleType": "Sedan",
+    "manufacturer": "Toyota",
+    "model": "Camry",
+    "plateNumber": "BGD-12345"
+  },
+  "submittedAt": "2026-07-02T01:20:00.000Z",
+  "updatedAt": "2026-07-02T01:20:00.000Z"
+}
+```
+
+### cURL Example
+
+```bash
+curl -X GET "{{baseUrl}}/api/v1/public/motor-requests/MTR-REQ-2026-000001" \
+  -H "x-api-key: {{apiKey}}" \
+  -H "Accept: application/json"
+```
+
+### JavaScript fetch() Example
+
+```ts
+const response = await fetch(`${baseUrl}/api/v1/public/motor-requests/${requestNumber}`, {
+  headers: {
+    "x-api-key": apiKey,
+    "Accept": "application/json"
+  }
+});
+
+const data = await response.json();
+```
+
+### Axios Example
+
+```ts
+const { data } = await axios.get(
+  `${baseUrl}/api/v1/public/motor-requests/${requestNumber}`,
+  {
+    headers: {
+      "x-api-key": apiKey,
+      "Accept": "application/json"
+    }
+  }
+);
+```
+
+## 8. Retrieve Uploaded Documents
+
+```http
+GET /api/v1/public/motor-requests/{requestNumber}/documents
+```
+
+This endpoint returns file metadata and stored relative paths. It does not return raw file bytes.
+
+### Response Body Example
+
+HTTP `200`
+
+```json
+{
+  "success": true,
+  "requestNumber": "MTR-REQ-2026-000001",
+  "vehicleImages": [
+    {
+      "key": "vehicle-1",
+      "label": "vehicle-1",
+      "path": "private_uploads/public-motor-requests/MTR-REQ-2026-000001/vehicle-images/1780000000000-vehicle-1-front.jpg",
+      "name": "front.jpg",
+      "size": 245000,
+      "type": "image/jpeg",
+      "uploadedAt": "2026-07-02T01:20:00.000Z"
+    }
+  ],
+  "customerDocuments": [
+    {
+      "key": "nationalIdFront",
+      "label": "National ID Front",
+      "path": "private_uploads/public-motor-requests/MTR-REQ-2026-000001/customer-documents/1780000000000-nationalIdFront-national-id-front.pdf",
+      "name": "national-id-front.pdf",
+      "size": 410000,
+      "type": "application/pdf",
+      "uploadedAt": "2026-07-02T01:20:00.000Z"
+    }
+  ]
+}
+```
+
+### cURL Example
+
+```bash
+curl -X GET "{{baseUrl}}/api/v1/public/motor-requests/MTR-REQ-2026-000001/documents" \
+  -H "x-api-key: {{apiKey}}" \
+  -H "Accept: application/json"
+```
+
+### JavaScript fetch() Example
+
+```ts
+const response = await fetch(`${baseUrl}/api/v1/public/motor-requests/${requestNumber}/documents`, {
+  headers: {
+    "x-api-key": apiKey,
+    "Accept": "application/json"
+  }
+});
+
+const documents = await response.json();
+```
+
+### Axios Example
+
+```ts
+const { data } = await axios.get(
+  `${baseUrl}/api/v1/public/motor-requests/${requestNumber}/documents`,
+  {
+    headers: {
+      "x-api-key": apiKey,
+      "Accept": "application/json"
+    }
+  }
+);
+```
+
+## 9. Download Issued Policy PDF
+
+```http
+GET /api/v1/public/motor-requests/{requestNumber}/policy
+```
+
+When a policy is available, the expected success response is:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="POLICY-NUMBER.pdf"
+```
+
+Current behavior:
+
+```json
+{
+  "success": false,
+  "requestNumber": "MTR-REQ-2026-000001",
+  "status": "SUBMITTED",
+  "error": "Policy PDF is not available for this request yet."
+}
+```
+
+### cURL Example
+
+```bash
+curl -X GET "{{baseUrl}}/api/v1/public/motor-requests/MTR-REQ-2026-000001/policy" \
+  -H "x-api-key: {{apiKey}}" \
+  -o policy.pdf
+```
+
+### JavaScript fetch() Example
+
+```ts
+const response = await fetch(`${baseUrl}/api/v1/public/motor-requests/${requestNumber}/policy`, {
+  headers: {
+    "x-api-key": apiKey
+  }
+});
+
+if (!response.ok) {
+  const error = await response.json();
+  throw new Error(error.error ?? "Policy is not available");
+}
+
+const policyPdf = await response.blob();
+```
+
+### Axios Example
+
+```ts
+const { data } = await axios.get(
+  `${baseUrl}/api/v1/public/motor-requests/${requestNumber}/policy`,
+  {
+    responseType: "blob",
+    headers: {
+      "x-api-key": apiKey
+    }
+  }
+);
+```
+
+## 10. Error Codes
+
+| HTTP Status | Meaning | Example |
+| --- | --- | --- |
+| `400` | Validation error, malformed JSON payload, invalid files, oversized files, or missing required documents. | Missing `documents.drivingLicense`. |
+| `401` | Missing or invalid API key. | `x-api-key` not sent. |
+| `404` | Request not found, or policy PDF not available. | Unknown request number. |
+| `500` | Unexpected server error. | Storage or database failure. |
+
+### Error Response Examples
+
+Unauthorized:
+
+```json
+{
+  "success": false,
+  "error": "Unauthorized"
+}
+```
+
+Validation error:
+
+```json
+{
+  "success": false,
+  "error": "Validation failed",
+  "details": [
+    {
+      "path": "customer.fullName",
+      "message": "Full name is required"
+    }
+  ]
+}
+```
+
+Not found:
+
+```json
+{
+  "success": false,
+  "error": "Motor insurance request not found."
+}
+```
+
+## 11. Request Number Format
+
+TRINSU generates request numbers automatically.
+
+Format:
+
+```text
+MTR-REQ-YYYY-000001
+```
+
+Example:
+
+```text
+MTR-REQ-2026-000001
+```
+
+## 12. Required Environment Variables
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `DATABASE_URL` | Yes | PostgreSQL connection string. |
+| `PUBLIC_API_KEYS` | Yes | Comma-separated public API keys accepted by `x-api-key`. |
+| `PUBLIC_API_MAX_FILE_SIZE_MB` | No | Maximum upload size per file. Defaults to `5`. |
+| `UPLOADS_DIR` | No | Absolute or relative upload storage directory. Defaults to `private_uploads`. |
+| `AUTH_SECRET` | Yes for app auth | Required by the main TRINSU app authentication. |
+| `AUTH_URL` | Production recommended | Public application URL. |
+| `POLICY_VERIFICATION_SECRET` | Recommended | Used by policy verification utilities. |
+
+Example:
+
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE?schema=public"
+PUBLIC_API_KEYS="portal-key-1,portal-key-2"
+PUBLIC_API_MAX_FILE_SIZE_MB="5"
+UPLOADS_DIR="private_uploads"
+```
+
+## 13. Postman Collection
+
+Import this JSON into Postman. Set collection variables `baseUrl`, `apiKey`, and `requestNumber`.
+
+```json
+{
+  "info": {
+    "name": "TRINSU Public Motor Insurance API v1",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://<your-trinsu-domain>"
+    },
+    {
+      "key": "apiKey",
+      "value": "<portal-api-key>"
+    },
+    {
+      "key": "requestNumber",
+      "value": "MTR-REQ-2026-000001"
+    }
+  ],
+  "item": [
+    {
+      "name": "Create Motor Insurance Request",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "payload",
+              "type": "text",
+              "value": "{\"customer\":{\"fullName\":\"Ahmed Ali\",\"mobile\":\"+9647700000000\",\"email\":\"ahmed@example.com\",\"nationalId\":\"1234567890\",\"address\":\"Karrada\",\"city\":\"Baghdad\"},\"vehicle\":{\"vehicleType\":\"Sedan\",\"manufacturer\":\"Toyota\",\"model\":\"Camry\",\"manufacturingYear\":2024,\"color\":\"White\",\"plateNumber\":\"BGD-12345\",\"chassisNumber\":\"JTDBR32E720000001\",\"engineNumber\":\"ENG123456\",\"estimatedVehicleValue\":25000},\"notes\":\"Customer prefers WhatsApp updates.\",\"agentCode\":\"AGT-001\"}"
+            },
+            {
+              "key": "vehicleImages",
+              "type": "file",
+              "src": []
+            },
+            {
+              "key": "documents.nationalIdFront",
+              "type": "file",
+              "src": []
+            },
+            {
+              "key": "documents.nationalIdBack",
+              "type": "file",
+              "src": []
+            },
+            {
+              "key": "documents.drivingLicense",
+              "type": "file",
+              "src": []
+            },
+            {
+              "key": "documents.vehicleRegistration",
+              "type": "file",
+              "src": []
+            },
+            {
+              "key": "documents.residenceCardFront",
+              "type": "file",
+              "src": []
+            },
+            {
+              "key": "documents.residenceCardBack",
+              "type": "file",
+              "src": []
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/public/motor-requests",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "public",
+            "motor-requests"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get Request Status",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/public/motor-requests/{{requestNumber}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "public",
+            "motor-requests",
+            "{{requestNumber}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get Uploaded Documents",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/public/motor-requests/{{requestNumber}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "public",
+            "motor-requests",
+            "{{requestNumber}}",
+            "documents"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Download Policy PDF",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/public/motor-requests/{{requestNumber}}/policy",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "public",
+            "motor-requests",
+            "{{requestNumber}}",
+            "policy"
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+## 14. Security Notes
+
+- API keys must stay in server-side environment variables.
+- Do not expose API keys in browser JavaScript, mobile app binaries, or public repositories.
+- Validate all user input before sending it, but remember TRINSU also validates everything server-side.
+- Use HTTPS only in production.
+- Store files in private server storage, not a public static directory.
+- Rotate API keys immediately if a portal key is exposed.
+
+## 15. Audit Logging
+
+Successful request creation writes an audit log:
+
+```text
+Action: PUBLIC_MOTOR_REQUEST_CREATED
+Entity: MotorInsuranceRequest
+Metadata: requestNumber, status, API-key fingerprint, user agent, source
+IP Address: captured from forwarded headers
+Timestamp: database-created audit timestamp
+```
