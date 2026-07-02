@@ -171,8 +171,9 @@ HTTP `201`
 {
   "success": true,
   "requestId": "cmtr...",
+  "requestNumber": "MTR-REQ-2026-000001",
   "trackingNumber": "MTR-REQ-2026-000001",
-  "message": "Motor request created successfully."
+  "message": "Request submitted successfully"
 }
 ```
 
@@ -268,7 +269,12 @@ const response = await fetch(`${baseUrl}/api/public/motor-requests`, {
 });
 
 const result = await response.json();
-if (!response.ok) throw new Error(result.message ?? "Request failed");
+if (!response.ok || result.success !== true) {
+  throw new Error(result.message ?? "Request failed");
+}
+
+showSuccessMessage(result.message);
+window.location.assign(`/confirmation?requestId=${encodeURIComponent(result.requestId)}`);
 ```
 
 ### Axios Example

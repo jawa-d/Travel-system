@@ -270,13 +270,13 @@ export function MotorInsuranceRequestForm() {
         notes: data.get("notes")
       })
     });
-    const result = await response.json();
+    const result = await response.json().catch(() => null);
     setBusy(false);
-    if (!response.ok) {
-      setError(result.error ?? t.validation);
+    if (!response.ok || result?.success !== true) {
+      setError(result?.error ?? result?.message ?? t.validation);
       return;
     }
-    setSuccess({ id: result.id, requestNumber: result.requestNumber, status: result.status });
+    setSuccess({ id: result.requestId, requestNumber: result.requestNumber, status: result.status });
   }
 
   function reset() {

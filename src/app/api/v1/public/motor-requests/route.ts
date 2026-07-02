@@ -46,8 +46,9 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         requestId: created.id,
+        requestNumber: created.requestNumber,
         trackingNumber: created.requestNumber,
-        message: "Motor request created successfully.",
+        message: "Request submitted successfully",
         ...nonProductionDebug(blobDebug)
       },
       { status: 201 }
