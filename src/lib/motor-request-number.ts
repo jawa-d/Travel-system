@@ -10,7 +10,7 @@ export function motorRequestYear(date = new Date()) {
 export async function createMotorRequestNumber(tx: Prisma.TransactionClient, year: number) {
   const prefix = `${REQUEST_PREFIX}-${year}-`;
 
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`motor-request-number:${year}`}))`;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`motor-request-number:${year}`}))`;
 
   const latest = await tx.motorInsuranceRequest.findFirst({
     where: {
