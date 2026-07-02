@@ -253,10 +253,10 @@ export function MotorInsuranceRequestForm() {
   function updateReviewValues(form: HTMLFormElement) {
     const data = new FormData(form);
     setReviewValues({
-      fullName: String(data.get("fullName") ?? "").trim(),
-      manufacturer: String(data.get("manufacturer") ?? "").trim(),
-      model: String(data.get("model") ?? "").trim(),
-      manufacturingYear: String(data.get("manufacturingYear") ?? "").trim()
+      fullName: formString(data, "fullName"),
+      manufacturer: formString(data, "manufacturer"),
+      model: formString(data, "model"),
+      manufacturingYear: formString(data, "manufacturingYear")
     });
   }
 
@@ -505,6 +505,11 @@ function SummaryRow({ label, value, dir }: { label: string; value: string; dir?:
       <span className="max-w-[55%] truncate text-right font-bold" dir={dir}>{value}</span>
     </div>
   );
+}
+
+function formString(data: FormData, key: string) {
+  const value = data.get(key);
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
