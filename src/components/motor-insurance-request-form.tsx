@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 type Locale = "ar" | "en";
 type VehicleImage = { id: string; category: string; name: string; size: number; type: string };
 type CustomerDocument = { key: string; label: string; id: string; name: string; size: number; type: string };
+type UploadTask = { id: string; name: string; progress: number; status: "uploading" | "done" | "failed"; error?: string };
 type ReviewValues = {
   fullName: string;
   manufacturer: string;
@@ -152,6 +153,7 @@ export function MotorInsuranceRequestForm() {
   const [locale, setLocale] = useState<Locale>("ar");
   const [vehicleImages, setVehicleImages] = useState<VehicleImage[]>([]);
   const [documents, setDocuments] = useState<CustomerDocument[]>([]);
+  const [uploadTasks, setUploadTasks] = useState<UploadTask[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState<{ id: string; requestNumber: string; status: string } | null>(null);
@@ -178,23 +180,37 @@ export function MotorInsuranceRequestForm() {
 
   async function addVehicleFiles(files: FileList | File[]) {
     setError("");
-    const accepted = Array.from(files).filter((file) => {
-      if (!imageTypes.includes(file.type)) return false;
-      return file.size <= maxFileSize;
-    });
-    if (accepted.length !== Array.from(files).length) setError(t.imageHelp);
+    const selected = Array.from(files);
+    const baseIndex = vehicleImages.length;
+    const tasks = selected.map((file) => ({ id: crypto.randomUUID(), name: file.name, progress: 0, status: "uploading" as const }));
+    setUploadTasks((current) => [...current, ...tasks]);
 
-    const stored = await Promise.all(accepted.map(async (file, index) => {
-      const record = await storeFile(file);
-      return {
-        id: record.id,
-        category: vehicleCategories[(vehicleImages.length + index) % vehicleCategories.length],
-        name: record.name,
-        size: record.size,
-        type: record.type
-      };
-    }));
-    setVehicleImages((current) => [...current, ...stored]);
+    const stored: VehicleImage[] = [];
+    for (const [index, file] of selected.entries()) {
+      const task = tasks[index];
+      try {
+        if (!imageTypes.includes(file.type) || file.size > maxFileSize) throw new Error(t.imageHelp);
+        setUploadTasks((current) => current.map((item) => item.id === task.id ? { ...item, progress: 45 } : item));
+        const record = await storeFile(file);
+        stored.push({
+          id: record.id,
+          category: vehicleCategories[(baseIndex + index) % vehicleCategories.length],
+          name: record.name,
+          size: record.size,
+          type: record.type
+        });
+        setUploadTasks((current) => current.map((item) => item.id === task.id ? { ...item, progress: 100, status: "done" } : item));
+      } catch (uploadError) {
+        setUploadTasks((current) => current.map((item) => item.id === task.id ? {
+          ...item,
+          progress: 0,
+          status: "failed",
+          error: uploadError instanceof Error ? uploadError.message : "Upload failed"
+        } : item));
+      }
+    }
+    if (stored.length) setVehicleImages((current) => [...current, ...stored]);
+    if (stored.length !== selected.length) setError(t.imageHelp);
   }
 
   async function removeVehicleImage(image: VehicleImage) {
@@ -226,13 +242,27 @@ export function MotorInsuranceRequestForm() {
       setError("Invalid file type or size. Use JPG, PNG, WEBP, or PDF up to 5 MB.");
       return;
     }
-    const existing = documents.find((document) => document.key === slot.key);
-    if (existing?.id.startsWith("idb://")) await deleteStoredFile(existing.id);
-    const record = await storeFile(file);
-    setDocuments((current) => [
-      ...current.filter((document) => document.key !== slot.key),
-      { key: slot.key, label: locale === "ar" ? slot.ar : slot.en, id: record.id, name: record.name, size: record.size, type: record.type }
-    ]);
+    const taskId = crypto.randomUUID();
+    setUploadTasks((current) => [...current, { id: taskId, name: file.name, progress: 25, status: "uploading" }]);
+    try {
+      const existing = documents.find((document) => document.key === slot.key);
+      if (existing?.id.startsWith("idb://")) await deleteStoredFile(existing.id);
+      setUploadTasks((current) => current.map((item) => item.id === taskId ? { ...item, progress: 65 } : item));
+      const record = await storeFile(file);
+      setDocuments((current) => [
+        ...current.filter((document) => document.key !== slot.key),
+        { key: slot.key, label: locale === "ar" ? slot.ar : slot.en, id: record.id, name: record.name, size: record.size, type: record.type }
+      ]);
+      setUploadTasks((current) => current.map((item) => item.id === taskId ? { ...item, progress: 100, status: "done" } : item));
+    } catch (uploadError) {
+      setUploadTasks((current) => current.map((item) => item.id === taskId ? {
+        ...item,
+        progress: 0,
+        status: "failed",
+        error: uploadError instanceof Error ? uploadError.message : "Upload failed"
+      } : item));
+      setError("Some files could not be uploaded. Please review the failed file list.");
+    }
   }
 
   async function removeDocument(document: CustomerDocument) {
@@ -422,6 +452,22 @@ export function MotorInsuranceRequestForm() {
               <span className="text-sm font-bold">{t.addImages}</span>
               <span className="mt-1 text-xs text-muted-foreground">{t.imageHelp}</span>
             </button>
+            {uploadTasks.length ? (
+              <div className="mt-4 space-y-2">
+                {uploadTasks.slice(-8).map((task) => (
+                  <div key={task.id} className="rounded-md border bg-muted/10 p-2 text-xs">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="min-w-0 truncate font-bold">{task.name}</span>
+                      <span className={task.status === "failed" ? "text-red-600" : task.status === "done" ? "text-emerald-600" : "text-primary"}>{task.status}</span>
+                    </div>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded bg-muted">
+                      <div className={task.status === "failed" ? "h-full bg-red-500" : "h-full bg-primary"} style={{ width: `${task.progress}%` }} />
+                    </div>
+                    {task.error ? <p className="mt-1 text-red-600">{task.error}</p> : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {vehicleImages.map((image) => (
                 <VehicleImageCard

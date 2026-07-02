@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
         requestId: created.id,
         requestNumber: created.requestNumber,
         trackingNumber: created.requestNumber,
+        uploadFailures: created.uploadFailures,
         message: "Request submitted successfully",
         ...nonProductionDebug(blobDebug)
       },

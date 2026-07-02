@@ -53,6 +53,7 @@ export function publicMotorRequestSelect() {
     plateNumber: true,
     vehicleImages: true,
     customerDocuments: true,
+    uploadFailures: true,
     notes: true,
     source: true,
     agentName: true,
@@ -69,12 +70,11 @@ export function parsePublicMotorFormData(formData: FormData) {
 
   const payload = publicMotorRequestPayloadSchema.parse(JSON.parse(payloadValue));
   const vehicleImages = formData.getAll("vehicleImages").filter((value): value is File => value instanceof File);
-  const documents = Object.entries(documentLabels)
-    .map(([key, label]) => {
-      const file = formData.get(`documents.${key}`);
-      return file instanceof File ? { key, label, file } : null;
-    })
-    .filter((document): document is { key: string; label: string; file: File } => Boolean(document));
+  const documents = Object.entries(documentLabels).flatMap(([key, label]) => (
+    formData.getAll(`documents.${key}`)
+      .filter((value): value is File => value instanceof File)
+      .map((file) => ({ key, label, file }))
+  ));
 
   validatePublicMotorFiles({ vehicleImages, documents });
   return { payload, vehicleImages, documents };
@@ -121,6 +121,7 @@ export async function createPublicMotorRequest(input: ReturnType<typeof parsePub
           estimatedVehicleValue: input.payload.vehicle.estimatedVehicleValue,
           vehicleImages: storedFiles.vehicleImages,
           customerDocuments: storedFiles.customerDocuments,
+          uploadFailures: storedFiles.failures,
           notes: input.payload.notes || null,
           source: "Public Portal",
           agentName: input.payload.agentCode || "Public Portal",

@@ -1,5 +1,5 @@
 import { extname } from "node:path";
-import { put } from "@vercel/blob";
+import { del, put } from "@vercel/blob";
 
 export type StoredPublicMotorFile = {
   key: string;
@@ -9,6 +9,13 @@ export type StoredPublicMotorFile = {
   size: number;
   type: string;
   uploadedAt: string;
+};
+
+export type PublicMotorUploadFailure = {
+  key: string;
+  label: string;
+  name: string;
+  reason: string;
 };
 
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -53,9 +60,8 @@ export function validatePublicMotorFiles(input: {
     }
   }
 
-  const limit = maxFileSize();
-  input.vehicleImages.forEach((file) => validateFile(file, IMAGE_TYPES, IMAGE_EXTENSIONS, limit));
-  input.documents.forEach((document) => validateFile(document.file, DOCUMENT_TYPES, DOCUMENT_EXTENSIONS, limit));
+  if (input.vehicleImages.some((file) => !(file instanceof File))) throw new Error("Vehicle images must be files.");
+  if (input.documents.some((document) => !(document.file instanceof File))) throw new Error("Customer documents must be files.");
 }
 
 export async function savePublicMotorFiles(input: {
@@ -63,26 +69,30 @@ export async function savePublicMotorFiles(input: {
   vehicleImages: File[];
   documents: Array<{ key: string; label: string; file: File }>;
 }) {
-  const vehicleImages = await Promise.all(
-    input.vehicleImages.map((file, index) => saveFile({
-      file,
-      requestNumber: input.requestNumber,
-      folder: "vehicle-images",
-      key: `vehicle-${index + 1}`,
-      label: `Vehicle Image ${index + 1}`
-    }))
-  );
-  const customerDocuments = await Promise.all(
-    input.documents.map((document) => saveFile({
-      file: document.file,
-      requestNumber: input.requestNumber,
-      folder: "customer-documents",
-      key: document.key,
-      label: document.label
-    }))
-  );
+  const vehicleResults = await Promise.all(input.vehicleImages.map((file, index) => saveFileResult({
+    file,
+    requestNumber: input.requestNumber,
+    folder: "vehicle-images",
+    key: `vehicle-${index + 1}`,
+    label: `Vehicle Image ${index + 1}`,
+    types: IMAGE_TYPES,
+    extensions: IMAGE_EXTENSIONS
+  })));
+  const documentResults = await Promise.all(input.documents.map((document) => saveFileResult({
+    file: document.file,
+    requestNumber: input.requestNumber,
+    folder: "customer-documents",
+    key: document.key,
+    label: document.label,
+    types: DOCUMENT_TYPES,
+    extensions: DOCUMENT_EXTENSIONS
+  })));
 
-  return { vehicleImages, customerDocuments };
+  const vehicleImages = vehicleResults.flatMap((result) => result.file ? [result.file] : []);
+  const customerDocuments = documentResults.flatMap((result) => result.file ? [result.file] : []);
+  const failures = [...vehicleResults, ...documentResults].flatMap((result) => result.failure ? [result.failure] : []);
+
+  return { vehicleImages, customerDocuments, failures };
 }
 
 function validateFile(file: File, types: Set<string>, extensions: Set<string>, sizeLimit: number) {
@@ -116,4 +126,36 @@ async function saveFile(input: {
     type: input.file.type,
     uploadedAt: new Date().toISOString()
   };
+}
+
+async function saveFileResult(input: {
+  file: File;
+  requestNumber: string;
+  folder: "vehicle-images" | "customer-documents";
+  key: string;
+  label: string;
+  types: Set<string>;
+  extensions: Set<string>;
+}): Promise<{ file?: StoredPublicMotorFile; failure?: PublicMotorUploadFailure }> {
+  try {
+    validateFile(input.file, input.types, input.extensions, maxFileSize());
+    return { file: await saveFile(input) };
+  } catch (error) {
+    return {
+      failure: {
+        key: input.key,
+        label: input.label,
+        name: input.file.name,
+        reason: error instanceof Error ? error.message : "Upload failed."
+      }
+    };
+  }
+}
+
+export async function deleteMotorBlobFiles(files: unknown[]) {
+  const urls = files
+    .filter((file): file is { url: string } => Boolean(file && typeof file === "object" && "url" in file && typeof (file as { url?: unknown }).url === "string"))
+    .map((file) => file.url);
+  if (!urls.length) return;
+  await Promise.allSettled(urls.map((url) => del(url)));
 }
