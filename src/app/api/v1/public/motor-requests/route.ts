@@ -24,6 +24,8 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const parsed = parsePublicMotorFormData(formData);
+    const blobDebug = blobCredentialDebug();
+    console.log("Blob credential debug", blobDebug);
     const created = await createPublicMotorRequest(parsed);
 
     await writeAuditLog({
@@ -45,29 +47,42 @@ export async function POST(request: NextRequest) {
         success: true,
         requestId: created.id,
         trackingNumber: created.requestNumber,
-        message: "Motor request created successfully."
+        message: "Motor request created successfully.",
+        ...nonProductionDebug(blobDebug)
       },
       { status: 201 }
     ));
   } catch (error) {
-    return withPublicMotorCors(request, publicApiError(error));
+    return withPublicMotorCors(request, publicApiError(error, blobCredentialDebug()));
   }
 }
 
-function publicApiError(error: unknown) {
+function blobCredentialDebug() {
+  return {
+    BLOB_STORE_ID: process.env.BLOB_STORE_ID,
+    BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN ? "exists" : "missing",
+    VERCEL_OIDC_TOKEN: process.env.VERCEL_OIDC_TOKEN ? "exists" : "missing"
+  };
+}
+
+function nonProductionDebug(debug: ReturnType<typeof blobCredentialDebug>) {
+  return process.env.NODE_ENV !== "production" ? { debug } : {};
+}
+
+function publicApiError(error: unknown, debug?: ReturnType<typeof blobCredentialDebug>) {
   if (error instanceof ZodError) {
     return NextResponse.json(
-      { success: false, message: "Validation failed", details: error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })) },
+      { success: false, message: "Validation failed", details: error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })), ...nonProductionDebug(debug ?? blobCredentialDebug()) },
       { status: 400 }
     );
   }
   if (error instanceof SyntaxError) {
-    return NextResponse.json({ success: false, message: "payload must be valid JSON." }, { status: 400 });
+    return NextResponse.json({ success: false, message: "payload must be valid JSON.", ...nonProductionDebug(debug ?? blobCredentialDebug()) }, { status: 400 });
   }
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-    return NextResponse.json({ success: false, message: "Duplicate request number. Please retry." }, { status: 500 });
+    return NextResponse.json({ success: false, message: "Duplicate request number. Please retry.", ...nonProductionDebug(debug ?? blobCredentialDebug()) }, { status: 500 });
   }
   const message = error instanceof Error ? error.message : "Unexpected server error.";
   const status = /required|invalid|unsupported|exceeds|empty/i.test(message) ? 400 : 500;
-  return NextResponse.json({ success: false, message }, { status });
+  return NextResponse.json({ success: false, message, ...nonProductionDebug(debug ?? blobCredentialDebug()) }, { status });
 }
