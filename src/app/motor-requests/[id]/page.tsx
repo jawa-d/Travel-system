@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowRight, CalendarDays, CarFront, FileImage, FileText, UserRound } from "lucide-react";
 import { MotorRequestStatus, Role } from "@prisma/client";
 import { AppShell } from "@/components/app-shell";
+import { MotorRequestEnterpriseManager } from "@/components/motor-request-enterprise-manager";
 import { MotorRequestFileDownloads } from "@/components/motor-request-file-downloads";
 import { MotorRequestStatusManager } from "@/components/motor-request-status-manager";
 import { StoredImage } from "@/components/stored-image";
@@ -27,6 +28,8 @@ export default async function MotorRequestDetailsPage({ params }: { params: Prom
   const images = request.vehicleImages as VehicleImage[];
   const documents = request.customerDocuments as CustomerDocument[];
   const canManage = can(user.role, "motorRequestsManage");
+  const issued = Boolean(request.policyIssuedAt || request.issuedPolicyNumber);
+  const canEdit = user.role === Role.SUPER_ADMIN || user.role === Role.ADMIN || (user.role === Role.UNDERWRITER && !issued);
 
   return (
     <AppShell>
@@ -129,6 +132,31 @@ export default async function MotorRequestDetailsPage({ params }: { params: Prom
               <Detail label="الوكالة" value={request.agentAgency ?? "-"} />
               <Detail label="آخر مراجع" value={request.reviewedByName ?? "-"} />
               <Detail label="تاريخ المراجعة" value={request.reviewedAt ? formatDate(request.reviewedAt) : "-"} />
+              <Detail label="Policy Number" value={request.issuedPolicyNumber ?? "-"} dir="ltr" />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>Pricing</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <Detail label="Insurance Premium" value={`${request.insurancePremium} ${request.pricingCurrency}`} dir="ltr" />
+              <Detail label="Discount" value={`${request.discount} ${request.pricingCurrency}`} dir="ltr" />
+              <Detail label="Additional Fees" value={`${request.additionalFees} ${request.pricingCurrency}`} dir="ltr" />
+              <Detail label="Taxes" value={`${request.taxes} ${request.pricingCurrency}`} dir="ltr" />
+              <Detail label="Net Premium" value={`${request.netPremium} ${request.pricingCurrency}`} dir="ltr" />
+              <Detail label="Notes" value={request.pricingNotes ?? "-"} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>Policy Terms & Special Conditions</CardTitle></CardHeader>
+            <CardContent>
+              {request.policyTermsHtml ? (
+                <div className="rounded-lg border bg-muted/10 p-3 text-sm leading-7" dangerouslySetInnerHTML={{ __html: request.policyTermsHtml }} />
+              ) : (
+                <p className="text-sm text-muted-foreground">No terms entered yet.</p>
+              )}
+              {request.termsApprovedByName ? <p className="mt-3 text-xs text-muted-foreground">Approved by {request.termsApprovedByName}</p> : null}
             </CardContent>
           </Card>
 
@@ -140,6 +168,59 @@ export default async function MotorRequestDetailsPage({ params }: { params: Prom
                   requestId={request.id}
                   currentStatus={request.status}
                   initialNotes={request.managerNotes}
+                />
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {(canEdit || can(user.role, "motorRequestsPricing") || can(user.role, "motorRequestsTermsWrite") || can(user.role, "motorRequestsDelete")) ? (
+            <Card>
+              <CardHeader><CardTitle>Enterprise Controls</CardTitle></CardHeader>
+              <CardContent>
+                <MotorRequestEnterpriseManager
+                  request={{
+                    id: request.id,
+                    requestNumber: request.requestNumber,
+                    customerFullName: request.customerFullName,
+                    customerMobile: request.customerMobile,
+                    customerEmail: request.customerEmail,
+                    customerNationalId: request.customerNationalId,
+                    customerAddress: request.customerAddress,
+                    customerCity: request.customerCity,
+                    vehicleType: request.vehicleType,
+                    manufacturer: request.manufacturer,
+                    model: request.model,
+                    manufacturingYear: request.manufacturingYear,
+                    color: request.color,
+                    plateNumber: request.plateNumber,
+                    chassisNumber: request.chassisNumber,
+                    engineNumber: request.engineNumber,
+                    estimatedVehicleValue: String(request.estimatedVehicleValue),
+                    coverageType: request.coverageType,
+                    coverageNotes: request.coverageNotes,
+                    insurancePremium: String(request.insurancePremium),
+                    discount: String(request.discount),
+                    additionalFees: String(request.additionalFees),
+                    taxes: String(request.taxes),
+                    netPremium: String(request.netPremium),
+                    pricingCurrency: request.pricingCurrency,
+                    pricingNotes: request.pricingNotes,
+                    policyTermsHtml: request.policyTermsHtml,
+                    termsApprovedByName: request.termsApprovedByName,
+                    termsApprovedAt: request.termsApprovedAt?.toISOString() ?? null,
+                    underwriterSignature: request.underwriterSignature as { url?: string; name?: string; uploadedByName?: string } | null,
+                    managerSignature: request.managerSignature as { url?: string; name?: string; uploadedByName?: string } | null,
+                    companyStamp: request.companyStamp as { url?: string; name?: string; uploadedByName?: string } | null
+                  }}
+                  permissions={{
+                    canEdit,
+                    canDelete: can(user.role, "motorRequestsDelete") && !issued,
+                    canEditPricing: can(user.role, "motorRequestsPricing"),
+                    canEditTerms: can(user.role, "motorRequestsTermsWrite"),
+                    canApproveTerms: can(user.role, "motorRequestsTermsApprove"),
+                    canUploadUnderwriterSignature: user.role === Role.SUPER_ADMIN || user.role === Role.UNDERWRITER,
+                    canUploadManagerAssets: user.role === Role.SUPER_ADMIN
+                  }}
                 />
               </CardContent>
             </Card>

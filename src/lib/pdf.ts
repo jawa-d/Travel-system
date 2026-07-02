@@ -5,6 +5,7 @@ import QRCode from "qrcode";
 import { toEnglishDigits } from "@/lib/i18n";
 
 const ENGLISH_FONT_NAME = "helvetica";
+const ARABIC_FONT_NAME = "ArabicTypesetting";
 const NAVY = [41, 53, 69] as const;
 const GOLD = [174, 143, 80] as const;
 const LIGHT = [241, 236, 226] as const;
@@ -16,6 +17,7 @@ const FOOTER_LINE = [226, 232, 240] as const;
 const COMPANY_NAME_EN = "Iraq Takaful Insurance Company";
 const LOGO_FILE = "Screenshot 2026-06-22 194918.png";
 let logoBase64: string | null = null;
+let arabicFontRegistered = false;
 const PDF_QR_OPTIONS = { margin: 2, width: 512, errorCorrectionLevel: "H" as const };
 const FOOTER_TOP_Y = 276;
 const CONTENT_BOTTOM_Y = 260;
@@ -24,6 +26,8 @@ type Locale = "ar" | "en";
 type PdfField = { label: string; value?: string | number | null };
 type PdfSection = { title: string; fields: PdfField[] };
 type PdfTable = { title: string; columns: string[]; rows: Array<Array<string | number | null | undefined>>; totals?: PdfField[] };
+type PdfImageAsset = { url?: string; name?: string; label?: string; type?: string };
+type PdfApprovalAsset = { url?: string; name?: string; uploadedByName?: string };
 
 type CorporatePdfInput = {
   title: string;
@@ -37,6 +41,12 @@ type CorporatePdfInput = {
   sections?: PdfSection[];
   tables?: PdfTable[];
   terms?: string[];
+  imageSections?: Array<{ title: string; images: PdfImageAsset[] }>;
+  approvalAssets?: {
+    preparedBy?: PdfApprovalAsset | null;
+    reviewedBy?: PdfApprovalAsset | null;
+    stamp?: PdfApprovalAsset | null;
+  };
   approvalStatus?: string;
 };
 
@@ -48,7 +58,21 @@ function processText(_doc: jsPDF, value: string) {
   return value;
 }
 
-function setFont(doc: jsPDF, _value: string, style: "normal" | "bold" = "normal") {
+function registerArabicFont(doc: jsPDF) {
+  if (arabicFontRegistered) return;
+  const fontBase64 = readFileSync(join(process.cwd(), "public", "fonts", "ArabicTypesetting.ttf")).toString("base64");
+  doc.addFileToVFS("ArabicTypesetting.ttf", fontBase64);
+  doc.addFont("ArabicTypesetting.ttf", ARABIC_FONT_NAME, "normal");
+  doc.addFont("ArabicTypesetting.ttf", ARABIC_FONT_NAME, "bold");
+  arabicFontRegistered = true;
+}
+
+function setFont(doc: jsPDF, value: string, style: "normal" | "bold" = "normal") {
+  if (isArabicText(value)) {
+    registerArabicFont(doc);
+    doc.setFont(ARABIC_FONT_NAME, style);
+    return;
+  }
   doc.setFont(ENGLISH_FONT_NAME, style);
 }
 
@@ -76,8 +100,7 @@ function splitText(doc: jsPDF, value: unknown, maxWidth: number, size = 9, style
 
 function safe(value: unknown) {
   if (value === null || value === undefined || value === "") return "-";
-  const normalized = toEnglishDigits(String(value));
-  return isArabicText(normalized) ? "-" : normalized;
+  return toEnglishDigits(String(value));
 }
 
 function withOpacity(doc: jsPDF, opacity: number, draw: () => void) {
@@ -249,32 +272,50 @@ function drawTable(doc: jsPDF, table: PdfTable, startY: number) {
   return y + 5;
 }
 
-function drawSignatures(doc: jsPDF, y: number, approvalStatus: string) {
+async function imageToDataUrl(url?: string) {
+  if (!url) return null;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const contentType = response.headers.get("content-type") ?? "image/png";
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return { dataUrl: `data:${contentType};base64,${buffer.toString("base64")}`, contentType };
+  } catch {
+    return null;
+  }
+}
+
+function imageFormat(contentType?: string) {
+  if (contentType?.includes("jpeg") || contentType?.includes("jpg")) return "JPEG";
+  if (contentType?.includes("webp")) return "WEBP";
+  return "PNG";
+}
+
+async function drawSignatures(doc: jsPDF, y: number, approvalStatus: string, assets?: CorporatePdfInput["approvalAssets"]) {
   y = ensureSpace(doc, y, 45);
   const cards = [
-    { title: "Authorized Signature", value: "Authorized Officer" },
-    { title: "Company Stamp", value: COMPANY_NAME_EN },
+    { title: "Prepared By", value: assets?.preparedBy?.uploadedByName ?? "Underwriter", asset: assets?.preparedBy },
+    { title: "Reviewed By", value: assets?.reviewedBy?.uploadedByName ?? "General Manager", asset: assets?.reviewedBy },
     { title: "Approval Status", value: approvalStatus }
   ];
-  cards.forEach((card, index) => {
+  for (const [index, card] of cards.entries()) {
     const x = 14 + index * 62;
     doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
     doc.roundedRect(x, y, 58, 32, 2, 2);
     text(doc, card.title, x + 29, y + 7, { size: 8, color: MUTED, align: "center" });
-    if (index === 1) {
-      doc.setDrawColor(GOLD[0], GOLD[1], GOLD[2]);
-      doc.setLineWidth(0.45);
-      doc.circle(x + 29, y + 19.2, 13.2);
-      doc.setLineWidth(0.2);
-      doc.circle(x + 29, y + 19.2, 11);
-      text(doc, "IRAQ TAKAFUL", x + 29, y + 18, { size: 6.8, style: "bold", color: NAVY, align: "center", maxWidth: 23, lineHeightFactor: 1 });
-      text(doc, "INSURANCE", x + 29, y + 22.3, { size: 6.4, style: "bold", color: NAVY, align: "center", maxWidth: 23, lineHeightFactor: 1 });
+    const image = await imageToDataUrl(card.asset?.url);
+    if (image) {
+      doc.addImage(image.dataUrl, imageFormat(image.contentType), x + 13, y + 10, 32, 12, undefined, "FAST");
     } else {
       doc.setDrawColor(GOLD[0], GOLD[1], GOLD[2]);
       doc.line(x + 10, y + 22, x + 48, y + 22);
-      text(doc, card.value, x + 29, y + 28, { size: 7.5, color: NAVY, align: "center" });
     }
-  });
+    text(doc, card.value, x + 29, y + 28, { size: 7.5, color: NAVY, align: "center", maxWidth: 48 });
+  }
+  if (assets?.stamp?.url) {
+    const stamp = await imageToDataUrl(assets.stamp.url);
+    if (stamp) doc.addImage(stamp.dataUrl, imageFormat(stamp.contentType), 156, y + 10, 26, 16, undefined, "FAST");
+  }
   return y + 39;
 }
 
@@ -313,6 +354,7 @@ export async function createCorporatePdf(input: CorporatePdfInput) {
 
   for (const section of input.sections ?? []) y = drawSection(doc, section, y);
   for (const table of input.tables ?? []) y = drawTable(doc, table, y);
+  for (const section of input.imageSections ?? []) y = await drawImageSection(doc, section.title, section.images, y);
 
   if (input.terms?.length) {
     y = ensureSpace(doc, y, 32);
@@ -328,9 +370,33 @@ export async function createCorporatePdf(input: CorporatePdfInput) {
     });
   }
 
-  drawSignatures(doc, y + 4, input.approvalStatus ?? "APPROVED");
+  await drawSignatures(doc, y + 4, input.approvalStatus ?? "APPROVED", input.approvalAssets);
   addFooter(doc);
   return doc;
+}
+
+async function drawImageSection(doc: jsPDF, title: string, images: PdfImageAsset[], startY: number) {
+  if (!images.length) return startY;
+  let y = ensureSpace(doc, startY, 42);
+  text(doc, title, 14, y, { size: 10, style: "bold", color: NAVY, align: "left" });
+  y += 6;
+  const boxWidth = 58;
+  const boxHeight = 44;
+  for (let index = 0; index < images.length; index += 1) {
+    if (index % 3 === 0) y = ensureSpace(doc, y, boxHeight + 10);
+    const x = 14 + (index % 3) * 62;
+    doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
+    doc.roundedRect(x, y, boxWidth, boxHeight, 2, 2);
+    const image = await imageToDataUrl(images[index].url);
+    if (image && images[index].type?.startsWith("image/")) {
+      doc.addImage(image.dataUrl, imageFormat(image.contentType), x + 2, y + 2, boxWidth - 4, 30, undefined, "FAST");
+    } else {
+      text(doc, "Document attached", x + boxWidth / 2, y + 19, { size: 8, color: MUTED, align: "center" });
+    }
+    text(doc, images[index].label ?? images[index].name ?? `File ${index + 1}`, x + 3, y + 38, { size: 6.8, style: "bold", color: TEXT, maxWidth: boxWidth - 6 });
+    if (index % 3 === 2 || index === images.length - 1) y += boxHeight + 7;
+  }
+  return y + 3;
 }
 
 export async function createPolicyPdf(policy: {
@@ -431,4 +497,138 @@ export async function createCertificatePdf(input: { title: string; number: strin
 
 export function registerPdfArabicFont(doc: jsPDF) {
   return { fontName: ENGLISH_FONT_NAME, process: (value: string) => processText(doc, value) };
+}
+
+export async function createMotorRequestPdf(request: {
+  requestNumber: string;
+  issueDate?: string;
+  customerFullName: string;
+  customerMobile: string;
+  customerEmail?: string | null;
+  customerNationalId: string;
+  customerAddress: string;
+  customerCity: string;
+  vehicleType: string;
+  manufacturer: string;
+  model: string;
+  manufacturingYear: number;
+  color: string;
+  plateNumber: string;
+  chassisNumber: string;
+  engineNumber: string;
+  estimatedVehicleValue: string | number;
+  coverageType?: string | null;
+  coverageNotes?: string | null;
+  insurancePremium: string | number;
+  discount: string | number;
+  additionalFees: string | number;
+  taxes: string | number;
+  netPremium: string | number;
+  pricingCurrency: string;
+  pricingNotes?: string | null;
+  policyTermsHtml?: string | null;
+  vehicleImages: PdfImageAsset[];
+  customerDocuments: PdfImageAsset[];
+  verificationUrl: string;
+  preparedByName?: string | null;
+  reviewedByName?: string | null;
+  approvedByName?: string | null;
+  underwriterSignature?: PdfApprovalAsset | null;
+  managerSignature?: PdfApprovalAsset | null;
+  companyStamp?: PdfApprovalAsset | null;
+}) {
+  const currency = request.pricingCurrency || "IQD";
+  return createCorporatePdf({
+    title: "Motor Insurance Request",
+    documentType: "Request",
+    documentNumber: request.requestNumber,
+    issueDate: request.issueDate,
+    customerName: request.customerFullName,
+    generatedBy: request.preparedByName ?? COMPANY_NAME_EN,
+    qrPayload: request.verificationUrl,
+    sections: [
+      {
+        title: "Company Information",
+        fields: [
+          { label: "Company", value: COMPANY_NAME_EN },
+          { label: "Document", value: "Motor Insurance Request" },
+          { label: "Request Number", value: request.requestNumber },
+          { label: "Issue Date", value: request.issueDate }
+        ]
+      },
+      {
+        title: "Customer Information",
+        fields: [
+          { label: "Customer Name", value: request.customerFullName },
+          { label: "Mobile", value: request.customerMobile },
+          { label: "Email", value: request.customerEmail },
+          { label: "National ID", value: request.customerNationalId },
+          { label: "Address", value: request.customerAddress },
+          { label: "City", value: request.customerCity }
+        ]
+      },
+      {
+        title: "Vehicle Information",
+        fields: [
+          { label: "Vehicle Type", value: request.vehicleType },
+          { label: "Manufacturer", value: request.manufacturer },
+          { label: "Model", value: request.model },
+          { label: "Year", value: request.manufacturingYear },
+          { label: "Color", value: request.color },
+          { label: "Plate Number", value: request.plateNumber },
+          { label: "Chassis Number", value: request.chassisNumber },
+          { label: "Engine Number", value: request.engineNumber },
+          { label: "Estimated Value", value: request.estimatedVehicleValue }
+        ]
+      },
+      {
+        title: "Coverage Information",
+        fields: [
+          { label: "Coverage Type", value: request.coverageType },
+          { label: "Coverage Notes", value: request.coverageNotes }
+        ]
+      },
+      {
+        title: "Pricing Information",
+        fields: [
+          { label: "Insurance Premium", value: `${request.insurancePremium} ${currency}` },
+          { label: "Discount", value: `${request.discount} ${currency}` },
+          { label: "Additional Fees", value: `${request.additionalFees} ${currency}` },
+          { label: "Taxes", value: `${request.taxes} ${currency}` },
+          { label: "Net Premium", value: `${request.netPremium} ${currency}` },
+          { label: "Pricing Notes", value: request.pricingNotes }
+        ]
+      },
+      {
+        title: "Approval Flow",
+        fields: [
+          { label: "Prepared By", value: request.preparedByName },
+          { label: "Reviewed By", value: request.reviewedByName },
+          { label: "Approved By", value: request.approvedByName }
+        ]
+      }
+    ],
+    imageSections: [
+      { title: "Uploaded Vehicle Images", images: request.vehicleImages },
+      { title: "Uploaded Customer Documents", images: request.customerDocuments }
+    ],
+    terms: htmlToLines(request.policyTermsHtml),
+    approvalAssets: {
+      preparedBy: request.underwriterSignature,
+      reviewedBy: request.managerSignature,
+      stamp: request.companyStamp
+    },
+    approvalStatus: request.approvedByName ? "APPROVED" : "PENDING APPROVAL"
+  });
+}
+
+function htmlToLines(html?: string | null) {
+  if (!html) return [];
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
 }

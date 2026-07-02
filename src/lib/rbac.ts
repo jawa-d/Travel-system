@@ -37,6 +37,12 @@ const permissions = {
   motorRequestsCreate: [Role.AGENT],
   motorRequestsRead: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.AGENT],
   motorRequestsManage: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER],
+  motorRequestsEdit: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER],
+  motorRequestsDelete: [Role.SUPER_ADMIN, Role.ADMIN],
+  motorRequestsPricing: [Role.SUPER_ADMIN, Role.UNDERWRITER],
+  motorRequestsTermsWrite: [Role.SUPER_ADMIN, Role.UNDERWRITER],
+  motorRequestsTermsApprove: [Role.SUPER_ADMIN],
+  motorRequestsApprovalAssets: [Role.SUPER_ADMIN, Role.UNDERWRITER],
   systemManage: [Role.SUPER_ADMIN, Role.ADMIN]
   ,lookupsManage: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER]
 } as const;
