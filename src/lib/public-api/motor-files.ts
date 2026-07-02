@@ -1,10 +1,10 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { extname } from "node:path";
+import { put } from "@vercel/blob";
 
 export type StoredPublicMotorFile = {
   key: string;
   label: string;
-  path: string;
+  url: string;
   name: string;
   size: number;
   type: string;
@@ -20,10 +20,6 @@ const DEFAULT_MAX_FILE_SIZE = 5 * 1024 * 1024;
 function maxFileSize() {
   const configured = Number(process.env.PUBLIC_API_MAX_FILE_SIZE_MB);
   return Number.isFinite(configured) && configured > 0 ? configured * 1024 * 1024 : DEFAULT_MAX_FILE_SIZE;
-}
-
-function uploadsRoot() {
-  return process.env.UPLOADS_DIR || join(process.cwd(), "private_uploads");
 }
 
 function safeFileName(name: string) {
@@ -65,17 +61,23 @@ export async function savePublicMotorFiles(input: {
   vehicleImages: File[];
   documents: Array<{ key: string; label: string; file: File }>;
 }) {
-  const baseDirectory = join(uploadsRoot(), "public-motor-requests", input.requestNumber);
-  const imageDirectory = join(baseDirectory, "vehicle-images");
-  const documentDirectory = join(baseDirectory, "customer-documents");
-  await mkdir(imageDirectory, { recursive: true });
-  await mkdir(documentDirectory, { recursive: true });
-
   const vehicleImages = await Promise.all(
-    input.vehicleImages.map((file, index) => saveFile(file, imageDirectory, `vehicle-${index + 1}`))
+    input.vehicleImages.map((file, index) => saveFile({
+      file,
+      requestNumber: input.requestNumber,
+      folder: "vehicle-images",
+      key: `vehicle-${index + 1}`,
+      label: `Vehicle Image ${index + 1}`
+    }))
   );
   const customerDocuments = await Promise.all(
-    input.documents.map((document) => saveFile(document.file, documentDirectory, document.key, document.label))
+    input.documents.map((document) => saveFile({
+      file: document.file,
+      requestNumber: input.requestNumber,
+      folder: "customer-documents",
+      key: document.key,
+      label: document.label
+    }))
   );
 
   return { vehicleImages, customerDocuments };
@@ -88,19 +90,28 @@ function validateFile(file: File, types: Set<string>, extensions: Set<string>, s
   if (!extensions.has(extname(file.name).toLowerCase())) throw new Error(`File ${file.name} has an unsupported extension.`);
 }
 
-async function saveFile(file: File, directory: string, key: string, label = key): Promise<StoredPublicMotorFile> {
-  const filename = `${Date.now()}-${key}-${safeFileName(file.name)}`;
-  const absolutePath = join(directory, filename);
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(absolutePath, buffer, { flag: "wx" });
-  const relativePath = absolutePath.replace(process.cwd(), "").replace(/^[\\/]/, "").replace(/\\/g, "/");
+async function saveFile(input: {
+  file: File;
+  requestNumber: string;
+  folder: "vehicle-images" | "customer-documents";
+  key: string;
+  label: string;
+}): Promise<StoredPublicMotorFile> {
+  const filename = `${Date.now()}-${input.key}-${crypto.randomUUID()}-${safeFileName(input.file.name)}`;
+  const pathname = `public-motor-requests/${input.requestNumber}/${input.folder}/${filename}`;
+  const blob = await put(pathname, input.file, {
+    access: "public",
+    addRandomSuffix: false,
+    contentType: input.file.type
+  });
+
   return {
-    key,
-    label,
-    path: relativePath,
-    name: file.name,
-    size: file.size,
-    type: file.type,
+    key: input.key,
+    label: input.label,
+    url: blob.url,
+    name: input.file.name,
+    size: input.file.size,
+    type: input.file.type,
     uploadedAt: new Date().toISOString()
   };
 }

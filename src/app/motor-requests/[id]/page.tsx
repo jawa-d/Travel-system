@@ -14,8 +14,8 @@ import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
-type VehicleImage = { id: string; category: string; name: string; size: number; type: string };
-type CustomerDocument = { key: string; label: string; id: string; name: string; size: number; type: string };
+type VehicleImage = { id?: string; url?: string; category?: string; label?: string; name: string; size: number; type: string };
+type CustomerDocument = { key: string; label: string; id?: string; url?: string; name: string; size: number; type: string };
 
 export default async function MotorRequestDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requirePagePermission("motorRequestsRead");
@@ -76,10 +76,10 @@ export default async function MotorRequestDetailsPage({ params }: { params: Prom
             <CardHeader><CardTitle className="flex items-center gap-2"><FileImage className="h-5 w-5 text-primary" />صور المركبة ({images.length})</CardTitle></CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {images.map((image) => (
-                <div key={image.id} className="overflow-hidden rounded-lg border bg-card">
-                  <StoredImage source={image.id} alt={image.category} className="h-40 w-full bg-white object-contain dark:bg-slate-950" />
+                <div key={image.url ?? image.id ?? image.name} className="overflow-hidden rounded-lg border bg-card">
+                  <StoredImage source={fileSource(image)} alt={image.category ?? image.label ?? image.name} className="h-40 w-full bg-white object-contain dark:bg-slate-950" />
                   <div className="border-t p-3">
-                    <p className="text-sm font-bold">{image.category}</p>
+                    <p className="text-sm font-bold">{image.category ?? image.label ?? image.name}</p>
                     <p className="truncate text-xs text-muted-foreground">{image.name}</p>
                   </div>
                 </div>
@@ -94,6 +94,11 @@ export default async function MotorRequestDetailsPage({ params }: { params: Prom
                 <div key={document.key} className="rounded-lg border bg-muted/15 p-4">
                   <p className="font-bold">{document.label}</p>
                   <p className="mt-1 truncate text-xs text-muted-foreground">{document.name}</p>
+                  {fileSource(document).startsWith("http") ? (
+                    <Button asChild size="sm" variant="outline" className="mt-3">
+                      <a href={fileSource(document)} target="_blank" rel="noopener noreferrer">فتح / تحميل</a>
+                    </Button>
+                  ) : null}
                 </div>
               ))}
             </CardContent>
@@ -166,6 +171,10 @@ function Detail({ label, value, dir }: { label: string; value: React.ReactNode; 
       <p className="mt-1.5 text-sm font-bold" dir={dir}>{value}</p>
     </div>
   );
+}
+
+function fileSource(file: { id?: string; url?: string }) {
+  return file.url ?? file.id ?? "";
 }
 
 const statusLabels: Record<MotorRequestStatus, string> = {

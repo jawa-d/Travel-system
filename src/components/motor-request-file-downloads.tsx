@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { getStoredFile } from "@/lib/file-storage";
 
 type DownloadableFile = {
-  id: string;
+  id?: string;
+  url?: string;
   name: string;
   label?: string;
   category?: string;
@@ -30,12 +31,12 @@ function extensionFromType(type?: string) {
 }
 
 async function downloadOne(file: DownloadableFile, prefix: string, index: number) {
-  let url = file.id;
+  let url = file.url ?? file.id ?? "";
   let revoke = false;
   let type = file.type;
 
-  if (file.id.startsWith("idb://")) {
-    const stored = await getStoredFile(file.id);
+  if (url.startsWith("idb://")) {
+    const stored = await getStoredFile(url);
     if (!stored) throw new Error(`Missing file: ${file.name}`);
     url = URL.createObjectURL(stored.blob);
     revoke = true;

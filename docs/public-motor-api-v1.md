@@ -89,7 +89,7 @@ When using `fetch`, Axios, or Postman with `FormData`, let the client set the mu
 | --- | --- | --- |
 | `POST` | `/api/public/motor-requests` | Create a motor insurance request. |
 | `GET` | `/api/v1/public/motor-requests/{requestNumber}` | Retrieve request status and summary. |
-| `GET` | `/api/v1/public/motor-requests/{requestNumber}/documents` | Retrieve uploaded document metadata and stored paths. |
+| `GET` | `/api/v1/public/motor-requests/{requestNumber}/documents` | Retrieve uploaded document metadata and Blob URLs. |
 | `GET` | `/api/v1/public/motor-requests/{requestNumber}/policy` | Download issued policy PDF when available. Currently returns `404` until a policy is linked. |
 
 ## 6. Create Motor Insurance Request
@@ -131,7 +131,7 @@ Server variable:
 PUBLIC_API_MAX_FILE_SIZE_MB=5
 ```
 
-TRINSU stores uploaded files using the configured server upload directory and saves only file metadata and relative paths in the database.
+TRINSU uploads files to Vercel Blob Storage and saves only Blob file metadata in the database.
 
 ### Request Body Example
 
@@ -373,7 +373,7 @@ const { data } = await axios.get(
 GET /api/v1/public/motor-requests/{requestNumber}/documents
 ```
 
-This endpoint returns file metadata and stored relative paths. It does not return raw file bytes.
+This endpoint returns file metadata and Vercel Blob URLs. It does not return raw file bytes.
 
 ### Response Body Example
 
@@ -387,7 +387,7 @@ HTTP `200`
     {
       "key": "vehicle-1",
       "label": "vehicle-1",
-      "path": "private_uploads/public-motor-requests/MTR-REQ-2026-000001/vehicle-images/1780000000000-vehicle-1-front.jpg",
+      "url": "https://example.public.blob.vercel-storage.com/public-motor-requests/MTR-REQ-2026-000001/vehicle-images/front.jpg",
       "name": "front.jpg",
       "size": 245000,
       "type": "image/jpeg",
@@ -398,7 +398,7 @@ HTTP `200`
     {
       "key": "nationalIdFront",
       "label": "National ID Front",
-      "path": "private_uploads/public-motor-requests/MTR-REQ-2026-000001/customer-documents/1780000000000-nationalIdFront-national-id-front.pdf",
+      "url": "https://example.public.blob.vercel-storage.com/public-motor-requests/MTR-REQ-2026-000001/customer-documents/national-id-front.pdf",
       "name": "national-id-front.pdf",
       "size": 410000,
       "type": "application/pdf",
@@ -575,7 +575,7 @@ MTR-REQ-2026-000001
 | `MOTOR_API_KEY` | Yes | Motor portal API key accepted by `x-api-key`. |
 | `MOTOR_PORTAL_ORIGIN` | Yes for browser CORS | Allowed external portal origin, for example `https://portal.example.com`. |
 | `PUBLIC_API_MAX_FILE_SIZE_MB` | No | Maximum upload size per file. Defaults to `5`. |
-| `UPLOADS_DIR` | No | Absolute or relative upload storage directory. Defaults to `private_uploads`. |
+| `BLOB_READ_WRITE_TOKEN` | Yes | Vercel Blob read/write token used by `@vercel/blob` uploads. |
 | `AUTH_SECRET` | Yes for app auth | Required by the main TRINSU app authentication. |
 | `AUTH_URL` | Production recommended | Public application URL. |
 | `POLICY_VERIFICATION_SECRET` | Recommended | Used by policy verification utilities. |
@@ -587,7 +587,7 @@ DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE?schema=public"
 MOTOR_API_KEY=generate_secure_random_key
 MOTOR_PORTAL_ORIGIN=https://motor-insurance-portal-delta.vercel.app
 PUBLIC_API_MAX_FILE_SIZE_MB=5
-UPLOADS_DIR="private_uploads"
+BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
 ```
 
 ## 13. Postman Collection

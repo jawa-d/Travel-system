@@ -61,10 +61,12 @@ Configure these variables in Vercel for the external Motor Insurance Portal:
 MOTOR_API_KEY=generate_secure_random_key
 MOTOR_PORTAL_ORIGIN=https://motor-insurance-portal-delta.vercel.app
 PUBLIC_API_MAX_FILE_SIZE_MB=5
+BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
 ```
 
 `MOTOR_API_KEY` is checked against the `x-api-key` request header for `POST /api/public/motor-requests`.
 `MOTOR_PORTAL_ORIGIN` is the only browser origin allowed by CORS for the public motor request API.
+`BLOB_READ_WRITE_TOKEN` is required by Vercel Blob Storage for vehicle image and customer document uploads.
 
 `NEXTAUTH_SECRET` and `NEXTAUTH_URL` remain supported as legacy aliases. Do not configure
 `AUTH_URL` and `NEXTAUTH_URL` with different values, and never use a localhost URL in Vercel.
