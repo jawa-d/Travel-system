@@ -18,6 +18,7 @@ import {
   Landmark,
   ListPlus,
   Menu,
+  ReceiptText,
   ScrollText,
   Settings2,
   ShieldCheck,
@@ -60,6 +61,7 @@ const groups: Array<{ label: string; items: NavItem[]; collapsible?: boolean }> 
     label: "الأعمال والتحليلات",
     items: [
       { href: "/pricing", label: "حاسبة السعر", icon: CircleDollarSign, permission: "financeRead" },
+      { href: "/motor-accounts", label: "حسابات وثائق المركبات", icon: ReceiptText, permission: "motorAccountsRead" },
       { href: "/reports", label: "التقارير", icon: BarChart3, permission: "reportsRead" },
       { href: "/agency", label: "بوابة الوكلاء", icon: BriefcaseBusiness, permission: "agencyRead" },
       { href: "/agent-accounts", label: "حسابات الوكلاء", icon: Landmark, permission: "agentAccountsRead" }
