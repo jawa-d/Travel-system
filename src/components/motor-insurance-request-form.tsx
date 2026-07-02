@@ -498,7 +498,7 @@ export function MotorInsuranceRequestForm() {
   );
 }
 
-function SummaryRow({ label, value, dir }: { label: string; value: string; dir?: "ltr" | "rtl" }) {
+function SummaryRow({ label, value, dir }: Readonly<{ label: string; value: string; dir?: "ltr" | "rtl" }>) {
   return (
     <div className="flex items-start justify-between gap-3 text-xs">
       <span className="text-muted-foreground">{label}</span>
