@@ -14,7 +14,19 @@ export default async function MotorRequestsPage() {
   const requests = await prisma.motorInsuranceRequest.findMany({
     where: user.role === Role.AGENT ? { agentId: user.id } : undefined,
     orderBy: { createdAt: "desc" },
-    take: 100
+    take: 100,
+    select: {
+      id: true,
+      requestNumber: true,
+      status: true,
+      customerFullName: true,
+      manufacturer: true,
+      model: true,
+      plateNumber: true,
+      estimatedVehicleValue: true,
+      createdDate: true,
+      createdTime: true
+    }
   });
 
   const submitted = requests.filter((request) => request.status === "SUBMITTED").length;
