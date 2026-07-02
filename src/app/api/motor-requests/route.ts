@@ -32,7 +32,19 @@ export async function POST(request: NextRequest) {
       where: { submissionToken: payload.submissionToken },
       select: { id: true, requestNumber: true, status: true }
     });
-    if (existing) return NextResponse.json(existing, { status: 200 });
+    if (existing) {
+      return NextResponse.json(
+        {
+          success: true,
+          requestId: existing.id,
+          id: existing.id,
+          requestNumber: existing.requestNumber,
+          status: existing.status,
+          message: "Request submitted successfully"
+        },
+        { status: 200 }
+      );
+    }
 
     const agent = await getAgentSnapshot(user.id);
     if (!agent || !agent.active) {
@@ -122,7 +134,19 @@ export async function POST(request: NextRequest) {
       metadata: { requestNumber: created.requestNumber, status: created.status }
     });
 
-    return NextResponse.json(created, { status: 201 });
+    return NextResponse.json(
+      {
+        success: true,
+        requestId: created.id,
+        id: created.id,
+        requestNumber: created.requestNumber,
+        status: created.status,
+        createdAt: created.createdAt,
+        createdTime: created.createdTime,
+        message: "Request submitted successfully"
+      },
+      { status: 201 }
+    );
   } catch (error) {
     return jsonError(error);
   }
