@@ -2,7 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 function configuredKeys() {
-  return (process.env.PUBLIC_API_KEYS ?? process.env.PUBLIC_MOTOR_API_KEYS ?? "")
+  return (process.env.MOTOR_API_KEY ?? "")
     .split(",")
     .map((key) => key.trim())
     .filter(Boolean);
@@ -24,7 +24,7 @@ export function requirePublicApiKey(request: NextRequest) {
   if (!apiKey || keys.length === 0 || !keys.some((key) => safeEquals(apiKey, key))) {
     return {
       ok: false as const,
-      response: NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+      response: NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
     };
   }
 

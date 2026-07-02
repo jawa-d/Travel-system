@@ -53,6 +53,19 @@ BOOTSTRAP_ADMIN_PASSWORD=<a strong password of at least 12 characters>
 POLICY_VERIFICATION_SECRET=<a separate cryptographically random value>
 ```
 
+## Motor Insurance Portal
+
+Configure these variables in Vercel for the external Motor Insurance Portal:
+
+```text
+MOTOR_API_KEY=generate_secure_random_key
+MOTOR_PORTAL_ORIGIN=https://motor-insurance-portal-delta.vercel.app
+PUBLIC_API_MAX_FILE_SIZE_MB=5
+```
+
+`MOTOR_API_KEY` is checked against the `x-api-key` request header for `POST /api/public/motor-requests`.
+`MOTOR_PORTAL_ORIGIN` is the only browser origin allowed by CORS for the public motor request API.
+
 `NEXTAUTH_SECRET` and `NEXTAUTH_URL` remain supported as legacy aliases. Do not configure
 `AUTH_URL` and `NEXTAUTH_URL` with different values, and never use a localhost URL in Vercel.
 Auth.js v5 can infer the Vercel host, so `AUTH_URL` may be omitted when no custom base path is used.
@@ -108,7 +121,8 @@ production migrations. The existing Neon database has been baselined in Prisma m
 - `GET/POST /api/cancellations`
 - `GET /api/cancellations/:id/pdf`
 - `GET /api/verify?policyNumber=...`
-- `POST /api/v1/public/motor-requests`
+- `POST /api/public/motor-requests`
+- `POST /api/v1/public/motor-requests` legacy compatibility
 - `GET /api/v1/public/motor-requests/:requestNumber`
 - `GET /api/v1/public/motor-requests/:requestNumber/documents`
 - `GET /api/v1/public/motor-requests/:requestNumber/policy`

@@ -2,12 +2,24 @@ import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { getIpAddress, writeAuditLog } from "@/lib/audit";
+import { isPublicMotorOriginAllowed, publicMotorOptions, withPublicMotorCors } from "@/lib/public-api/cors";
 import { requirePublicApiKey } from "@/lib/public-api/auth";
 import { createPublicMotorRequest, parsePublicMotorFormData } from "@/lib/public-api/motor-requests";
 
+export function OPTIONS(request: NextRequest) {
+  return publicMotorOptions(request);
+}
+
 export async function POST(request: NextRequest) {
+  if (!isPublicMotorOriginAllowed(request)) {
+    return withPublicMotorCors(
+      request,
+      NextResponse.json({ success: false, message: "CORS origin is not allowed." }, { status: 403 })
+    );
+  }
+
   const auth = requirePublicApiKey(request);
-  if (!auth.ok) return auth.response;
+  if (!auth.ok) return withPublicMotorCors(request, auth.response);
 
   try {
     const formData = await request.formData();
@@ -28,34 +40,34 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    return NextResponse.json(
+    return withPublicMotorCors(request, NextResponse.json(
       {
         success: true,
-        requestNumber: created.requestNumber,
-        status: "Submitted",
-        message: "Motor insurance request submitted successfully."
+        requestId: created.id,
+        trackingNumber: created.requestNumber,
+        message: "Motor request created successfully."
       },
-      { status: 200 }
-    );
+      { status: 201 }
+    ));
   } catch (error) {
-    return publicApiError(error);
+    return withPublicMotorCors(request, publicApiError(error));
   }
 }
 
 function publicApiError(error: unknown) {
   if (error instanceof ZodError) {
     return NextResponse.json(
-      { success: false, error: "Validation failed", details: error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })) },
+      { success: false, message: "Validation failed", details: error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })) },
       { status: 400 }
     );
   }
   if (error instanceof SyntaxError) {
-    return NextResponse.json({ success: false, error: "payload must be valid JSON." }, { status: 400 });
+    return NextResponse.json({ success: false, message: "payload must be valid JSON." }, { status: 400 });
   }
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-    return NextResponse.json({ success: false, error: "Duplicate request number. Please retry." }, { status: 500 });
+    return NextResponse.json({ success: false, message: "Duplicate request number. Please retry." }, { status: 500 });
   }
   const message = error instanceof Error ? error.message : "Unexpected server error.";
   const status = /required|invalid|unsupported|exceeds|empty/i.test(message) ? 400 : 500;
-  return NextResponse.json({ success: false, error: message }, { status });
+  return NextResponse.json({ success: false, message }, { status });
 }

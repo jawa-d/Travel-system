@@ -35,19 +35,19 @@ v1
 Base API path:
 
 ```text
-/api/v1/public
+/api/public
 ```
 
-Versioned endpoint example:
+Motor portal create endpoint:
+
+```text
+/api/public/motor-requests
+```
+
+The legacy versioned path remains available for compatibility:
 
 ```text
 /api/v1/public/motor-requests
-```
-
-Future versions must use new paths, for example:
-
-```text
-/api/v2/public/motor-requests
 ```
 
 ## 3. Authentication
@@ -60,7 +60,7 @@ Header:
 x-api-key: <portal-api-key>
 ```
 
-API keys are configured on the TRINSU server with `PUBLIC_API_KEYS`. Multiple keys can be provided as comma-separated values.
+The API key is configured on the TRINSU server with `MOTOR_API_KEY`.
 
 Never hardcode API keys in public frontend bundles. Browser-based integrations should call their own backend, and that backend should call TRINSU with the API key.
 
@@ -87,7 +87,7 @@ When using `fetch`, Axios, or Postman with `FormData`, let the client set the mu
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `POST` | `/api/v1/public/motor-requests` | Create a motor insurance request. |
+| `POST` | `/api/public/motor-requests` | Create a motor insurance request. |
 | `GET` | `/api/v1/public/motor-requests/{requestNumber}` | Retrieve request status and summary. |
 | `GET` | `/api/v1/public/motor-requests/{requestNumber}/documents` | Retrieve uploaded document metadata and stored paths. |
 | `GET` | `/api/v1/public/motor-requests/{requestNumber}/policy` | Download issued policy PDF when available. Currently returns `404` until a policy is linked. |
@@ -95,7 +95,7 @@ When using `fetch`, Axios, or Postman with `FormData`, let the client set the mu
 ## 6. Create Motor Insurance Request
 
 ```http
-POST /api/v1/public/motor-requests
+POST /api/public/motor-requests
 ```
 
 Content type:
@@ -165,21 +165,21 @@ The `payload` form field must be a JSON string:
 
 ### Success Response
 
-HTTP `200`
+HTTP `201`
 
 ```json
 {
   "success": true,
-  "requestNumber": "MTR-REQ-2026-000001",
-  "status": "Submitted",
-  "message": "Motor insurance request submitted successfully."
+  "requestId": "cmtr...",
+  "trackingNumber": "MTR-REQ-2026-000001",
+  "message": "Motor request created successfully."
 }
 ```
 
 ### cURL Example
 
 ```bash
-curl -X POST "{{baseUrl}}/api/v1/public/motor-requests" \
+curl -X POST "{{baseUrl}}/api/public/motor-requests" \
   -H "x-api-key: {{apiKey}}" \
   -H "Accept: application/json" \
   -F 'payload={
@@ -258,7 +258,7 @@ formData.append("documents.vehicleRegistration", vehicleRegistrationFile);
 formData.append("documents.residenceCardFront", residenceCardFrontFile);
 formData.append("documents.residenceCardBack", residenceCardBackFile);
 
-const response = await fetch(`${baseUrl}/api/v1/public/motor-requests`, {
+const response = await fetch(`${baseUrl}/api/public/motor-requests`, {
   method: "POST",
   headers: {
     "x-api-key": apiKey,
@@ -268,7 +268,7 @@ const response = await fetch(`${baseUrl}/api/v1/public/motor-requests`, {
 });
 
 const result = await response.json();
-if (!response.ok) throw new Error(result.error ?? "Request failed");
+if (!response.ok) throw new Error(result.message ?? "Request failed");
 ```
 
 ### Axios Example
@@ -287,7 +287,7 @@ formData.append("documents.residenceCardFront", residenceCardFrontFile);
 formData.append("documents.residenceCardBack", residenceCardBackFile);
 
 const { data } = await axios.post(
-  `${baseUrl}/api/v1/public/motor-requests`,
+  `${baseUrl}/api/public/motor-requests`,
   formData,
   {
     headers: {
@@ -464,7 +464,7 @@ Current behavior:
   "success": false,
   "requestNumber": "MTR-REQ-2026-000001",
   "status": "SUBMITTED",
-  "error": "Policy PDF is not available for this request yet."
+  "message": "Policy PDF is not available for this request yet."
 }
 ```
 
@@ -523,7 +523,7 @@ Unauthorized:
 ```json
 {
   "success": false,
-  "error": "Unauthorized"
+  "message": "Unauthorized"
 }
 ```
 
@@ -532,7 +532,7 @@ Validation error:
 ```json
 {
   "success": false,
-  "error": "Validation failed",
+  "message": "Validation failed",
   "details": [
     {
       "path": "customer.fullName",
@@ -547,7 +547,7 @@ Not found:
 ```json
 {
   "success": false,
-  "error": "Motor insurance request not found."
+  "message": "Motor insurance request not found."
 }
 ```
 
@@ -572,7 +572,8 @@ MTR-REQ-2026-000001
 | Variable | Required | Description |
 | --- | --- | --- |
 | `DATABASE_URL` | Yes | PostgreSQL connection string. |
-| `PUBLIC_API_KEYS` | Yes | Comma-separated public API keys accepted by `x-api-key`. |
+| `MOTOR_API_KEY` | Yes | Motor portal API key accepted by `x-api-key`. |
+| `MOTOR_PORTAL_ORIGIN` | Yes for browser CORS | Allowed external portal origin, for example `https://portal.example.com`. |
 | `PUBLIC_API_MAX_FILE_SIZE_MB` | No | Maximum upload size per file. Defaults to `5`. |
 | `UPLOADS_DIR` | No | Absolute or relative upload storage directory. Defaults to `private_uploads`. |
 | `AUTH_SECRET` | Yes for app auth | Required by the main TRINSU app authentication. |
@@ -583,8 +584,9 @@ Example:
 
 ```env
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE?schema=public"
-PUBLIC_API_KEYS="portal-key-1,portal-key-2"
-PUBLIC_API_MAX_FILE_SIZE_MB="5"
+MOTOR_API_KEY=generate_secure_random_key
+MOTOR_PORTAL_ORIGIN=https://motor-insurance-portal-delta.vercel.app
+PUBLIC_API_MAX_FILE_SIZE_MB=5
 UPLOADS_DIR="private_uploads"
 ```
 

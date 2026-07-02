@@ -33,6 +33,10 @@ export default auth(async (request) => {
   const role = request.auth?.user?.role;
   const path = request.nextUrl.pathname;
 
+  if (path.startsWith("/api/public/") || path.startsWith("/api/v1/public/")) {
+    return NextResponse.next();
+  }
+
   if (isDirectAccessEnabled() && !isLoggedIn) return;
 
   if (!isLoggedIn || !isActive) {
@@ -68,6 +72,6 @@ export default auth(async (request) => {
 
 export const config = {
   matcher: [
-    "/((?!api/auth(?:/|$)|login(?:/|$)|verify(?:/|$)|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.[a-zA-Z0-9]+$).*)"
+    "/((?!api/auth(?:/|$)|api/public(?:/|$)|api/v1/public(?:/|$)|login(?:/|$)|verify(?:/|$)|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.[a-zA-Z0-9]+$).*)"
   ]
 };
