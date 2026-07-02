@@ -22,6 +22,8 @@ function maxFileSize() {
   return Number.isFinite(configured) && configured > 0 ? configured * 1024 * 1024 : DEFAULT_MAX_FILE_SIZE;
 }
 
+
+
 function safeFileName(name: string) {
   const extension = extname(name).toLowerCase();
   const base = name.slice(0, Math.max(0, name.length - extension.length)).replace(/[^a-zA-Z0-9_-]+/g, "-");
