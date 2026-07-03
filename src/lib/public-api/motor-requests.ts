@@ -14,6 +14,37 @@ const documentLabels: Record<string, string> = {
 };
 const REQUEST_NUMBER_RETRY_LIMIT = 5;
 
+export const publicMotorTrackingStatuses = [
+  "RECEIVED",
+  "UNDER_REVIEW",
+  "DOCUMENTS_CHECK",
+  "QUOTE_PREPARATION",
+  "CONTACTING_CUSTOMER",
+  "COMPLETED",
+  "REJECTED"
+] as const;
+
+export type PublicMotorTrackingStatus = (typeof publicMotorTrackingStatuses)[number];
+
+export const publicMotorTrackingStatusLabels: Record<PublicMotorTrackingStatus, string> = {
+  RECEIVED: "تم استلام الطلب",
+  UNDER_REVIEW: "قيد المراجعة",
+  DOCUMENTS_CHECK: "تدقيق المستندات",
+  QUOTE_PREPARATION: "إعداد العرض",
+  CONTACTING_CUSTOMER: "التواصل معك",
+  COMPLETED: "مكتمل",
+  REJECTED: "مرفوض"
+};
+
+const motorTrackingStatusAdapter: Record<string, PublicMotorTrackingStatus> = {
+  DRAFT: "RECEIVED",
+  SUBMITTED: "RECEIVED",
+  UNDER_REVIEW: "UNDER_REVIEW",
+  NEEDS_INFO: "DOCUMENTS_CHECK",
+  APPROVED: "COMPLETED",
+  REJECTED: "REJECTED"
+};
+
 export const publicMotorRequestPayloadSchema = z.object({
   customer: z.object({
     fullName: z.string().trim().min(2, "Full name is required"),
@@ -51,6 +82,7 @@ export function publicMotorRequestSelect() {
     vehicleType: true,
     manufacturer: true,
     model: true,
+    manufacturingYear: true,
     plateNumber: true,
     vehicleImages: true,
     customerDocuments: true,
@@ -63,6 +95,22 @@ export function publicMotorRequestSelect() {
     createdAt: true,
     updatedAt: true
   } satisfies Prisma.MotorInsuranceRequestSelect;
+}
+
+export function toPublicMotorTrackingStatus(status: string): PublicMotorTrackingStatus {
+  return motorTrackingStatusAdapter[status] ?? "UNDER_REVIEW";
+}
+
+export function publicMotorTrackingStatusLabel(status: PublicMotorTrackingStatus) {
+  return publicMotorTrackingStatusLabels[status];
+}
+
+export function formatPublicMotorVehicle(input: {
+  manufacturer: string;
+  model: string;
+  manufacturingYear: number;
+}) {
+  return [input.manufacturer, input.model, input.manufacturingYear].filter(Boolean).join(" ");
 }
 
 export function parsePublicMotorFormData(formData: FormData) {

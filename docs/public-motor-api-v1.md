@@ -88,6 +88,8 @@ When using `fetch`, Axios, or Postman with `FormData`, let the client set the mu
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | `POST` | `/api/public/motor-requests` | Create a motor insurance request. |
+| `GET` | `/api/public/motor-requests/track/{trackingNumber}` | Track request status by tracking number. |
+| `GET` | `/api/v1/public/motor-requests/track/{trackingNumber}` | Track request status by tracking number. |
 | `GET` | `/api/v1/public/motor-requests/{requestNumber}` | Retrieve request status and summary. |
 | `GET` | `/api/v1/public/motor-requests/{requestNumber}/documents` | Retrieve uploaded document metadata and Blob URLs. |
 | `GET` | `/api/v1/public/motor-requests/{requestNumber}/policy` | Download issued policy PDF when available. Currently returns `404` until a policy is linked. |
@@ -371,6 +373,78 @@ const { data } = await axios.get(
     }
   }
 );
+```
+
+## 7.1 Track Request By Tracking Number
+
+```http
+GET /api/public/motor-requests/track/{trackingNumber}
+```
+
+The tracking number is trimmed and must not be empty. This endpoint uses the same
+`x-api-key` protection and public motor CORS policy as request creation.
+
+Current database statuses are adapted to the public tracking statuses:
+
+| Database status | Public status |
+| --- | --- |
+| `DRAFT` | `RECEIVED` |
+| `SUBMITTED` | `RECEIVED` |
+| `UNDER_REVIEW` | `UNDER_REVIEW` |
+| `NEEDS_INFO` | `DOCUMENTS_CHECK` |
+| `APPROVED` | `COMPLETED` |
+| `REJECTED` | `REJECTED` |
+
+Public status labels:
+
+| Public status | Arabic label |
+| --- | --- |
+| `RECEIVED` | `تم استلام الطلب` |
+| `UNDER_REVIEW` | `قيد المراجعة` |
+| `DOCUMENTS_CHECK` | `تدقيق المستندات` |
+| `QUOTE_PREPARATION` | `إعداد العرض` |
+| `CONTACTING_CUSTOMER` | `التواصل معك` |
+| `COMPLETED` | `مكتمل` |
+| `REJECTED` | `مرفوض` |
+
+### Response Body Example
+
+HTTP `200`
+
+```json
+{
+  "trackingNumber": "MTR-REQ-2026-000001",
+  "requestNumber": "MTR-REQ-2026-000001",
+  "status": "UNDER_REVIEW",
+  "statusLabel": "قيد المراجعة",
+  "updatedAt": "2026-07-03T12:00:00.000Z",
+  "customerName": "Ahmed Ali",
+  "vehicle": "Toyota Camry 2024"
+}
+```
+
+HTTP `400`
+
+```json
+{
+  "message": "Invalid tracking number"
+}
+```
+
+HTTP `404`
+
+```json
+{
+  "message": "Request not found"
+}
+```
+
+### cURL Example
+
+```bash
+curl -X GET "{{baseUrl}}/api/public/motor-requests/track/MTR-REQ-2026-000001" \
+  -H "x-api-key: {{apiKey}}" \
+  -H "Accept: application/json"
 ```
 
 ## 8. Retrieve Uploaded Documents

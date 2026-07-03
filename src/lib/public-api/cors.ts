@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const allowedMethods = "POST, OPTIONS";
+const allowedMethods = "GET, POST, OPTIONS";
 const allowedHeaders = "Content-Type, Accept, x-api-key";
+const defaultMotorPortalOrigin = "https://motor-insurance-portal-delta.vercel.app";
 
 function allowedOrigin() {
-  return process.env.MOTOR_PORTAL_ORIGIN?.trim() ?? "";
+  return process.env.MOTOR_PORTAL_ORIGIN?.trim() || defaultMotorPortalOrigin;
 }
 
 export function isPublicMotorOriginAllowed(request: NextRequest) {

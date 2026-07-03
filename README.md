@@ -64,7 +64,7 @@ PUBLIC_API_MAX_FILE_SIZE_MB=5
 BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
 ```
 
-`MOTOR_API_KEY` is checked against the `x-api-key` request header for `POST /api/public/motor-requests`.
+`MOTOR_API_KEY` is checked against the `x-api-key` request header for public motor request endpoints, including `POST /api/public/motor-requests` and `GET /api/public/motor-requests/track/:trackingNumber`.
 `MOTOR_PORTAL_ORIGIN` is the only browser origin allowed by CORS for the public motor request API.
 `BLOB_READ_WRITE_TOKEN` is required by Vercel Blob Storage for vehicle image and customer document uploads.
 
@@ -125,9 +125,25 @@ production migrations. The existing Neon database has been baselined in Prisma m
 - `GET /api/verify?policyNumber=...`
 - `POST /api/public/motor-requests`
 - `POST /api/v1/public/motor-requests` legacy compatibility
+- `GET /api/public/motor-requests/track/:trackingNumber`
+- `GET /api/v1/public/motor-requests/track/:trackingNumber`
 - `GET /api/v1/public/motor-requests/:requestNumber`
 - `GET /api/v1/public/motor-requests/:requestNumber/documents`
 - `GET /api/v1/public/motor-requests/:requestNumber/policy`
+
+Tracking example response:
+
+```json
+{
+  "trackingNumber": "MTR-REQ-2026-000001",
+  "requestNumber": "MTR-REQ-2026-000001",
+  "status": "UNDER_REVIEW",
+  "statusLabel": "قيد المراجعة",
+  "updatedAt": "2026-07-03T12:00:00.000Z",
+  "customerName": "Ahmed Ali",
+  "vehicle": "Toyota Camry 2024"
+}
+```
 
 Public motor API documentation is available in `docs/public-motor-api-v1.md`.
 
