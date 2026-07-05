@@ -78,15 +78,17 @@ For `POST /motor-requests`:
 ```http
 x-api-key: <portal-api-key>
 Accept: application/json
-Content-Type: multipart/form-data
+Content-Type: application/json
 ```
 
-When using `fetch`, Axios, or Postman with `FormData`, let the client set the multipart boundary automatically.
+File uploads use the Vercel Blob client upload flow. Upload files directly from the browser first, then send only JSON metadata to `POST /motor-requests`.
 
 ## 5. All Endpoints
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
+| `POST` | `/api/public/motor-request-uploads` | Issue a Vercel Blob client upload token. |
+| `DELETE` | `/api/public/motor-request-uploads` | Delete already uploaded public motor blobs during client-side cleanup. |
 | `POST` | `/api/public/motor-requests` | Create a motor insurance request. |
 | `GET` | `/api/public/motor-requests/track/{trackingNumber}` | Track request status by tracking number. |
 | `GET` | `/api/v1/public/motor-requests/track/{trackingNumber}` | Track request status by tracking number. |
@@ -103,23 +105,43 @@ POST /api/public/motor-requests
 Content type:
 
 ```text
-multipart/form-data
+application/json
 ```
 
-### File Upload Format
+`multipart/form-data` is no longer accepted by this endpoint.
 
-Form fields:
+### Direct Upload Flow
+
+1. Browser uploads every file directly to Vercel Blob with `@vercel/blob/client`.
+2. Browser collects each Blob URL plus original `name`, `type`, and `size`.
+3. Browser sends one JSON-only request to `/api/public/motor-requests`.
+4. TRINSU validates metadata and saves Blob URLs in PostgreSQL.
+
+Upload token endpoint:
+
+```http
+POST /api/public/motor-request-uploads
+```
+
+Use it as the `handleUploadUrl` in the official Blob client `upload()` call.
+
+Cleanup endpoint:
+
+```http
+DELETE /api/public/motor-request-uploads
+Content-Type: application/json
+
+{ "urls": ["https://...blob.vercel-storage.com/..."] }
+```
+
+Call cleanup if a later upload or the final JSON submit fails.
+
+Allowed uploaded file metadata:
 
 | Field | Type | Required | Rules |
 | --- | --- | --- | --- |
-| `payload` | JSON string | Yes | Contains customer, vehicle, notes, and optional agent code. |
-| `vehicleImages` | File, repeated | Yes | Minimum 5 files. JPG, JPEG, PNG, WEBP only. |
-| `documents.nationalIdFront` | File | Yes | JPG, JPEG, PNG, WEBP, or PDF. |
-| `documents.nationalIdBack` | File | Yes | JPG, JPEG, PNG, WEBP, or PDF. |
-| `documents.drivingLicense` | File | Yes | JPG, JPEG, PNG, WEBP, or PDF. |
-| `documents.vehicleRegistration` | File | Yes | JPG, JPEG, PNG, WEBP, or PDF. |
-| `documents.residenceCardFront` | File | Yes | JPG, JPEG, PNG, WEBP, or PDF. |
-| `documents.residenceCardBack` | File | Yes | JPG, JPEG, PNG, WEBP, or PDF. |
+| `vehicleImages` | Array | Yes | Minimum 5 Blob metadata objects. JPG, JPEG, PNG, WEBP, HEIC, HEIF. |
+| `documents` | Array | Yes | Must contain all required document keys. Image types above or PDF. |
 
 Default maximum file size:
 
@@ -134,59 +156,15 @@ PUBLIC_API_MAX_FILE_SIZE_MB=10
 PUBLIC_API_MAX_TOTAL_PAYLOAD_SIZE_MB=25
 ```
 
-TRINSU uploads files to Vercel Blob Storage and saves only Blob file metadata in the database.
+TRINSU saves only Blob file metadata in the database.
 
 ### Request Body Example
 
-The `payload` form field must be a JSON string:
+The request body must be JSON:
 
 ```json
 {
-  "customer": {
-    "fullName": "Ahmed Ali",
-    "mobile": "+9647700000000",
-    "email": "ahmed@example.com",
-    "nationalId": "1234567890",
-    "address": "Karrada",
-    "city": "Baghdad"
-  },
-  "vehicle": {
-    "vehicleType": "Sedan",
-    "manufacturer": "Toyota",
-    "model": "Camry",
-    "manufacturingYear": 2024,
-    "color": "White",
-    "plateNumber": "BGD-12345",
-    "chassisNumber": "JTDBR32E720000001",
-    "engineNumber": "ENG123456",
-    "estimatedVehicleValue": 25000
-  },
-  "notes": "Customer prefers WhatsApp updates.",
-  "agentCode": "AGT-001"
-}
-```
-
-### Success Response
-
-HTTP `201`
-
-```json
-{
-  "success": true,
-  "requestId": "cmtr...",
-  "requestNumber": "MTR-REQ-2026-000001",
-  "trackingNumber": "MTR-REQ-2026-000001",
-  "message": "Request submitted successfully"
-}
-```
-
-### cURL Example
-
-```bash
-curl -X POST "{{baseUrl}}/api/public/motor-requests" \
-  -H "x-api-key: {{apiKey}}" \
-  -H "Accept: application/json" \
-  -F 'payload={
+  "payload": {
     "customer": {
       "fullName": "Ahmed Ali",
       "mobile": "+9647700000000",
@@ -208,67 +186,69 @@ curl -X POST "{{baseUrl}}/api/public/motor-requests" \
     },
     "notes": "Customer prefers WhatsApp updates.",
     "agentCode": "AGT-001"
-  }' \
-  -F "vehicleImages=@./files/front.jpg" \
-  -F "vehicleImages=@./files/back.jpg" \
-  -F "vehicleImages=@./files/left.jpg" \
-  -F "vehicleImages=@./files/right.jpg" \
-  -F "vehicleImages=@./files/interior.jpg" \
-  -F "documents.nationalIdFront=@./files/national-id-front.pdf" \
-  -F "documents.nationalIdBack=@./files/national-id-back.pdf" \
-  -F "documents.drivingLicense=@./files/driving-license.pdf" \
-  -F "documents.vehicleRegistration=@./files/vehicle-registration.pdf" \
-  -F "documents.residenceCardFront=@./files/residence-front.pdf" \
-  -F "documents.residenceCardBack=@./files/residence-back.pdf"
+  },
+  "vehicleImages": [
+    { "url": "https://example.public.blob.vercel-storage.com/front.jpg", "name": "front.jpg", "type": "image/jpeg", "size": 123456 }
+  ],
+  "documents": [
+    { "key": "nationalIdFront", "url": "https://example.public.blob.vercel-storage.com/national-id-front.pdf", "name": "national-id-front.pdf", "type": "application/pdf", "size": 123456 }
+  ]
+}
+```
+
+### Success Response
+
+HTTP `201`
+
+```json
+{
+  "success": true,
+  "requestId": "cmtr...",
+  "requestNumber": "MTR-REQ-2026-000001",
+  "trackingNumber": "MTR-REQ-2026-000001",
+  "message": "Request submitted successfully"
+}
 ```
 
 ### JavaScript fetch() Example
 
 ```ts
-const formData = new FormData();
+import { upload } from "@vercel/blob/client";
 
-formData.append("payload", JSON.stringify({
-  customer: {
-    fullName: "Ahmed Ali",
-    mobile: "+9647700000000",
-    email: "ahmed@example.com",
-    nationalId: "1234567890",
-    address: "Karrada",
-    city: "Baghdad"
-  },
-  vehicle: {
-    vehicleType: "Sedan",
-    manufacturer: "Toyota",
-    model: "Camry",
-    manufacturingYear: 2024,
-    color: "White",
-    plateNumber: "BGD-12345",
-    chassisNumber: "JTDBR32E720000001",
-    engineNumber: "ENG123456",
-    estimatedVehicleValue: 25000
-  },
-  notes: "Customer prefers WhatsApp updates.",
-  agentCode: "AGT-001"
-}));
+async function uploadMotorFile(file: File, clientPayload: unknown) {
+  const blob = await upload(
+    `public-motor-requests/uploads/${crypto.randomUUID()}-${file.name}`,
+    file,
+    {
+      access: "public",
+      handleUploadUrl: `${baseUrl}/api/public/motor-request-uploads`,
+      headers: { "x-api-key": apiKey },
+      clientPayload: JSON.stringify(clientPayload),
+      contentType: file.type,
+      multipart: true
+    }
+  );
 
-vehicleImageFiles.forEach((file) => {
-  formData.append("vehicleImages", file);
-});
+  return { url: blob.url, name: file.name, type: file.type, size: file.size };
+}
 
-formData.append("documents.nationalIdFront", nationalIdFrontFile);
-formData.append("documents.nationalIdBack", nationalIdBackFile);
-formData.append("documents.drivingLicense", drivingLicenseFile);
-formData.append("documents.vehicleRegistration", vehicleRegistrationFile);
-formData.append("documents.residenceCardFront", residenceCardFrontFile);
-formData.append("documents.residenceCardBack", residenceCardBackFile);
+const vehicleImages = await Promise.all(
+  vehicleImageFiles.map((file) => uploadMotorFile(file, { kind: "vehicleImage", name: file.name, type: file.type, size: file.size }))
+);
+
+const documents = await Promise.all(documentFiles.map(async ({ key, file }) => ({
+  key,
+  ...(await uploadMotorFile(file, { kind: "document", key, name: file.name, type: file.type, size: file.size }))
+})));
 
 const response = await fetch(`${baseUrl}/api/public/motor-requests`, {
   method: "POST",
   headers: {
     "x-api-key": apiKey,
-    "Accept": "application/json"
+    "Accept": "application/json",
+    "Content-Type": "application/json"
   },
-  body: formData
+  body: JSON.stringify({ payload, vehicleImages, documents })
 });
 
 const result = await response.json();
@@ -285,23 +265,14 @@ window.location.assign(`/confirmation?requestId=${encodeURIComponent(result.requ
 ```ts
 import axios from "axios";
 
-const formData = new FormData();
-formData.append("payload", JSON.stringify(payload));
-vehicleImageFiles.forEach((file) => formData.append("vehicleImages", file));
-formData.append("documents.nationalIdFront", nationalIdFrontFile);
-formData.append("documents.nationalIdBack", nationalIdBackFile);
-formData.append("documents.drivingLicense", drivingLicenseFile);
-formData.append("documents.vehicleRegistration", vehicleRegistrationFile);
-formData.append("documents.residenceCardFront", residenceCardFrontFile);
-formData.append("documents.residenceCardBack", residenceCardBackFile);
-
 const { data } = await axios.post(
   `${baseUrl}/api/public/motor-requests`,
-  formData,
+  { payload, vehicleImages, documents },
   {
     headers: {
       "x-api-key": apiKey,
-      "Accept": "application/json"
+      "Accept": "application/json",
+      "Content-Type": "application/json"
     }
   }
 );
@@ -656,7 +627,7 @@ MTR-REQ-2026-000001
 | `MOTOR_API_KEY` | Yes | Motor portal API key accepted by `x-api-key`. |
 | `MOTOR_PORTAL_ORIGIN` | Yes for browser CORS | Allowed external portal origin, for example `https://portal.example.com`. |
 | `PUBLIC_API_MAX_FILE_SIZE_MB` | No | Maximum upload size per file. Defaults to `10`. |
-| `PUBLIC_API_MAX_TOTAL_PAYLOAD_SIZE_MB` | No | Maximum total multipart payload size. Defaults to `25`. |
+| `PUBLIC_API_MAX_TOTAL_PAYLOAD_SIZE_MB` | No | Maximum total size represented by submitted Blob metadata. Defaults to `25`. |
 | `BLOB_READ_WRITE_TOKEN` | Yes | Vercel Blob read/write token used by `@vercel/blob` uploads. |
 | `AUTH_SECRET` | Yes for app auth | Required by the main TRINSU app authentication. |
 | `AUTH_URL` | Production recommended | Public application URL. |

@@ -124,6 +124,7 @@ production migrations. The existing Neon database has been baselined in Prisma m
 - `GET /api/cancellations/:id/pdf`
 - `GET /api/verify?policyNumber=...`
 - `POST /api/public/motor-requests`
+- `POST/DELETE /api/public/motor-request-uploads`
 - `POST /api/v1/public/motor-requests` legacy compatibility
 - `GET /api/public/motor-requests/track/:trackingNumber`
 - `GET /api/v1/public/motor-requests/track/:trackingNumber`

@@ -4,7 +4,8 @@ import { ZodError } from "zod";
 import { getIpAddress, writeAuditLog } from "@/lib/audit";
 import { isPublicMotorOriginAllowed, publicMotorOptions, withPublicMotorCors } from "@/lib/public-api/cors";
 import { requirePublicApiKey } from "@/lib/public-api/auth";
-import { createPublicMotorRequest, parsePublicMotorFormData } from "@/lib/public-api/motor-requests";
+import { createPublicMotorRequest, parsePublicMotorJson } from "@/lib/public-api/motor-requests";
+import { deleteMotorBlobFiles } from "@/lib/public-api/motor-files";
 
 export function OPTIONS(request: NextRequest) {
   return publicMotorOptions(request);
@@ -21,10 +22,12 @@ export async function POST(request: NextRequest) {
   const auth = requirePublicApiKey(request);
   if (!auth.ok) return withPublicMotorCors(request, auth.response);
 
+  let requestBody: unknown;
+  let cleanupHandledByCreate = false;
   try {
     logStage("request received", { method: request.method, url: request.url });
-    const formData = await parseMultipartFormData(request);
-    const parsed = parsePublicMotorFormData(formData);
+    requestBody = await parseJsonBody(request);
+    const parsed = parsePublicMotorJson(requestBody);
     logStage("payload parsed", {
       vehicleImageCount: parsed.vehicleImages.length,
       documentCount: parsed.documents.length,
@@ -37,6 +40,7 @@ export async function POST(request: NextRequest) {
 
     const blobDebug = blobCredentialDebug();
     console.log("Blob credential debug", blobDebug);
+    cleanupHandledByCreate = true;
     const created = await createPublicMotorRequest(parsed);
 
     logStage("success response returned", {
@@ -76,43 +80,25 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     ));
   } catch (error) {
-    if (isPayloadTooLargeError(error)) {
-      return withPublicMotorCors(
-        request,
-        NextResponse.json(
-          {
-            success: false,
-            error: "Request payload exceeds the allowed upload limit. Please reduce the number or size of images and try again.",
-            ...nonProductionDebug(blobCredentialDebug())
-          },
-          { status: 413 }
-        )
-      );
-    }
-
+    if (!cleanupHandledByCreate) await cleanupSubmittedBlobUrls(requestBody);
     return withPublicMotorCors(request, publicApiError(error, blobCredentialDebug()));
   }
 }
 
-function isPayloadTooLargeError(error: unknown) {
-  if (error instanceof Error) {
-    const message = error.message.toLowerCase();
-    return message.includes("payload too large") || message.includes("request body") || message.includes("413") || message.includes("too large");
-  }
-  return false;
-}
-
-async function parseMultipartFormData(request: NextRequest) {
+async function parseJsonBody(request: NextRequest) {
   const contentType = request.headers.get("content-type") ?? "";
-  if (!contentType.toLowerCase().startsWith("multipart/form-data")) {
-    throw new Error("Content-Type must be multipart/form-data.");
+  if (contentType.toLowerCase().startsWith("multipart/form-data")) {
+    throw new Error("Multipart uploads are no longer accepted. Upload files directly to Vercel Blob, then submit JSON metadata.");
+  }
+  if (!contentType.toLowerCase().startsWith("application/json")) {
+    throw new Error("Content-Type must be application/json.");
   }
 
   try {
-    return await request.formData();
+    return await request.json();
   } catch (error) {
-    console.error("[public-motor-request] multipart parsing failed", error);
-    throw new Error("Unable to parse multipart form data. Please send a valid FormData request with the browser-generated boundary.");
+    console.error("[public-motor-request] JSON parsing failed", error);
+    throw new Error("Request body must be valid JSON.");
   }
 }
 
@@ -132,15 +118,30 @@ function nonProductionDebug(debug: ReturnType<typeof blobCredentialDebug>) {
   return process.env.NODE_ENV !== "production" ? { debug } : {};
 }
 
+async function cleanupSubmittedBlobUrls(input: unknown) {
+  if (!input || typeof input !== "object") return;
+  const record = input as {
+    vehicleImages?: Array<{ url?: unknown }>;
+    documents?: Array<{ url?: unknown }>;
+  };
+  const urls = [...(record.vehicleImages ?? []), ...(record.documents ?? [])]
+    .map((file) => file.url)
+    .filter((url): url is string => typeof url === "string" && /^https:\/\//i.test(url));
+  if (!urls.length) return;
+  await deleteMotorBlobFiles(urls.map((url) => ({ url })));
+}
+
 function publicApiError(error: unknown, debug?: ReturnType<typeof blobCredentialDebug>) {
   if (error instanceof ZodError) {
+    const details = error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message }));
+    const message = details.map((issue) => issue.message).join("; ") || "Validation failed";
     return NextResponse.json(
-      { success: false, message: "Validation failed", details: error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })), ...nonProductionDebug(debug ?? blobCredentialDebug()) },
+      { success: false, error: message, message, details, ...nonProductionDebug(debug ?? blobCredentialDebug()) },
       { status: 400 }
     );
   }
   if (error instanceof SyntaxError) {
-    return NextResponse.json({ success: false, message: "payload must be valid JSON.", ...nonProductionDebug(debug ?? blobCredentialDebug()) }, { status: 400 });
+    return NextResponse.json({ success: false, error: "payload must be valid JSON.", message: "payload must be valid JSON.", ...nonProductionDebug(debug ?? blobCredentialDebug()) }, { status: 400 });
   }
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
     console.error("[public-motor-request] unique constraint conflict", {
@@ -149,12 +150,12 @@ function publicApiError(error: unknown, debug?: ReturnType<typeof blobCredential
       message: error.message,
       stack: error.stack
     });
-    return NextResponse.json({ success: false, error: "Unable to create request because a unique value already exists.", ...nonProductionDebug(debug ?? blobCredentialDebug()) }, { status: 409 });
+    return NextResponse.json({ success: false, error: "Unable to create request because a unique value already exists.", message: "Unable to create request because a unique value already exists.", ...nonProductionDebug(debug ?? blobCredentialDebug()) }, { status: 409 });
   }
   const message = error instanceof Error ? error.message : "Unexpected server error.";
   if (/numeric field overflow|precision 12, scale 2|less than 10\^10/i.test(message)) {
     return NextResponse.json(
-      { success: false, error: "Estimated vehicle value exceeds the maximum allowed amount.", ...nonProductionDebug(debug ?? blobCredentialDebug()) },
+      { success: false, error: "Estimated vehicle value exceeds the maximum allowed amount.", message: "Estimated vehicle value exceeds the maximum allowed amount.", ...nonProductionDebug(debug ?? blobCredentialDebug()) },
       { status: 400 }
     );
   }
@@ -164,6 +165,8 @@ function publicApiError(error: unknown, debug?: ReturnType<typeof blobCredential
     code: error instanceof Prisma.PrismaClientKnownRequestError ? error.code : undefined,
     meta: error instanceof Prisma.PrismaClientKnownRequestError ? error.meta : undefined
   });
-  const status = /required|invalid|unsupported|exceeds|empty|content-type|multipart|form data/i.test(message) ? 400 : 500;
-  return NextResponse.json({ success: false, error: message, ...nonProductionDebug(debug ?? blobCredentialDebug()) }, { status });
+  const status = /multipart uploads are no longer accepted/i.test(message)
+    ? 415
+    : /required|invalid|unsupported|exceeds|empty|content-type|json/i.test(message) ? 400 : 500;
+  return NextResponse.json({ success: false, error: message, message, ...nonProductionDebug(debug ?? blobCredentialDebug()) }, { status });
 }

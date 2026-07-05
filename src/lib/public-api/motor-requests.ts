@@ -2,7 +2,13 @@ import { MotorRequestStatus, Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { createMotorRequestNumber, motorRequestYear } from "@/lib/motor-request-number";
-import { savePublicMotorFiles, validatePublicMotorFiles } from "@/lib/public-api/motor-files";
+import {
+  buildPublicMotorFileRecords,
+  deleteMotorBlobFiles,
+  validatePublicMotorFiles,
+  type PublicMotorUploadedDocument,
+  type PublicMotorUploadedFile
+} from "@/lib/public-api/motor-files";
 
 function logStage(stage: string, details?: Record<string, unknown>) {
   console.log(`[public-motor-request] ${stage}`, details ?? {});
@@ -113,6 +119,25 @@ export const publicMotorRequestPayloadSchema = z.object({
   agentCode: z.string().trim().max(80).optional().or(z.literal(""))
 });
 
+const uploadedBlobFileSchema = z.object({
+  url: z.string().trim().url("Blob URL is invalid").refine((value) => value.startsWith("https://"), "Blob URL must use HTTPS"),
+  name: z.string().trim().min(1, "File name is required"),
+  size: z.coerce.number().int().positive("File size is required"),
+  type: z.string().trim().default(""),
+  uploadedAt: z.string().datetime().optional()
+});
+
+const uploadedBlobDocumentSchema = uploadedBlobFileSchema.extend({
+  key: z.string().trim().min(1, "Document key is required"),
+  label: z.string().trim().min(1).optional()
+});
+
+export const publicMotorRequestJsonSchema = z.object({
+  payload: publicMotorRequestPayloadSchema,
+  vehicleImages: z.array(uploadedBlobFileSchema).min(5, "At least 5 vehicle images are required"),
+  documents: z.array(uploadedBlobDocumentSchema).min(6, "All required customer documents are required")
+});
+
 export function publicMotorRequestSelect() {
   return {
     id: true,
@@ -157,34 +182,17 @@ export function formatPublicMotorVehicle(input: {
   return [input.manufacturer, input.model, input.manufacturingYear].filter(Boolean).join(" ");
 }
 
-export function parsePublicMotorFormData(formData: FormData) {
-  const payloadValue = formData.get("payload");
-  if (typeof payloadValue !== "string") throw new Error("payload JSON field is required.");
-
-  const payload = publicMotorRequestPayloadSchema.parse(JSON.parse(payloadValue));
-  const vehicleImages = formData.getAll("vehicleImages").filter(isFormFile);
-  const documents = Object.entries(documentLabels).flatMap(([key, label]) => (
-    formData.getAll(`documents.${key}`)
-      .filter(isFormFile)
-      .map((file) => ({ key, label, file }))
-  ));
-
-  validatePublicMotorFiles({ vehicleImages, documents });
-  return { payload, vehicleImages, documents };
+export function parsePublicMotorJson(input: unknown) {
+  const parsed = publicMotorRequestJsonSchema.parse(input);
+  const documents = parsed.documents.map((document) => ({
+    ...document,
+    label: document.label ?? documentLabels[document.key] ?? document.key
+  }));
+  validatePublicMotorFiles({ vehicleImages: parsed.vehicleImages, documents });
+  return { payload: parsed.payload, vehicleImages: parsed.vehicleImages, documents };
 }
 
-function isFormFile(value: FormDataEntryValue): value is File {
-  return typeof value === "object"
-    && value !== null
-    && "name" in value
-    && typeof (value as { name?: unknown }).name === "string"
-    && "size" in value
-    && typeof (value as { size?: unknown }).size === "number"
-    && "arrayBuffer" in value
-    && typeof (value as { arrayBuffer?: unknown }).arrayBuffer === "function";
-}
-
-export async function createPublicMotorRequest(input: ReturnType<typeof parsePublicMotorFormData>) {
+export async function createPublicMotorRequest(input: ReturnType<typeof parsePublicMotorJson>) {
   const now = new Date();
   const createdTime = new Intl.DateTimeFormat("en-GB", {
     hour: "2-digit",
@@ -201,16 +209,14 @@ export async function createPublicMotorRequest(input: ReturnType<typeof parsePub
         const requestNumber = await createMotorRequestNumber(tx, motorRequestYear(now));
         logStage("request number generated", { requestNumber });
 
-        const storedFiles = await savePublicMotorFiles({
-          requestNumber,
+        const storedFiles = buildPublicMotorFileRecords({
           vehicleImages: input.vehicleImages,
           documents: input.documents
         });
-        logStage("files uploaded", {
+        logStage("file metadata validated", {
           requestNumber,
           vehicleImageCount: storedFiles.vehicleImages.length,
-          documentCount: storedFiles.customerDocuments.length,
-          uploadFailures: storedFiles.failures
+          documentCount: storedFiles.customerDocuments.length
         });
 
         const trackingNumber = requestNumber;
@@ -239,7 +245,7 @@ export async function createPublicMotorRequest(input: ReturnType<typeof parsePub
             estimatedVehicleValue: input.payload.vehicle.estimatedVehicleValue,
             vehicleImages: storedFiles.vehicleImages,
             customerDocuments: storedFiles.customerDocuments,
-            uploadFailures: storedFiles.failures,
+            uploadFailures: [],
             notes: input.payload.notes || null,
             source: "Public Portal",
             agentName: input.payload.agentCode || "Public Portal",
@@ -263,7 +269,15 @@ export async function createPublicMotorRequest(input: ReturnType<typeof parsePub
     logStage("success response returned", { id: created.id, requestNumber: created.requestNumber });
     return created;
   } catch (error) {
+    await deleteMotorBlobFiles(uploadedFilesFromInput(input));
     logPrismaError("createPublicMotorRequest", error);
     throw error;
   }
+}
+
+function uploadedFilesFromInput(input: {
+  vehicleImages: PublicMotorUploadedFile[];
+  documents: PublicMotorUploadedDocument[];
+}) {
+  return [...input.vehicleImages, ...input.documents].map((file) => ({ url: file.url }));
 }

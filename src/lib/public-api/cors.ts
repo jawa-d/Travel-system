@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const allowedMethods = "GET, POST, OPTIONS";
+const allowedMethods = "GET, POST, DELETE, OPTIONS";
 const allowedHeaders = "Content-Type, Accept, x-api-key, X-Requested-With";
 const defaultMotorPortalOrigin = "https://motor-insurance-portal-delta.vercel.app";
 
