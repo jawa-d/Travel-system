@@ -11,19 +11,10 @@ export async function createMotorRequestNumber(tx: Prisma.TransactionClient, yea
   const prefix = `${REQUEST_PREFIX}-${year}-`;
 
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`motor-request-number:${year}`}))`;
+  await tx.$executeRawUnsafe("CREATE SEQUENCE IF NOT EXISTS motor_request_number_seq");
 
-  const latest = await tx.motorInsuranceRequest.findFirst({
-    where: {
-      requestNumber: { startsWith: prefix }
-    },
-    orderBy: { requestNumber: "desc" },
-    select: { requestNumber: true }
-  });
+  const rows = await tx.$queryRaw<Array<{ nextval: bigint }>>`SELECT nextval('motor_request_number_seq') AS nextval`;
+  const sequenceValue = Number(rows[0]?.nextval ?? 0);
 
-  const latestSequence = latest?.requestNumber.startsWith(prefix)
-    ? Number.parseInt(latest.requestNumber.slice(prefix.length), 10)
-    : 0;
-  const nextSequence = Number.isFinite(latestSequence) ? latestSequence + 1 : 1;
-
-  return `${prefix}${String(nextSequence).padStart(REQUEST_NUMBER_PADDING, "0")}`;
+  return `${prefix}${String(sequenceValue).padStart(REQUEST_NUMBER_PADDING, "0")}`;
 }

@@ -22,25 +22,46 @@ export async function POST(request: NextRequest) {
   if (!auth.ok) return withPublicMotorCors(request, auth.response);
 
   try {
+    logStage("request received", { method: request.method, url: request.url });
     const formData = await request.formData();
     const parsed = parsePublicMotorFormData(formData);
+    logStage("payload parsed", {
+      vehicleImageCount: parsed.vehicleImages.length,
+      documentCount: parsed.documents.length,
+      customerName: parsed.payload.customer.fullName
+    });
+    logStage("validation passed", {
+      customerEmail: parsed.payload.customer.email || null,
+      agentCode: parsed.payload.agentCode || null
+    });
+
     const blobDebug = blobCredentialDebug();
     console.log("Blob credential debug", blobDebug);
     const created = await createPublicMotorRequest(parsed);
 
-    await writeAuditLog({
-      action: "PUBLIC_MOTOR_REQUEST_CREATED",
-      entity: "MotorInsuranceRequest",
-      entityId: created.id,
-      ipAddress: getIpAddress(request.headers),
-      metadata: {
-        requestNumber: created.requestNumber,
-        status: created.status,
-        apiKey: auth.apiKeyFingerprint,
-        userAgent: request.headers.get("user-agent") ?? null,
-        source: "Public Portal"
-      }
+    logStage("success response returned", {
+      requestId: created.id,
+      requestNumber: created.requestNumber,
+      status: created.status
     });
+
+    try {
+      await writeAuditLog({
+        action: "PUBLIC_MOTOR_REQUEST_CREATED",
+        entity: "MotorInsuranceRequest",
+        entityId: created.id,
+        ipAddress: getIpAddress(request.headers),
+        metadata: {
+          requestNumber: created.requestNumber,
+          status: created.status,
+          apiKey: auth.apiKeyFingerprint,
+          userAgent: request.headers.get("user-agent") ?? null,
+          source: "Public Portal"
+        }
+      });
+    } catch (auditError) {
+      console.error("[public-motor-request] audit log failed", auditError);
+    }
 
     return withPublicMotorCors(request, NextResponse.json(
       {
@@ -55,8 +76,34 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     ));
   } catch (error) {
+    if (isPayloadTooLargeError(error)) {
+      return withPublicMotorCors(
+        request,
+        NextResponse.json(
+          {
+            success: false,
+            error: "Request payload exceeds the allowed upload limit. Please reduce the number or size of images and try again.",
+            ...nonProductionDebug(blobCredentialDebug())
+          },
+          { status: 413 }
+        )
+      );
+    }
+
     return withPublicMotorCors(request, publicApiError(error, blobCredentialDebug()));
   }
+}
+
+function isPayloadTooLargeError(error: unknown) {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    return message.includes("payload too large") || message.includes("request body") || message.includes("413") || message.includes("too large");
+  }
+  return false;
+}
+
+function logStage(stage: string, details?: Record<string, unknown>) {
+  console.log(`[public-motor-request] ${stage}`, details ?? {});
 }
 
 function blobCredentialDebug() {
@@ -82,9 +129,21 @@ function publicApiError(error: unknown, debug?: ReturnType<typeof blobCredential
     return NextResponse.json({ success: false, message: "payload must be valid JSON.", ...nonProductionDebug(debug ?? blobCredentialDebug()) }, { status: 400 });
   }
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-    return NextResponse.json({ success: false, message: "Duplicate request number. Please retry.", ...nonProductionDebug(debug ?? blobCredentialDebug()) }, { status: 500 });
+    console.error("[public-motor-request] duplicate request number after retries", {
+      code: error.code,
+      meta: error.meta,
+      message: error.message,
+      stack: error.stack
+    });
+    return NextResponse.json({ success: false, error: "Unable to create request due to duplicate request number.", ...nonProductionDebug(debug ?? blobCredentialDebug()) }, { status: 409 });
   }
   const message = error instanceof Error ? error.message : "Unexpected server error.";
+  console.error("[public-motor-request] request failed", {
+    message,
+    stack: error instanceof Error ? error.stack : undefined,
+    code: error instanceof Prisma.PrismaClientKnownRequestError ? error.code : undefined,
+    meta: error instanceof Prisma.PrismaClientKnownRequestError ? error.meta : undefined
+  });
   const status = /required|invalid|unsupported|exceeds|empty/i.test(message) ? 400 : 500;
-  return NextResponse.json({ success: false, message, ...nonProductionDebug(debug ?? blobCredentialDebug()) }, { status });
+  return NextResponse.json({ success: false, error: message, ...nonProductionDebug(debug ?? blobCredentialDebug()) }, { status });
 }

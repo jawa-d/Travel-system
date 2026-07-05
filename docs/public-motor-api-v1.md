@@ -124,13 +124,14 @@ Form fields:
 Default maximum file size:
 
 ```text
-5 MB per file
+10 MB per file
 ```
 
-Server variable:
+Server variables:
 
 ```text
-PUBLIC_API_MAX_FILE_SIZE_MB=5
+PUBLIC_API_MAX_FILE_SIZE_MB=10
+PUBLIC_API_MAX_TOTAL_PAYLOAD_SIZE_MB=25
 ```
 
 TRINSU uploads files to Vercel Blob Storage and saves only Blob file metadata in the database.
@@ -654,7 +655,8 @@ MTR-REQ-2026-000001
 | `DATABASE_URL` | Yes | PostgreSQL connection string. |
 | `MOTOR_API_KEY` | Yes | Motor portal API key accepted by `x-api-key`. |
 | `MOTOR_PORTAL_ORIGIN` | Yes for browser CORS | Allowed external portal origin, for example `https://portal.example.com`. |
-| `PUBLIC_API_MAX_FILE_SIZE_MB` | No | Maximum upload size per file. Defaults to `5`. |
+| `PUBLIC_API_MAX_FILE_SIZE_MB` | No | Maximum upload size per file. Defaults to `10`. |
+| `PUBLIC_API_MAX_TOTAL_PAYLOAD_SIZE_MB` | No | Maximum total multipart payload size. Defaults to `25`. |
 | `BLOB_READ_WRITE_TOKEN` | Yes | Vercel Blob read/write token used by `@vercel/blob` uploads. |
 | `AUTH_SECRET` | Yes for app auth | Required by the main TRINSU app authentication. |
 | `AUTH_URL` | Production recommended | Public application URL. |
