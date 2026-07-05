@@ -6,6 +6,8 @@ import { jsonError, requirePermission, requireUser } from "@/lib/api";
 import { getIpAddress, writeAuditLog } from "@/lib/audit";
 import { deleteMotorBlobFiles } from "@/lib/public-api/motor-files";
 
+const MAX_DECIMAL_12_2_VALUE = 9_999_999_999.99;
+
 const statusUpdateSchema = z.object({
   status: z.nativeEnum(MotorRequestStatus),
   managerNotes: z.string().trim().max(4000).optional().or(z.literal(""))
@@ -31,7 +33,11 @@ const requestEditSchema = z.object({
     plateNumber: z.string().trim().min(1).optional(),
     chassisNumber: z.string().trim().min(4).optional(),
     engineNumber: z.string().trim().min(3).optional(),
-    estimatedVehicleValue: z.coerce.number().positive().optional()
+    estimatedVehicleValue: z.coerce.number()
+      .finite("Estimated vehicle value must be a valid number")
+      .positive("Estimated vehicle value is required")
+      .max(MAX_DECIMAL_12_2_VALUE, "Estimated vehicle value exceeds the maximum allowed amount")
+      .optional()
   }).optional(),
   coverageType: z.string().trim().max(120).optional().or(z.literal("")),
   coverageNotes: z.string().trim().max(4000).optional().or(z.literal("")),

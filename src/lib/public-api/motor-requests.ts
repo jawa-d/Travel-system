@@ -53,6 +53,7 @@ const documentLabels: Record<string, string> = {
   residenceCardFront: "Residence Card Front",
   residenceCardBack: "Residence Card Back"
 };
+const MAX_DECIMAL_12_2_VALUE = 9_999_999_999.99;
 
 export const publicMotorTrackingStatuses = [
   "RECEIVED",
@@ -103,7 +104,10 @@ export const publicMotorRequestPayloadSchema = z.object({
     plateNumber: z.string().trim().min(1, "Plate number is required"),
     chassisNumber: z.string().trim().min(4, "Chassis number is required"),
     engineNumber: z.string().trim().min(3, "Engine number is required"),
-    estimatedVehicleValue: z.coerce.number().positive("Estimated vehicle value is required")
+    estimatedVehicleValue: z.coerce.number()
+      .finite("Estimated vehicle value must be a valid number")
+      .positive("Estimated vehicle value is required")
+      .max(MAX_DECIMAL_12_2_VALUE, "Estimated vehicle value exceeds the maximum allowed amount")
   }),
   notes: z.string().trim().max(4000).optional().or(z.literal("")),
   agentCode: z.string().trim().max(80).optional().or(z.literal(""))

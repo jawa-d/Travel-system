@@ -152,6 +152,12 @@ function publicApiError(error: unknown, debug?: ReturnType<typeof blobCredential
     return NextResponse.json({ success: false, error: "Unable to create request because a unique value already exists.", ...nonProductionDebug(debug ?? blobCredentialDebug()) }, { status: 409 });
   }
   const message = error instanceof Error ? error.message : "Unexpected server error.";
+  if (/numeric field overflow|precision 12, scale 2|less than 10\^10/i.test(message)) {
+    return NextResponse.json(
+      { success: false, error: "Estimated vehicle value exceeds the maximum allowed amount.", ...nonProductionDebug(debug ?? blobCredentialDebug()) },
+      { status: 400 }
+    );
+  }
   console.error("[public-motor-request] request failed", {
     message,
     stack: error instanceof Error ? error.stack : undefined,

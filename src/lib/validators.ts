@@ -111,6 +111,7 @@ const storedFileReferenceSchema = z.string().refine(
   (value) => value.startsWith("idb://") || /^data:(image|application)\//.test(value) || /^https?:\/\//.test(value),
   "File reference is invalid"
 );
+const MAX_DECIMAL_12_2_VALUE = 9_999_999_999.99;
 
 export const motorVehicleImageSchema = z.object({
   id: storedFileReferenceSchema,
@@ -149,7 +150,10 @@ export const motorInsuranceRequestSchema = z.object({
     plateNumber: z.string().trim().min(1, "Plate number is required"),
     chassisNumber: z.string().trim().min(4, "Chassis number is required"),
     engineNumber: z.string().trim().min(3, "Engine number is required"),
-    estimatedVehicleValue: z.coerce.number().positive("Estimated vehicle value is required")
+    estimatedVehicleValue: z.coerce.number()
+      .finite("Estimated vehicle value must be a valid number")
+      .positive("Estimated vehicle value is required")
+      .max(MAX_DECIMAL_12_2_VALUE, "Estimated vehicle value exceeds the maximum allowed amount")
   }),
   vehicleImages: z.array(motorVehicleImageSchema).min(5, "At least 5 vehicle images are required"),
   documents: z.array(motorDocumentSchema).min(6, "All required customer documents are required"),
