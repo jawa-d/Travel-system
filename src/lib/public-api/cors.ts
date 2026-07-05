@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const allowedMethods = "GET, POST, OPTIONS";
-const allowedHeaders = "Content-Type, Accept, x-api-key";
+const allowedHeaders = "Content-Type, Accept, x-api-key, X-Requested-With";
 const defaultMotorPortalOrigin = "https://motor-insurance-portal-delta.vercel.app";
 
 function allowedOrigin() {
@@ -18,7 +18,7 @@ export function publicMotorCorsHeaders(request: NextRequest) {
   const configuredOrigin = allowedOrigin();
   const isAllowed = origin ? origin === configuredOrigin : false;
   const headers: Record<string, string> = {
-    Vary: "Origin"
+    Vary: "Origin, Access-Control-Request-Headers"
   };
 
   if (isAllowed && configuredOrigin) {

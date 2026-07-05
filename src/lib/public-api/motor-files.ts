@@ -18,10 +18,11 @@ export type PublicMotorUploadFailure = {
   reason: string;
 };
 
-const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
 const DOCUMENT_TYPES = new Set([...IMAGE_TYPES, "application/pdf"]);
-const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
+const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"]);
 const DOCUMENT_EXTENSIONS = new Set([...IMAGE_EXTENSIONS, ".pdf"]);
+const FALLBACK_FILE_TYPES = new Set(["", "application/octet-stream"]);
 const DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024;
 const DEFAULT_MAX_TOTAL_PAYLOAD_SIZE = 25 * 1024 * 1024;
 
@@ -34,8 +35,6 @@ function maxTotalPayloadSize() {
   const configured = Number(process.env.PUBLIC_API_MAX_TOTAL_PAYLOAD_SIZE_MB);
   return Number.isFinite(configured) && configured > 0 ? configured * 1024 * 1024 : DEFAULT_MAX_TOTAL_PAYLOAD_SIZE;
 }
-
-
 
 function safeFileName(name: string) {
   const extension = extname(name).toLowerCase();
@@ -72,8 +71,12 @@ export function validatePublicMotorFiles(input: {
     }
   }
 
-  if (input.vehicleImages.some((file) => !(file instanceof File))) throw new Error("Vehicle images must be files.");
-  if (input.documents.some((document) => !(document.file instanceof File))) throw new Error("Customer documents must be files.");
+  for (const file of input.vehicleImages) {
+    validateFile(file, IMAGE_TYPES, IMAGE_EXTENSIONS, maxFileSize());
+  }
+  for (const document of input.documents) {
+    validateFile(document.file, DOCUMENT_TYPES, DOCUMENT_EXTENSIONS, maxFileSize());
+  }
 }
 
 export async function savePublicMotorFiles(input: {
@@ -107,11 +110,31 @@ export async function savePublicMotorFiles(input: {
   return { vehicleImages, customerDocuments, failures };
 }
 
+function normalizedContentType(file: File, types: Set<string>, extensions: Set<string>) {
+  const extension = extname(file.name).toLowerCase();
+  const reportedType = file.type.toLowerCase();
+
+  if (types.has(reportedType)) return reportedType;
+  if (!extensions.has(extension) || !FALLBACK_FILE_TYPES.has(reportedType)) return reportedType;
+
+  if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
+  if (extension === ".png") return "image/png";
+  if (extension === ".webp") return "image/webp";
+  if (extension === ".heic") return "image/heic";
+  if (extension === ".heif") return "image/heif";
+  if (extension === ".pdf") return "application/pdf";
+
+  return reportedType;
+}
+
 function validateFile(file: File, types: Set<string>, extensions: Set<string>, sizeLimit: number) {
   if (file.size <= 0) throw new Error(`File ${file.name} is empty.`);
   if (file.size > sizeLimit) throw new Error(`File ${file.name} exceeds the maximum allowed size.`);
-  if (!types.has(file.type)) throw new Error(`File ${file.name} has an unsupported content type.`);
-  if (!extensions.has(extname(file.name).toLowerCase())) throw new Error(`File ${file.name} has an unsupported extension.`);
+  const extension = extname(file.name).toLowerCase();
+  const contentType = normalizedContentType(file, types, extensions);
+  if (!extensions.has(extension)) throw new Error(`File ${file.name} has an unsupported extension.`);
+  if (!types.has(contentType)) throw new Error(`File ${file.name} has an unsupported content type.`);
+  return contentType;
 }
 
 async function saveFile(input: {
@@ -121,12 +144,15 @@ async function saveFile(input: {
   key: string;
   label: string;
 }): Promise<StoredPublicMotorFile> {
+  const types = input.folder === "vehicle-images" ? IMAGE_TYPES : DOCUMENT_TYPES;
+  const extensions = input.folder === "vehicle-images" ? IMAGE_EXTENSIONS : DOCUMENT_EXTENSIONS;
+  const contentType = normalizedContentType(input.file, types, extensions);
   const filename = `${Date.now()}-${input.key}-${crypto.randomUUID()}-${safeFileName(input.file.name)}`;
   const pathname = `public-motor-requests/${input.requestNumber}/${input.folder}/${filename}`;
   const blob = await put(pathname, input.file, {
     access: "public",
     addRandomSuffix: false,
-    contentType: input.file.type
+    contentType
   });
 
   return {
@@ -135,7 +161,7 @@ async function saveFile(input: {
     url: blob.url,
     name: input.file.name,
     size: input.file.size,
-    type: input.file.type,
+    type: contentType,
     uploadedAt: new Date().toISOString()
   };
 }

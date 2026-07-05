@@ -10,11 +10,9 @@ export function motorRequestYear(date = new Date()) {
 export async function createMotorRequestNumber(tx: Prisma.TransactionClient, year: number) {
   const prefix = `${REQUEST_PREFIX}-${year}-`;
 
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`motor-request-number:${year}`}))`;
-  await tx.$executeRawUnsafe("CREATE SEQUENCE IF NOT EXISTS motor_request_number_seq");
-
   const rows = await tx.$queryRaw<Array<{ nextval: bigint }>>`SELECT nextval('motor_request_number_seq') AS nextval`;
-  const sequenceValue = Number(rows[0]?.nextval ?? 0);
+  const sequenceValue = rows[0]?.nextval;
+  if (!sequenceValue) throw new Error("Unable to allocate motor request number.");
 
-  return `${prefix}${String(sequenceValue).padStart(REQUEST_NUMBER_PADDING, "0")}`;
+  return `${prefix}${sequenceValue.toString().padStart(REQUEST_NUMBER_PADDING, "0")}`;
 }

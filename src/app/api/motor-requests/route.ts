@@ -1,12 +1,10 @@
-import { MotorRequestStatus, Prisma, Role } from "@prisma/client";
+import { MotorRequestStatus, Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { jsonError, requireUser } from "@/lib/api";
 import { getIpAddress, writeAuditLog } from "@/lib/audit";
 import { motorInsuranceRequestSchema } from "@/lib/validators";
 import { createMotorRequestNumber, motorRequestYear } from "@/lib/motor-request-number";
-
-const REQUEST_NUMBER_RETRY_LIMIT = 5;
 
 async function getAgentSnapshot(userId: string) {
   return prisma.user.findUnique({
@@ -63,67 +61,50 @@ export async function POST(request: NextRequest) {
     }).format(now);
     const status = payload.intent === "draft" ? MotorRequestStatus.DRAFT : MotorRequestStatus.SUBMITTED;
 
-    let created;
-    for (let attempt = 0; attempt < REQUEST_NUMBER_RETRY_LIMIT; attempt += 1) {
-      try {
-        created = await prisma.$transaction(async (tx) => {
-          const requestNumber = await createMotorRequestNumber(tx, motorRequestYear(now));
-          return tx.motorInsuranceRequest.create({
-            data: {
-              requestNumber,
-              submissionToken: payload.submissionToken,
-              status,
-              customerFullName: payload.customer.fullName,
-              customerMobile: payload.customer.mobile,
-              customerEmail: payload.customer.email || null,
-              customerNationalId: payload.customer.nationalId,
-              customerAddress: payload.customer.address,
-              customerCity: payload.customer.city,
-              vehicleType: payload.vehicle.vehicleType,
-              manufacturer: payload.vehicle.manufacturer,
-              model: payload.vehicle.model,
-              manufacturingYear: payload.vehicle.manufacturingYear,
-              color: payload.vehicle.color,
-              plateNumber: payload.vehicle.plateNumber,
-              chassisNumber: payload.vehicle.chassisNumber,
-              engineNumber: payload.vehicle.engineNumber,
-              estimatedVehicleValue: payload.vehicle.estimatedVehicleValue,
-              vehicleImages: payload.vehicleImages,
-              customerDocuments: payload.documents,
-              notes: payload.notes || null,
-              source: "Internal",
-              agentId: agent.id,
-              agentName: agent.name ?? "Agent",
-              agentEmail: agent.email,
-              agentRole: agent.role,
-              agentAgency: agent.agency?.name ?? null,
-              userId: user.id,
-              createdDate: now,
-              createdTime
-            },
-            select: {
-              id: true,
-              requestNumber: true,
-              status: true,
-              createdAt: true,
-              createdTime: true
-            }
-          });
-        });
-        break;
-      } catch (error) {
-        if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === "P2002" &&
-          attempt < REQUEST_NUMBER_RETRY_LIMIT - 1
-        ) {
-          continue;
+    const created = await prisma.$transaction(async (tx) => {
+      const requestNumber = await createMotorRequestNumber(tx, motorRequestYear(now));
+      return tx.motorInsuranceRequest.create({
+        data: {
+          requestNumber,
+          submissionToken: payload.submissionToken,
+          status,
+          customerFullName: payload.customer.fullName,
+          customerMobile: payload.customer.mobile,
+          customerEmail: payload.customer.email || null,
+          customerNationalId: payload.customer.nationalId,
+          customerAddress: payload.customer.address,
+          customerCity: payload.customer.city,
+          vehicleType: payload.vehicle.vehicleType,
+          manufacturer: payload.vehicle.manufacturer,
+          model: payload.vehicle.model,
+          manufacturingYear: payload.vehicle.manufacturingYear,
+          color: payload.vehicle.color,
+          plateNumber: payload.vehicle.plateNumber,
+          chassisNumber: payload.vehicle.chassisNumber,
+          engineNumber: payload.vehicle.engineNumber,
+          estimatedVehicleValue: payload.vehicle.estimatedVehicleValue,
+          vehicleImages: payload.vehicleImages,
+          customerDocuments: payload.documents,
+          notes: payload.notes || null,
+          source: "Internal",
+          agentId: agent.id,
+          agentName: agent.name ?? "Agent",
+          agentEmail: agent.email,
+          agentRole: agent.role,
+          agentAgency: agent.agency?.name ?? null,
+          userId: user.id,
+          createdDate: now,
+          createdTime
+        },
+        select: {
+          id: true,
+          requestNumber: true,
+          status: true,
+          createdAt: true,
+          createdTime: true
         }
-        throw error;
-      }
-    }
-
-    if (!created) throw new Error("Unable to create request.");
+      });
+    });
 
     await writeAuditLog({
       userId: user.id,

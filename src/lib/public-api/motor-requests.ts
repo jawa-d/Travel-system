@@ -45,16 +45,6 @@ function logPrismaError(stage: string, error: unknown) {
   console.error(`[public-motor-request] ${stage} error`, error);
 }
 
-function getErrorMessage(error: unknown) {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "string") return error;
-  try {
-    return JSON.stringify(error);
-  } catch {
-    return String(error);
-  }
-}
-
 const documentLabels: Record<string, string> = {
   nationalIdFront: "National ID Front",
   nationalIdBack: "National ID Back",
@@ -63,7 +53,6 @@ const documentLabels: Record<string, string> = {
   residenceCardFront: "Residence Card Front",
   residenceCardBack: "Residence Card Back"
 };
-const REQUEST_NUMBER_RETRY_LIMIT = 5;
 
 export const publicMotorTrackingStatuses = [
   "RECEIVED",
@@ -169,15 +158,26 @@ export function parsePublicMotorFormData(formData: FormData) {
   if (typeof payloadValue !== "string") throw new Error("payload JSON field is required.");
 
   const payload = publicMotorRequestPayloadSchema.parse(JSON.parse(payloadValue));
-  const vehicleImages = formData.getAll("vehicleImages").filter((value): value is File => value instanceof File);
+  const vehicleImages = formData.getAll("vehicleImages").filter(isFormFile);
   const documents = Object.entries(documentLabels).flatMap(([key, label]) => (
     formData.getAll(`documents.${key}`)
-      .filter((value): value is File => value instanceof File)
+      .filter(isFormFile)
       .map((file) => ({ key, label, file }))
   ));
 
   validatePublicMotorFiles({ vehicleImages, documents });
   return { payload, vehicleImages, documents };
+}
+
+function isFormFile(value: FormDataEntryValue): value is File {
+  return typeof value === "object"
+    && value !== null
+    && "name" in value
+    && typeof (value as { name?: unknown }).name === "string"
+    && "size" in value
+    && typeof (value as { size?: unknown }).size === "number"
+    && "arrayBuffer" in value
+    && typeof (value as { arrayBuffer?: unknown }).arrayBuffer === "function";
 }
 
 export async function createPublicMotorRequest(input: ReturnType<typeof parsePublicMotorFormData>) {
@@ -190,88 +190,76 @@ export async function createPublicMotorRequest(input: ReturnType<typeof parsePub
     timeZone: "Asia/Baghdad"
   }).format(now);
 
-  for (let attempt = 0; attempt < REQUEST_NUMBER_RETRY_LIMIT; attempt += 1) {
-    try {
-      logStage("prisma transaction started", { attempt: attempt + 1, retryLimit: REQUEST_NUMBER_RETRY_LIMIT, year: motorRequestYear(now) });
-      const created = await prisma.$transaction(async (tx) => {
-        try {
-          const requestNumber = await createMotorRequestNumber(tx, motorRequestYear(now));
-          logStage("request number generated", { requestNumber, attempt: attempt + 1 });
+  try {
+    logStage("prisma transaction started", { year: motorRequestYear(now) });
+    const created = await prisma.$transaction(async (tx) => {
+      try {
+        const requestNumber = await createMotorRequestNumber(tx, motorRequestYear(now));
+        logStage("request number generated", { requestNumber });
 
-          const storedFiles = await savePublicMotorFiles({
+        const storedFiles = await savePublicMotorFiles({
+          requestNumber,
+          vehicleImages: input.vehicleImages,
+          documents: input.documents
+        });
+        logStage("files uploaded", {
+          requestNumber,
+          vehicleImageCount: storedFiles.vehicleImages.length,
+          documentCount: storedFiles.customerDocuments.length,
+          uploadFailures: storedFiles.failures
+        });
+
+        const trackingNumber = requestNumber;
+        logStage("tracking number generated", { trackingNumber });
+
+        logStage("database insert started", { requestNumber });
+        const createdRequest = await tx.motorInsuranceRequest.create({
+          data: {
             requestNumber,
-            vehicleImages: input.vehicleImages,
-            documents: input.documents
-          });
-          logStage("files uploaded", {
-            requestNumber,
-            vehicleImageCount: storedFiles.vehicleImages.length,
-            documentCount: storedFiles.customerDocuments.length,
-            uploadFailures: storedFiles.failures
-          });
+            submissionToken: crypto.randomUUID(),
+            status: MotorRequestStatus.SUBMITTED,
+            customerFullName: input.payload.customer.fullName,
+            customerMobile: input.payload.customer.mobile,
+            customerEmail: input.payload.customer.email || null,
+            customerNationalId: input.payload.customer.nationalId,
+            customerAddress: input.payload.customer.address,
+            customerCity: input.payload.customer.city,
+            vehicleType: input.payload.vehicle.vehicleType,
+            manufacturer: input.payload.vehicle.manufacturer,
+            model: input.payload.vehicle.model,
+            manufacturingYear: input.payload.vehicle.manufacturingYear,
+            color: input.payload.vehicle.color,
+            plateNumber: input.payload.vehicle.plateNumber,
+            chassisNumber: input.payload.vehicle.chassisNumber,
+            engineNumber: input.payload.vehicle.engineNumber,
+            estimatedVehicleValue: input.payload.vehicle.estimatedVehicleValue,
+            vehicleImages: storedFiles.vehicleImages,
+            customerDocuments: storedFiles.customerDocuments,
+            uploadFailures: storedFiles.failures,
+            notes: input.payload.notes || null,
+            source: "Public Portal",
+            agentName: input.payload.agentCode || "Public Portal",
+            agentEmail: null,
+            agentRole: null,
+            agentAgency: null,
+            createdDate: now,
+            createdTime
+          },
+          select: publicMotorRequestSelect()
+        });
 
-          const trackingNumber = requestNumber;
-          logStage("tracking number generated", { trackingNumber });
-
-          logStage("database insert started", { requestNumber, attempt: attempt + 1 });
-          const createdRequest = await tx.motorInsuranceRequest.create({
-            data: {
-              requestNumber,
-              submissionToken: crypto.randomUUID(),
-              status: MotorRequestStatus.SUBMITTED,
-              customerFullName: input.payload.customer.fullName,
-              customerMobile: input.payload.customer.mobile,
-              customerEmail: input.payload.customer.email || null,
-              customerNationalId: input.payload.customer.nationalId,
-              customerAddress: input.payload.customer.address,
-              customerCity: input.payload.customer.city,
-              vehicleType: input.payload.vehicle.vehicleType,
-              manufacturer: input.payload.vehicle.manufacturer,
-              model: input.payload.vehicle.model,
-              manufacturingYear: input.payload.vehicle.manufacturingYear,
-              color: input.payload.vehicle.color,
-              plateNumber: input.payload.vehicle.plateNumber,
-              chassisNumber: input.payload.vehicle.chassisNumber,
-              engineNumber: input.payload.vehicle.engineNumber,
-              estimatedVehicleValue: input.payload.vehicle.estimatedVehicleValue,
-              vehicleImages: storedFiles.vehicleImages,
-              customerDocuments: storedFiles.customerDocuments,
-              uploadFailures: storedFiles.failures,
-              notes: input.payload.notes || null,
-              source: "Public Portal",
-              agentName: input.payload.agentCode || "Public Portal",
-              agentEmail: null,
-              agentRole: null,
-              agentAgency: null,
-              createdDate: now,
-              createdTime
-            },
-            select: publicMotorRequestSelect()
-          });
-
-          logStage("transaction committed", { requestNumber, id: createdRequest.id });
-          return createdRequest;
-        } catch (error) {
-          logPrismaError(`transaction attempt ${attempt + 1}`, error);
-          throw error;
-        }
-      });
-
-      logStage("success response returned", { id: created.id, requestNumber: created.requestNumber });
-      return created;
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2002" &&
-        attempt < REQUEST_NUMBER_RETRY_LIMIT - 1
-      ) {
-        logStage("request number conflict, retrying", { attempt: attempt + 1, reason: getErrorMessage(error) });
-        continue;
+        logStage("transaction committed", { requestNumber, id: createdRequest.id });
+        return createdRequest;
+      } catch (error) {
+        logPrismaError("transaction", error);
+        throw error;
       }
-      logPrismaError(`createPublicMotorRequest attempt ${attempt + 1}`, error);
-      throw error;
-    }
-  }
+    });
 
-  throw new Error("Unable to create motor insurance request.");
+    logStage("success response returned", { id: created.id, requestNumber: created.requestNumber });
+    return created;
+  } catch (error) {
+    logPrismaError("createPublicMotorRequest", error);
+    throw error;
+  }
 }

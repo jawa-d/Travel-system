@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
   try {
     logStage("request received", { method: request.method, url: request.url });
-    const formData = await request.formData();
+    const formData = await parseMultipartFormData(request);
     const parsed = parsePublicMotorFormData(formData);
     logStage("payload parsed", {
       vehicleImageCount: parsed.vehicleImages.length,
@@ -102,6 +102,20 @@ function isPayloadTooLargeError(error: unknown) {
   return false;
 }
 
+async function parseMultipartFormData(request: NextRequest) {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().startsWith("multipart/form-data")) {
+    throw new Error("Content-Type must be multipart/form-data.");
+  }
+
+  try {
+    return await request.formData();
+  } catch (error) {
+    console.error("[public-motor-request] multipart parsing failed", error);
+    throw new Error("Unable to parse multipart form data. Please send a valid FormData request with the browser-generated boundary.");
+  }
+}
+
 function logStage(stage: string, details?: Record<string, unknown>) {
   console.log(`[public-motor-request] ${stage}`, details ?? {});
 }
@@ -129,13 +143,13 @@ function publicApiError(error: unknown, debug?: ReturnType<typeof blobCredential
     return NextResponse.json({ success: false, message: "payload must be valid JSON.", ...nonProductionDebug(debug ?? blobCredentialDebug()) }, { status: 400 });
   }
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-    console.error("[public-motor-request] duplicate request number after retries", {
+    console.error("[public-motor-request] unique constraint conflict", {
       code: error.code,
       meta: error.meta,
       message: error.message,
       stack: error.stack
     });
-    return NextResponse.json({ success: false, error: "Unable to create request due to duplicate request number.", ...nonProductionDebug(debug ?? blobCredentialDebug()) }, { status: 409 });
+    return NextResponse.json({ success: false, error: "Unable to create request because a unique value already exists.", ...nonProductionDebug(debug ?? blobCredentialDebug()) }, { status: 409 });
   }
   const message = error instanceof Error ? error.message : "Unexpected server error.";
   console.error("[public-motor-request] request failed", {
@@ -144,6 +158,6 @@ function publicApiError(error: unknown, debug?: ReturnType<typeof blobCredential
     code: error instanceof Prisma.PrismaClientKnownRequestError ? error.code : undefined,
     meta: error instanceof Prisma.PrismaClientKnownRequestError ? error.meta : undefined
   });
-  const status = /required|invalid|unsupported|exceeds|empty/i.test(message) ? 400 : 500;
+  const status = /required|invalid|unsupported|exceeds|empty|content-type|multipart|form data/i.test(message) ? 400 : 500;
   return NextResponse.json({ success: false, error: message, ...nonProductionDebug(debug ?? blobCredentialDebug()) }, { status });
 }
