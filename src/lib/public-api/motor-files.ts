@@ -37,16 +37,10 @@ export const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp", ".hei
 export const DOCUMENT_EXTENSIONS = new Set([...IMAGE_EXTENSIONS, ".pdf"]);
 const FALLBACK_FILE_TYPES = new Set(["", "application/octet-stream"]);
 const DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024;
-const DEFAULT_MAX_TOTAL_PAYLOAD_SIZE = 25 * 1024 * 1024;
 
 export function maxPublicMotorFileSize() {
   const configured = Number(process.env.PUBLIC_API_MAX_FILE_SIZE_MB);
   return Number.isFinite(configured) && configured > 0 ? configured * 1024 * 1024 : DEFAULT_MAX_FILE_SIZE;
-}
-
-export function maxPublicMotorTotalPayloadSize() {
-  const configured = Number(process.env.PUBLIC_API_MAX_TOTAL_PAYLOAD_SIZE_MB);
-  return Number.isFinite(configured) && configured > 0 ? configured * 1024 * 1024 : DEFAULT_MAX_TOTAL_PAYLOAD_SIZE;
 }
 
 function safeFileName(name: string) {
@@ -61,12 +55,6 @@ export function validatePublicMotorFiles(input: {
 }) {
   if (input.vehicleImages.length < 5) {
     throw new Error("At least 5 vehicle images are required.");
-  }
-
-  const totalSize = input.vehicleImages.reduce((sum, file) => sum + file.size, 0)
-    + input.documents.reduce((sum, document) => sum + document.size, 0);
-  if (totalSize > maxPublicMotorTotalPayloadSize()) {
-    throw new Error(`Upload payload exceeds the maximum allowed size of ${Math.round(maxPublicMotorTotalPayloadSize() / (1024 * 1024))}MB.`);
   }
 
   const requiredDocumentKeys = [
