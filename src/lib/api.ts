@@ -24,6 +24,7 @@ export async function requirePermission(permission: Permission) {
 }
 
 
+
 export function jsonError(error: unknown) {
   if (error instanceof Response) return error;
   if (error instanceof ZodError) {
