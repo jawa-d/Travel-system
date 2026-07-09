@@ -16,6 +16,11 @@ export async function requireUser() {
   }
   return user;
 }
+
+
+
+
+
 export async function requirePermission(permission: Permission) {
   const user = await requireUser();
   if (!can(user.role, permission)) throw new Response("Forbidden", { status: 403 });
