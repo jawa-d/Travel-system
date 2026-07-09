@@ -24,6 +24,16 @@ export default async function MotorRequestsPage() {
       model: true,
       plateNumber: true,
       estimatedVehicleValue: true,
+      insurancePremium: true,
+      netPremium: true,
+      pricingCurrency: true,
+      commission: {
+        select: {
+          id: true,
+          paid: true,
+          commissionAmount: true
+        }
+      },
       createdDate: true,
       createdTime: true
     }
@@ -35,6 +45,13 @@ export default async function MotorRequestsPage() {
   const listRequests = requests.map((request) => ({
     ...request,
     estimatedVehicleValue: String(request.estimatedVehicleValue),
+    insurancePremium: String(request.insurancePremium),
+    netPremium: String(request.netPremium),
+    commission: request.commission ? {
+      id: request.commission.id,
+      paid: request.commission.paid,
+      commissionAmount: String(request.commission.commissionAmount)
+    } : null,
     createdDate: request.createdDate.toISOString()
   }));
 
@@ -70,7 +87,11 @@ export default async function MotorRequestsPage() {
         </CardHeader>
         <CardContent className="p-0">
           {requests.length ? (
-            <MotorRequestsList requests={listRequests} canDelete={can(user.role, "motorRequestsDelete")} />
+            <MotorRequestsList
+              requests={listRequests}
+              canDelete={can(user.role, "motorRequestsDelete")}
+              canPayCommission={can(user.role, "motorCommissionsWrite")}
+            />
           ) : (
             <div className="p-10 text-center">
               <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-lg bg-primary/10 text-primary">

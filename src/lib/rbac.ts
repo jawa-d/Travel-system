@@ -22,6 +22,8 @@ const permissions = {
   policiesDelete: [Role.SUPER_ADMIN],
   financeRead: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE],
   motorAccountsRead: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.FINANCE],
+  motorCommissionsRead: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE],
+  motorCommissionsWrite: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE],
   claimsRead: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.FINANCE, Role.AGENT],
   claimsWrite: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.AGENT],
   claimsManage: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER],
