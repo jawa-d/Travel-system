@@ -1,3 +1,4 @@
+import { Role } from "@prisma/client";
 import { CheckCircle2, ClipboardList, Clock3, PlusCircle } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ClaimManager } from "@/components/claim-manager";
@@ -9,15 +10,18 @@ import { prisma } from "@/lib/prisma";
 import { visiblePolicyWhere } from "@/lib/policy-access";
 
 export default async function ClaimsPage() {
-  const user = await requirePagePermission("claimsRead");
+  const user = await requirePagePermission("claimsWrite");
+  const canManageClaims = user.role === Role.SUPER_ADMIN || user.role === Role.ADMIN || user.role === Role.UNDERWRITER;
   const claimTypes = isDirectAccessEnabled() ? [] : await prisma.lookupValue.findMany({ where: { category: "CLAIM_TYPE", active: true }, orderBy: { sortOrder: "asc" } });
   const claims = isDirectAccessEnabled()
     ? getDemoClaims()
-    : await prisma.claim.findMany({ where: { policy: visiblePolicyWhere(user) }, include: { policy: true, customer: true }, orderBy: { createdAt: "desc" } });
+    : canManageClaims
+      ? await prisma.claim.findMany({ where: { policy: visiblePolicyWhere(user) }, include: { policy: true, customer: true }, orderBy: { createdAt: "desc" } })
+      : [];
   const policies = isDirectAccessEnabled()
     ? getDemoPolicies()
     : await prisma.policy.findMany({ where: visiblePolicyWhere(user), include: { customer: true }, orderBy: { createdAt: "desc" }, take: 100 });
-  const agents = !isDirectAccessEnabled() && user.role !== "AGENT"
+  const agents = !isDirectAccessEnabled() && canManageClaims
     ? await prisma.user.findMany({ where: { role: "AGENT", active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } })
     : [];
 
@@ -45,7 +49,9 @@ export default async function ClaimsPage() {
       </div>
 
       <ClaimManager
-        canManage={user.role !== "AGENT"}
+        canCreate
+        canManage={canManageClaims}
+        canViewClaims={canManageClaims}
         claimTypes={(claimTypes.length ? claimTypes.map((item) => ({ value: item.value, label: item.labelAr })) : [
           { value: "MEDICAL", label: "طبية" }, { value: "BAGGAGE", label: "أمتعة" },
           { value: "TRIP_DELAY", label: "تأخير رحلة" }, { value: "CANCELLATION", label: "إلغاء رحلة" },

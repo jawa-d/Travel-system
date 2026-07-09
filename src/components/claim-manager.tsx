@@ -55,13 +55,17 @@ const typeLabels: Record<string, string> = {
 export function ClaimManager({
   claims,
   policies,
+  canCreate,
   canManage,
+  canViewClaims,
   claimTypes,
   agents
 }: {
   claims: ClaimItem[];
   policies: { policyNumber: string; customerName: string }[];
+  canCreate: boolean;
   canManage: boolean;
+  canViewClaims: boolean;
   claimTypes: { value: string; label: string }[];
   agents: { id: string; name: string }[];
 }) {
@@ -141,7 +145,7 @@ export function ClaimManager({
   return (
     <>
       <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.34fr)]">
-        <section>
+        {canViewClaims ? <section>
           <div className="mb-4 flex flex-col gap-3 rounded-xl border bg-card p-3 shadow-sm sm:flex-row">
             <div className="relative flex-1">
               <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -217,9 +221,9 @@ export function ClaimManager({
             <Card className="border-dashed"><CardContent className="flex min-h-64 flex-col items-center justify-center text-center"><FileSearch className="mb-4 h-9 w-9 text-muted-foreground" /><h3 className="font-semibold">لا توجد مطالبات مطابقة</h3></CardContent></Card>
           )}
           <PaginationControls page={pagination.page} pages={pagination.pages} onChange={pagination.setPage} />
-        </section>
+        </section> : null}
 
-        {canManage ? <Card className="xl:sticky xl:top-24">
+        {canCreate ? <Card className="xl:sticky xl:top-24">
           <CardHeader className="border-b bg-muted/15">
             <CardTitle className="flex items-center gap-2"><PlusCircle className="h-5 w-5 text-primary" />مطالبة جديدة</CardTitle>
             <p className="text-sm text-muted-foreground">سجّل مطالبة مرتبطة بوثيقة موجودة.</p>

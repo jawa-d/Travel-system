@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ClaimStatus } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { jsonError, requirePermission, requireUser } from "@/lib/api";
+import { jsonError, requirePermission } from "@/lib/api";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
 import { updateDemoClaimStatus, type DemoClaimStatus } from "@/lib/demo-claim-store";
 import { canAccessPolicy } from "@/lib/policy-access";
@@ -14,7 +14,7 @@ const updateClaimSchema = z.object({
 });
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser();
+  const user = await requirePermission("claimsRead");
   const { id } = await params;
   const claim = await prisma.claim.findUnique({ where: { id }, include: { policy: true, customer: true } });
   if (!claim) return NextResponse.json({ error: "Claim not found" }, { status: 404 });

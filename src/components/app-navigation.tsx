@@ -53,7 +53,7 @@ const groups: Array<{ label: string; items: NavItem[]; collapsible?: boolean }> 
     items: [
       { href: "/policies", label: "الوثائق", icon: FileText, permission: "policiesRead" },
       { href: "/customers", label: "العملاء", icon: Users, permission: "customersRead" },
-      { href: "/claims", label: "المطالبات", icon: ClipboardList, permission: "claimsRead" },
+      { href: "/claims", label: "المطالبات", icon: ClipboardList, permission: "claimsWrite" },
       { href: "/endorsements", label: "الملاحق", icon: FileClock, permission: "endorsementsRead" },
       { href: "/cancellations", label: "الإلغاءات", icon: XCircle, permission: "cancellationsRead" }
     ]

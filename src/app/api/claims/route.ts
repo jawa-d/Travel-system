@@ -12,7 +12,7 @@ import { canAccessPolicy, visiblePolicyWhere } from "@/lib/policy-access";
 
 export async function GET() {
   if (isDirectAccessEnabled()) return NextResponse.json(getDemoClaims());
-  const user = await requireUser();
+  const user = await requirePermission("claimsRead");
   const claims = await prisma.claim.findMany({
     where: { policy: visiblePolicyWhere(user) },
     include: { policy: true, customer: true, createdBy: true },
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
         claimType: data.claimType as Parameters<typeof createDemoClaim>[0]["claimType"],
         description: data.description,
         attachments: data.attachments,
-        status: data.status
+        status: "OPEN"
       });
       return NextResponse.json(claim, { status: 201 });
     }
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
         claimType: data.claimType,
         description: data.description,
         attachments: data.attachments,
-        status: data.status,
+        status: "OPEN",
         createdById: user.id
       },
       include: { policy: true, customer: true }
