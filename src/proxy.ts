@@ -54,7 +54,8 @@ export default auth(async (request) => {
       path.startsWith("/customers/") ||
       path === "/claims" ||
       path === "/endorsements" ||
-      path === "/cancellations";
+      path === "/cancellations" ||
+      path === "/reports";
     if (!allowed) {
       const deniedUrl = new URL("/access-denied", requestOrigin(request));
       deniedUrl.searchParams.set("from", `${request.nextUrl.pathname}${request.nextUrl.search}`);
