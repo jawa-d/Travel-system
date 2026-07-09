@@ -16,15 +16,11 @@ export async function requireUser() {
   }
   return user;
 }
-
 export async function requirePermission(permission: Permission) {
   const user = await requireUser();
   if (!can(user.role, permission)) throw new Response("Forbidden", { status: 403 });
   return user;
 }
-
-
-
 export function jsonError(error: unknown) {
   if (error instanceof Response) return error;
   if (error instanceof ZodError) {
@@ -39,6 +35,3 @@ export function jsonError(error: unknown) {
   const message = error instanceof Error ? error.message : "حدث خطأ غير متوقع";
   return NextResponse.json({ error: message }, { status: 400 });
 }
-
-
-
