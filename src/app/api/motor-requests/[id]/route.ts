@@ -50,7 +50,7 @@ function canEditRequest(user: { role: Role }, request: { policyIssuedAt: Date | 
 }
 
 function canDeleteRequest(user: { role: Role }, request: { policyIssuedAt: Date | null; issuedPolicyNumber: string | null }) {
-  return (user.role === Role.SUPER_ADMIN || user.role === Role.ADMIN) && !request.policyIssuedAt && !request.issuedPolicyNumber;
+  return user.role === Role.SUPER_ADMIN && !request.policyIssuedAt && !request.issuedPolicyNumber;
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

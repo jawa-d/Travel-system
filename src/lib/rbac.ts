@@ -39,7 +39,7 @@ const permissions = {
   motorRequestsRead: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.AGENT],
   motorRequestsManage: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER],
   motorRequestsEdit: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER],
-  motorRequestsDelete: [Role.SUPER_ADMIN, Role.ADMIN],
+  motorRequestsDelete: [Role.SUPER_ADMIN],
   motorRequestsPricing: [Role.SUPER_ADMIN, Role.UNDERWRITER],
   motorRequestsTermsWrite: [Role.SUPER_ADMIN, Role.UNDERWRITER],
   motorRequestsTermsApprove: [Role.SUPER_ADMIN],
