@@ -22,6 +22,7 @@ export type ReferralListItem = {
   currency: string;
   createdByName: string | null;
   createdByBank: string | null;
+  createdByEmail: string | null;
   createdAt: string;
   commission: { id: string; commissionAmount: string } | null;
 };
@@ -111,7 +112,14 @@ export function ReferralsList({ referrals, canManage, canPayCommission, canDelet
                 <td className="p-3 font-mono font-black text-primary" dir="ltr">{referral.referralNumber}</td>
                 <td className="p-3 font-bold">{referral.applicantName || "-"}</td>
                 <td className="p-3">{referral.beneficiaryName || "-"}</td>
-                <td className="p-3">{referral.createdByBank || referral.createdByName || "-"}</td>
+                <td className="p-3">
+                  <div className="min-w-44">
+                    <p className="font-bold text-slate-950 dark:text-foreground">{referral.createdByBank || referral.createdByName || "-"}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {[referral.createdByBank ? referral.createdByName : null, referral.createdByEmail].filter(Boolean).join(" · ") || "بدون تفاصيل مستخدم"}
+                    </p>
+                  </div>
+                </td>
                 <td className="p-3" dir="ltr">{formatReferralMoney(Number(referral.totalPremium), referral.currency)}</td>
                 <td className="p-3">
                   {canManage ? (
