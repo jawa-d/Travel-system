@@ -20,6 +20,7 @@ export default async function ReferralCommissionsPage({ searchParams }: { search
         ...(from || to ? { createdAt: { gte: from, lte: to } } : {}),
         ...(params.referralNumber ? { referralNumber: { contains: params.referralNumber, mode: "insensitive" } } : {}),
         ...(params.bank ? { OR: [
+          { beneficiaryName: { contains: params.bank, mode: "insensitive" } },
           { createdByBank: { contains: params.bank, mode: "insensitive" } },
           { createdByName: { contains: params.bank, mode: "insensitive" } },
           { createdByEmail: { contains: params.bank, mode: "insensitive" } }
@@ -32,7 +33,7 @@ export default async function ReferralCommissionsPage({ searchParams }: { search
   const grouped = new Map<string, { bank: string; referralCount: number; commissionByCurrency: Record<string, number>; premiumByCurrency: Record<string, number> }>();
   const totalCommissionByCurrency: Record<string, number> = {};
   for (const commission of commissions) {
-    const bank = commission.paidToBank || commission.referral.createdByBank || commission.paidToName || commission.referral.createdByName || "غير محدد";
+    const bank = commission.paidToBank || commission.referral.beneficiaryName || commission.referral.createdByBank || commission.paidToName || commission.referral.createdByName || "غير محدد";
     const current = grouped.get(bank) ?? { bank, referralCount: 0, commissionByCurrency: {}, premiumByCurrency: {} };
     current.referralCount += 1;
     addCurrencyTotal(current.commissionByCurrency, commission.currency, Number(commission.commissionAmount));
@@ -54,7 +55,7 @@ export default async function ReferralCommissionsPage({ searchParams }: { search
         <div>
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary"><BadgeDollarSign className="h-4 w-4" />عمولات الإحالات</div>
           <h1 className="text-2xl font-black sm:text-3xl">كشف عمولات المصارف</h1>
-          <p className="mt-2 text-sm text-muted-foreground">كشف كامل حسب المصرف مع عدد الإحالات ومبالغ العمولات وأرقام الحالات.</p>
+          <p className="mt-2 text-sm text-muted-foreground">كشف كامل حسب المصرف المستفيد أو الجهة الرافعة مع عدد الإحالات ومبالغ العمولات وأرقام الحالات.</p>
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline"><Link href={`/api/referral-commissions?${query}&format=xlsx`}><Download className="h-4 w-4" />XLSX</Link></Button>
@@ -65,7 +66,7 @@ export default async function ReferralCommissionsPage({ searchParams }: { search
       <form className="mb-6 grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-[1fr_1fr_1fr_1fr_auto]">
         <input name="from" type="date" defaultValue={params.from} className="h-11 rounded-md border bg-background px-3 text-sm" />
         <input name="to" type="date" defaultValue={params.to} className="h-11 rounded-md border bg-background px-3 text-sm" />
-        <input name="bank" defaultValue={params.bank} placeholder="المصرف/المستخدم" className="h-11 rounded-md border bg-background px-3 text-sm" />
+        <input name="bank" defaultValue={params.bank} placeholder="المصرف/المستفيد/المستخدم" className="h-11 rounded-md border bg-background px-3 text-sm" />
         <input name="referralNumber" defaultValue={params.referralNumber} placeholder="رقم الحالة" className="h-11 rounded-md border bg-background px-3 text-sm" dir="ltr" />
         <Button>بحث</Button>
       </form>
@@ -82,7 +83,7 @@ export default async function ReferralCommissionsPage({ searchParams }: { search
           <table className="w-full min-w-[700px] text-sm">
             <thead className="bg-muted/40 text-xs text-muted-foreground">
               <tr>
-                <th className="p-3 text-right">المصرف/المستخدم</th>
+                <th className="p-3 text-right">المصرف/المستفيد/المستخدم</th>
                 <th className="p-3 text-right">عدد الإحالات</th>
                 <th className="p-3 text-right">إجمالي الأقساط</th>
                 <th className="p-3 text-right">إجمالي العمولات</th>
@@ -109,7 +110,8 @@ export default async function ReferralCommissionsPage({ searchParams }: { search
             <thead className="bg-muted/40 text-xs text-muted-foreground">
               <tr>
                 <th className="p-3 text-right">رقم الحالة</th>
-                <th className="p-3 text-right">المصرف/المستخدم</th>
+                <th className="p-3 text-right">المصرف المستفيد</th>
+                <th className="p-3 text-right">الجهة الرافعة</th>
                 <th className="p-3 text-right">طالب التأمين</th>
                 <th className="p-3 text-right">القسط</th>
                 <th className="p-3 text-right">العمولة</th>
@@ -120,14 +122,15 @@ export default async function ReferralCommissionsPage({ searchParams }: { search
               {commissions.map((item) => (
                 <tr key={item.id}>
                   <td className="p-3 font-mono font-black text-primary" dir="ltr">{item.referral.referralNumber}</td>
-                  <td className="p-3">{item.paidToBank || item.referral.createdByBank || item.paidToName || item.referral.createdByName || "-"}</td>
+                  <td className="p-3">{item.referral.beneficiaryName || item.paidToBank || "-"}</td>
+                  <td className="p-3">{item.referral.createdByBank || item.paidToName || item.referral.createdByName || "-"}</td>
                   <td className="p-3">{item.referral.applicantName || "-"}</td>
                   <td className="p-3" dir="ltr">{formatReferralMoney(Number(item.premiumAmount), item.currency)}</td>
                   <td className="p-3" dir="ltr">{formatReferralMoney(Number(item.commissionAmount), item.currency)}</td>
                   <td className="p-3">{formatDate(item.paidAt)}</td>
                 </tr>
               ))}
-              {!commissions.length ? <tr><td colSpan={6} className="p-10 text-center text-muted-foreground">لا توجد عمولات ضمن البحث المحدد.</td></tr> : null}
+              {!commissions.length ? <tr><td colSpan={7} className="p-10 text-center text-muted-foreground">لا توجد عمولات ضمن البحث المحدد.</td></tr> : null}
             </tbody>
           </table>
         </CardContent>

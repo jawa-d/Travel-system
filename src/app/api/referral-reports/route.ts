@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
       referralNumber ? { referralNumber: { contains: referralNumber, mode: "insensitive" as const } } : {},
       applicant ? { applicantName: { contains: applicant, mode: "insensitive" as const } } : {},
       bank ? { OR: [
+        { beneficiaryName: { contains: bank, mode: "insensitive" as const } },
         { createdByBank: { contains: bank, mode: "insensitive" as const } },
         { createdByName: { contains: bank, mode: "insensitive" as const } },
         { createdByEmail: { contains: bank, mode: "insensitive" as const } }
@@ -43,9 +44,17 @@ export async function GET(request: NextRequest) {
   const issuedCount = referrals.filter((item) => item.status === "ISSUED").length;
   const premiumByCurrency: Record<string, number> = {};
   const commissionByCurrency: Record<string, number> = {};
+  const bankSummaries = new Map<string, { bank: string; referralCount: number; issuedCount: number; premiumByCurrency: Record<string, number>; commissionByCurrency: Record<string, number> }>();
   referrals.forEach((item) => {
     addCurrencyTotal(premiumByCurrency, item.currency, Number(item.totalPremium));
     addCurrencyTotal(commissionByCurrency, item.currency, Number(item.commission?.commissionAmount ?? 0));
+    const bankName = item.beneficiaryName || item.createdByBank || item.createdByName || "Unspecified";
+    const summary = bankSummaries.get(bankName) ?? { bank: bankName, referralCount: 0, issuedCount: 0, premiumByCurrency: {}, commissionByCurrency: {} };
+    summary.referralCount += 1;
+    if (item.status === "ISSUED") summary.issuedCount += 1;
+    addCurrencyTotal(summary.premiumByCurrency, item.currency, Number(item.totalPremium));
+    addCurrencyTotal(summary.commissionByCurrency, item.currency, Number(item.commission?.commissionAmount ?? 0));
+    bankSummaries.set(bankName, summary);
   });
   const conversionRate = referrals.length ? issuedCount / referrals.length * 100 : 0;
   const complianceScore = referrals.length ? Math.round(referrals.reduce((sum, item) => sum + referralCompletion(item), 0) / referrals.length) : 100;
@@ -70,18 +79,26 @@ export async function GET(request: NextRequest) {
     referralNumber: item.referralNumber,
     status: referralStatusLabels[item.status],
     applicantName: item.applicantName ?? "",
-    bank: item.createdByBank ?? item.createdByName ?? "",
+    beneficiaryBank: item.beneficiaryName ?? "",
+    submittedBy: item.createdByBank ?? item.createdByName ?? "",
     totalPremium: formatReferralMoney(Number(item.totalPremium), item.currency),
     commissionAmount: formatReferralMoney(Number(item.commission?.commissionAmount ?? 0), item.currency),
     formCompletion: `${referralCompletion(item)}%`,
     createdAt: item.createdAt.toISOString().slice(0, 10)
+  }));
+  const bankSummaryRows = Array.from(bankSummaries.values()).map((item) => ({
+    bank: item.bank,
+    referralCount: item.referralCount,
+    issuedCount: item.issuedCount,
+    totalPremium: formatCurrencyTotals(item.premiumByCurrency),
+    totalCommission: formatCurrencyTotals(item.commissionByCurrency)
   }));
 
   const rows = [...summaryRows, ...detailRows.map((item) => ({ metric: item.referralNumber, value: `${item.status} | ${item.totalPremium} | ${item.commissionAmount} | ${item.formCompletion}` }))];
   const title = reportType === "quarterly-regulatory" ? "Quarterly regulatory referral report" : "Monthly operational referral report";
 
   if (format === "xlsx") {
-    const buffer = rowsToExcelBuffer(reportType === "quarterly-regulatory" ? summaryRows : [...summaryRows, ...detailRows], "Referral Report");
+    const buffer = rowsToExcelBuffer(reportType === "quarterly-regulatory" ? [...summaryRows, ...bankSummaryRows] : [...summaryRows, ...bankSummaryRows, ...detailRows], "Referral Report");
     return new Response(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -103,6 +120,7 @@ export async function GET(request: NextRequest) {
     from,
     to,
     summaryRows,
+    bankSummaryRows,
     detailRows
   });
 }

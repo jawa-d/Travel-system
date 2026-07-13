@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
         ...(from || to ? { createdAt: { gte: from, lte: to } } : {}),
         ...(referralNumber ? { referralNumber: { contains: referralNumber, mode: "insensitive" } } : {}),
         ...(bank ? { OR: [
+          { beneficiaryName: { contains: bank, mode: "insensitive" } },
           { createdByBank: { contains: bank, mode: "insensitive" } },
           { createdByName: { contains: bank, mode: "insensitive" } },
           { createdByEmail: { contains: bank, mode: "insensitive" } }
@@ -36,7 +37,8 @@ export async function GET(request: NextRequest) {
     addCurrencyTotal(commissionByCurrency, item.currency, Number(item.commissionAmount));
     return {
     referralNumber: item.referral.referralNumber,
-    bank: item.paidToBank || item.referral.createdByBank || item.paidToName || item.referral.createdByName || "",
+    beneficiaryBank: item.referral.beneficiaryName || item.paidToBank || "",
+    submittedBy: item.referral.createdByBank || item.paidToName || item.referral.createdByName || "",
     applicantName: item.referral.applicantName ?? "",
     premiumAmount: formatReferralMoney(Number(item.premiumAmount), item.currency),
     commissionRate: `${item.commissionRate}%`,

@@ -37,6 +37,7 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
       params.referralNumber ? { referralNumber: { contains: params.referralNumber, mode: "insensitive" as const } } : {},
       params.applicant ? { applicantName: { contains: params.applicant, mode: "insensitive" as const } } : {},
       params.bank ? { OR: [
+        { beneficiaryName: { contains: params.bank, mode: "insensitive" as const } },
         { createdByBank: { contains: params.bank, mode: "insensitive" as const } },
         { createdByName: { contains: params.bank, mode: "insensitive" as const } },
         { createdByEmail: { contains: params.bank, mode: "insensitive" as const } }
@@ -60,22 +61,31 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
     }),
     prisma.referral.findMany({
       where: bankOptionWhere,
-      select: { createdByBank: true, createdByName: true, createdByEmail: true },
+      select: { beneficiaryName: true, createdByBank: true, createdByName: true, createdByEmail: true },
       orderBy: { createdAt: "desc" }
     })
   ]);
   const bankOptions = Array.from(new Set(bankSources
-    .map((item) => item.createdByBank || item.createdByName || item.createdByEmail)
+    .flatMap((item) => [item.beneficiaryName, item.createdByBank, item.createdByName, item.createdByEmail])
     .filter((value): value is string => Boolean(value?.trim()))
   )).sort((a, b) => a.localeCompare(b, "ar"));
 
   const issuedCount = referrals.filter((item) => item.status === "ISSUED").length;
   const premiumByCurrency: Record<string, number> = {};
   const commissionByCurrency: Record<string, number> = {};
+  const bankSummaries = new Map<string, { bank: string; referralCount: number; issuedCount: number; premiumByCurrency: Record<string, number>; commissionByCurrency: Record<string, number> }>();
   referrals.forEach((item) => {
     addCurrencyTotal(premiumByCurrency, item.currency, Number(item.totalPremium));
     addCurrencyTotal(commissionByCurrency, item.currency, Number(item.commission?.commissionAmount ?? 0));
+    const bank = item.beneficiaryName || item.createdByBank || item.createdByName || "غير محدد";
+    const summary = bankSummaries.get(bank) ?? { bank, referralCount: 0, issuedCount: 0, premiumByCurrency: {}, commissionByCurrency: {} };
+    summary.referralCount += 1;
+    if (item.status === "ISSUED") summary.issuedCount += 1;
+    addCurrencyTotal(summary.premiumByCurrency, item.currency, Number(item.totalPremium));
+    addCurrencyTotal(summary.commissionByCurrency, item.currency, Number(item.commission?.commissionAmount ?? 0));
+    bankSummaries.set(bank, summary);
   });
+  const bankSummaryRows = Array.from(bankSummaries.values()).sort((a, b) => b.referralCount - a.referralCount);
   const conversionRate = referrals.length ? issuedCount / referrals.length * 100 : 0;
   const incompleteForms = referrals.filter((item) => referralCompletion(item) < 80).length;
   const complianceScore = referrals.length ? Math.round(referrals.reduce((sum, item) => sum + referralCompletion(item), 0) / referrals.length) : 100;
@@ -96,7 +106,7 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
         <div>
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary"><WalletCards className="h-4 w-4" />تقارير الإحالات</div>
           <h1 className="text-2xl font-black sm:text-3xl">{reportType === "quarterly-regulatory" ? "تقرير ربع سنوي رقابي" : "تقرير شهري تشغيلي"}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">بحث تفصيلي حسب المصرف، الحالة، طالب التأمين، ورقم الحالة مع تصدير PDF وXLSX.</p>
+          <p className="mt-2 text-sm text-muted-foreground">بحث تفصيلي حسب المصرف المستفيد، الجهة الرافعة، الحالة، طالب التأمين، ورقم الحالة مع تصدير PDF وXLSX.</p>
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline"><Link href={`/api/referral-reports?${query}&format=xlsx`}><Download className="h-4 w-4" />XLSX</Link></Button>
@@ -112,7 +122,7 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
         <input name="from" type="date" defaultValue={from.toISOString().slice(0, 10)} className="h-11 rounded-md border bg-background px-3 text-sm" />
         <input name="to" type="date" defaultValue={to.toISOString().slice(0, 10)} className="h-11 rounded-md border bg-background px-3 text-sm" />
         <select name="bank" defaultValue={params.bank ?? ""} className="h-11 rounded-md border bg-background px-3 text-sm">
-          <option value="">كل المصارف/المستخدمين</option>
+          <option value="">كل المصارف/المستفيدين/المستخدمين</option>
           {bankOptions.map((bank) => <option key={bank} value={bank}>{bank}</option>)}
         </select>
         <select name="status" defaultValue={params.status ?? ""} className="h-11 rounded-md border bg-background px-3 text-sm">
@@ -153,6 +163,35 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
         </Card>
       ) : null}
 
+      <Card className="mb-6">
+        <CardHeader><CardTitle className="flex items-center gap-2"><WalletCards className="h-5 w-5 text-primary" />ملخص حسب المصرف المستفيد</CardTitle></CardHeader>
+        <CardContent className="overflow-x-auto p-0">
+          <table className="w-full min-w-[780px] text-sm">
+            <thead className="bg-muted/40 text-xs text-muted-foreground">
+              <tr>
+                <th className="p-3 text-right">المصرف/المستفيد</th>
+                <th className="p-3 text-right">عدد الإحالات</th>
+                <th className="p-3 text-right">تم الإصدار</th>
+                <th className="p-3 text-right">إجمالي الأقساط</th>
+                <th className="p-3 text-right">إجمالي العمولات</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {bankSummaryRows.map((item) => (
+                <tr key={item.bank}>
+                  <td className="p-3 font-bold">{item.bank}</td>
+                  <td className="p-3">{item.referralCount}</td>
+                  <td className="p-3">{item.issuedCount}</td>
+                  <td className="p-3" dir="ltr">{formatCurrencyTotals(item.premiumByCurrency)}</td>
+                  <td className="p-3" dir="ltr">{formatCurrencyTotals(item.commissionByCurrency)}</td>
+                </tr>
+              ))}
+              {!bankSummaryRows.length ? <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">لا توجد بيانات ملخص ضمن معايير البحث.</td></tr> : null}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5 text-primary" />تفاصيل التقرير</CardTitle></CardHeader>
         <CardContent className="overflow-x-auto p-0">
@@ -162,7 +201,8 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
                 <th className="p-3 text-right">رقم الحالة</th>
                 <th className="p-3 text-right">الحالة</th>
                 <th className="p-3 text-right">طالب التأمين</th>
-                <th className="p-3 text-right">المصرف/المستخدم</th>
+                <th className="p-3 text-right">المصرف المستفيد</th>
+                <th className="p-3 text-right">الجهة الرافعة</th>
                 <th className="p-3 text-right">القسط</th>
                 <th className="p-3 text-right">العمولة</th>
                 <th className="p-3 text-right">اكتمال النموذج</th>
@@ -175,6 +215,7 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
                   <td className="p-3 font-mono font-black text-primary" dir="ltr">{item.referralNumber}</td>
                   <td className="p-3">{referralStatusLabels[item.status]}</td>
                   <td className="p-3">{item.applicantName || "-"}</td>
+                  <td className="p-3">{item.beneficiaryName || "-"}</td>
                   <td className="p-3">{item.createdByBank || item.createdByName || "-"}</td>
                   <td className="p-3" dir="ltr">{formatReferralMoney(Number(item.totalPremium), item.currency)}</td>
                   <td className="p-3" dir="ltr">{formatReferralMoney(Number(item.commission?.commissionAmount ?? 0), item.currency)}</td>
@@ -182,7 +223,7 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
                   <td className="p-3">{formatDate(item.createdAt)}</td>
                 </tr>
               ))}
-              {!referrals.length ? <tr><td colSpan={8} className="p-10 text-center text-muted-foreground">لا توجد بيانات ضمن الفترة المحددة.</td></tr> : null}
+              {!referrals.length ? <tr><td colSpan={9} className="p-10 text-center text-muted-foreground">لا توجد بيانات ضمن معايير البحث المحددة.</td></tr> : null}
             </tbody>
           </table>
         </CardContent>
