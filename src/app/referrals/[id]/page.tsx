@@ -4,6 +4,7 @@ import { Download, Pencil } from "lucide-react";
 import { Role } from "@prisma/client";
 import { AppShell } from "@/components/app-shell";
 import { ReferralForm } from "@/components/referral-form";
+import { ReferralTakafulAttachments, type ReferralAttachment } from "@/components/referral-takaful-attachments";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requirePagePermission } from "@/lib/page-guard";
@@ -20,6 +21,8 @@ export default async function ReferralDetailsPage({ params }: { params: Promise<
   });
   if (!referral) notFound();
   const isGeneralManager = user.role === Role.SUPER_ADMIN;
+  const canManageTakafulAttachments = user.role === Role.SUPER_ADMIN || user.role === Role.ADMIN || user.role === Role.UNDERWRITER || user.role === Role.FINANCE;
+  const takafulAttachments = attachmentsFrom(referral.takafulAttachments);
 
   return (
     <AppShell>
@@ -84,6 +87,16 @@ export default async function ReferralDetailsPage({ params }: { params: Promise<
               ) : <p className="text-sm text-muted-foreground">لا يمكن صرف العمولة إلا عندما تكون حالة الإحالة تم الاصدار.</p>}
             </CardContent>
           </Card>
+          <Card>
+            <CardHeader><CardTitle>مرفقات تكافل العراق</CardTitle></CardHeader>
+            <CardContent>
+              <ReferralTakafulAttachments
+                referralId={referral.id}
+                initialAttachments={takafulAttachments}
+                canManage={canManageTakafulAttachments}
+              />
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -144,4 +157,16 @@ function date(value: Date | null) {
 
 function money(value: unknown, currency: string) {
   return value === null || value === undefined ? "-" : `${formatCurrency(Number(value))} ${currency}`;
+}
+
+function attachmentsFrom(value: unknown): ReferralAttachment[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is ReferralAttachment => Boolean(
+    item &&
+    typeof item === "object" &&
+    "url" in item &&
+    typeof (item as { url?: unknown }).url === "string" &&
+    "name" in item &&
+    typeof (item as { name?: unknown }).name === "string"
+  ));
 }

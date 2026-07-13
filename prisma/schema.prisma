@@ -287,6 +287,7 @@ model Referral {
   hasPreviousCompensation Boolean        @default(false)
   totalPremium          Decimal          @default(0) @db.Decimal(12, 2)
   notes                 String?          @db.Text
+  takafulAttachments    Json             @default("[]")
   createdById           String?
   createdBy             User?            @relation("ReferralCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdByName         String?

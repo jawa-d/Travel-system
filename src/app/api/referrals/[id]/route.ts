@@ -1,4 +1,5 @@
 import { ReferralStatus, Role } from "@prisma/client";
+import { del } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { jsonError, requirePermission, requireUser } from "@/lib/api";
@@ -106,10 +107,16 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   try {
     const user = await requirePermission("referralsDelete");
     const { id } = await params;
-    const existing = await prisma.referral.findUnique({ where: { id }, select: { referralNumber: true } });
+    const existing = await prisma.referral.findUnique({ where: { id }, select: { referralNumber: true, takafulAttachments: true } });
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     await prisma.referral.delete({ where: { id } });
+    const attachmentUrls = Array.isArray(existing.takafulAttachments)
+      ? existing.takafulAttachments
+          .filter((item): item is { url: string } => Boolean(item && typeof item === "object" && "url" in item && typeof (item as { url?: unknown }).url === "string"))
+          .map((item) => item.url)
+      : [];
+    await Promise.allSettled(attachmentUrls.map((url) => del(url)));
     await writeAuditLog({
       userId: user.id,
       role: user.role,
