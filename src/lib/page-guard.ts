@@ -10,7 +10,10 @@ export async function requirePagePermission(permission: Permission) {
   const user = session?.user ?? (isDirectAccessEnabled() ? directAccessUser : null);
   if (!user) redirect("/login");
   if (user.id !== directAccessUser.id) {
-    const account = await prisma.user.findUnique({ where: { id: user.id }, select: { active: true } });
+    const account = await prisma.user.findUnique({ where: { id: user.id }, select: { active: true } }).catch((error) => {
+      console.error("[auth] Failed to verify active user from database", { userId: user.id, error });
+      return { active: "active" in user ? user.active !== false : true };
+    });
     if (!account?.active) redirect("/login");
   }
   if (!can(user.role, permission)) {

@@ -1,6 +1,6 @@
 import { subMonths } from "date-fns";
 import Link from "next/link";
-import { FileText, Plus, Ship } from "lucide-react";
+import { AlertTriangle, FileText, Plus, RefreshCw, Ship } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ExecutiveDashboard, type ExecutiveDashboardData } from "@/components/executive-dashboard";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,11 @@ export default async function DashboardPage() {
       orderBy: { createdAt: "desc" },
       take: 8,
       select: { id: true, referralNumber: true, applicantName: true, status: true, totalPremium: true, currency: true, createdAt: true }
+    }).catch((error) => {
+      console.error("[dashboard] Failed to load bank referrals", error);
+      return null;
     });
+    if (!referrals) return <DashboardUnavailable />;
     const pending = referrals.filter((item) => item.status !== "ISSUED").length;
     const issued = referrals.filter((item) => item.status === "ISSUED").length;
     return (
@@ -63,26 +67,7 @@ export default async function DashboardPage() {
   since.setMonth(since.getMonth() - 11, 1);
   since.setHours(0, 0, 0, 0);
 
-  const [
-    totalCustomers,
-    totalPolicies,
-    activePolicies,
-    totalClaims,
-    totalEndorsements,
-    totalCancellations,
-    totalAgents,
-    totalMotorRequests,
-    pendingMotorRequests,
-    policyDates,
-    customerDates,
-    policyStatuses,
-    claimStatuses,
-    latestPolicies,
-    latestClaims,
-    latestEndorsements,
-    latestMotorRequests,
-    latestActivity
-  ] = await Promise.all([
+  const dashboardResult = await Promise.all([
     prisma.customer.count({ where: customerWhere }),
     prisma.policy.count({ where: policyWhere }),
     prisma.policy.count({ where: { AND: [policyWhere, { status: "ACTIVE" }] } }),
@@ -146,7 +131,33 @@ export default async function DashboardPage() {
         actor: { select: { name: true } }
       }
     })
-  ]);
+  ]).catch((error) => {
+    console.error("[dashboard] Failed to load executive dashboard", error);
+    return null;
+  });
+
+  if (!dashboardResult) return <DashboardUnavailable />;
+
+  const [
+    totalCustomers,
+    totalPolicies,
+    activePolicies,
+    totalClaims,
+    totalEndorsements,
+    totalCancellations,
+    totalAgents,
+    totalMotorRequests,
+    pendingMotorRequests,
+    policyDates,
+    customerDates,
+    policyStatuses,
+    claimStatuses,
+    latestPolicies,
+    latestClaims,
+    latestEndorsements,
+    latestMotorRequests,
+    latestActivity
+  ] = dashboardResult;
 
   const months = Array.from({ length: 12 }, (_, index) => {
     const date = subMonths(new Date(), 11 - index);
@@ -230,4 +241,26 @@ export default async function DashboardPage() {
 
 function BankMetric({ title, value }: { title: string; value: string | number }) {
   return <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">{title}</p><p className="mt-2 text-3xl font-black">{value}</p></CardContent></Card>;
+}
+
+function DashboardUnavailable() {
+  return (
+    <AppShell>
+      <Card className="mx-auto mt-16 max-w-2xl border-amber-200 bg-amber-50/40">
+        <CardContent className="p-8 text-center">
+          <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-amber-100 text-amber-700">
+            <AlertTriangle className="h-7 w-7" />
+          </span>
+          <h1 className="text-2xl font-black text-slate-950">تعذر تحميل لوحة التحكم</h1>
+          <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-muted-foreground">
+            الاتصال بقاعدة البيانات غير مستقر حالياً. باقي صفحات النظام ستعمل عند توفر الاتصال، ويمكنك إعادة المحاولة أو الانتقال مباشرة إلى سجل الإحالات.
+          </p>
+          <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
+            <Button asChild><Link href="/"><RefreshCw className="h-4 w-4" />إعادة المحاولة</Link></Button>
+            <Button asChild variant="outline"><Link href="/referrals"><Ship className="h-4 w-4" />سجل الإحالات</Link></Button>
+          </div>
+        </CardContent>
+      </Card>
+    </AppShell>
+  );
 }
