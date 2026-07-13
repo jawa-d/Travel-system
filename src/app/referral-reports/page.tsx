@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Download, FileText, WalletCards } from "lucide-react";
+import { endOfDay, endOfMonth, endOfQuarter, startOfDay, startOfMonth, startOfQuarter } from "date-fns";
+import { ClipboardCheck, Download, FileText, ShieldAlert, WalletCards } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,28 +9,38 @@ import { prisma } from "@/lib/prisma";
 import { referralStatusLabels } from "@/lib/referrals";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
-export default async function ReferralReportsPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
+type ReportType = "monthly-operational" | "quarterly-regulatory";
+
+export default async function ReferralReportsPage({ searchParams }: { searchParams: Promise<{ type?: string; from?: string; to?: string }> }) {
   await requirePagePermission("referralReportsRead");
   const params = await searchParams;
-  const from = params.from ? new Date(params.from) : undefined;
-  const to = params.to ? new Date(params.to) : undefined;
-  if (to) to.setHours(23, 59, 59, 999);
+  const reportType = (params.type === "quarterly-regulatory" ? "quarterly-regulatory" : "monthly-operational") satisfies ReportType;
+  const now = new Date();
+  const from = params.from ? startOfDay(new Date(params.from)) : reportType === "quarterly-regulatory" ? startOfQuarter(now) : startOfMonth(now);
+  const to = params.to ? endOfDay(new Date(params.to)) : reportType === "quarterly-regulatory" ? endOfQuarter(now) : endOfMonth(now);
+
   const referrals = await prisma.referral.findMany({
-    where: from || to ? { createdAt: { gte: from, lte: to } } : undefined,
-    include: { commission: true },
+    where: { createdAt: { gte: from, lte: to } },
+    include: { commission: true, installments: true },
     orderBy: { createdAt: "desc" }
   });
+
+  const issuedCount = referrals.filter((item) => item.status === "ISSUED").length;
   const totalPremium = referrals.reduce((sum, item) => sum + Number(item.totalPremium), 0);
   const totalCommission = referrals.reduce((sum, item) => sum + Number(item.commission?.commissionAmount ?? 0), 0);
-  const query = new URLSearchParams({ ...(params.from ? { from: params.from } : {}), ...(params.to ? { to: params.to } : {}) });
+  const conversionRate = referrals.length ? issuedCount / referrals.length * 100 : 0;
+  const incompleteForms = referrals.filter((item) => referralCompletion(item) < 80).length;
+  const complianceScore = referrals.length ? Math.round(referrals.reduce((sum, item) => sum + referralCompletion(item), 0) / referrals.length) : 100;
+  const riskLevel = complianceScore >= 90 ? "منخفض" : complianceScore >= 70 ? "متوسط" : "مرتفع";
+  const query = new URLSearchParams({ type: reportType, from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) });
 
   return (
     <AppShell>
       <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary"><WalletCards className="h-4 w-4" />تقارير الإحالات</div>
-          <h1 className="text-2xl font-black sm:text-3xl">تقرير الحالات والعمولات</h1>
-          <p className="mt-2 text-sm text-muted-foreground">حساب كامل للإحالات، الأقساط، والعمولات المصروفة.</p>
+          <h1 className="text-2xl font-black sm:text-3xl">{reportType === "quarterly-regulatory" ? "تقرير ربع سنوي رقابي" : "تقرير شهري تشغيلي"}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">مؤشرات تشغيلية ورقابية للإحالات والوثائق الصادرة والعمولات.</p>
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline"><Link href={`/api/referral-reports?${query}&format=xlsx`}><Download className="h-4 w-4" />XLSX</Link></Button>
@@ -37,22 +48,49 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
         </div>
       </div>
 
-      <form className="mb-6 grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-[1fr_1fr_auto]">
-        <input name="from" type="date" defaultValue={params.from} className="h-11 rounded-md border bg-background px-3 text-sm" />
-        <input name="to" type="date" defaultValue={params.to} className="h-11 rounded-md border bg-background px-3 text-sm" />
+      <form className="mb-6 grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-[220px_1fr_1fr_auto]">
+        <select name="type" defaultValue={reportType} className="h-11 rounded-md border bg-background px-3 text-sm">
+          <option value="monthly-operational">تقرير شهري تشغيلي</option>
+          <option value="quarterly-regulatory">تقرير ربع سنوي رقابي</option>
+        </select>
+        <input name="from" type="date" defaultValue={from.toISOString().slice(0, 10)} className="h-11 rounded-md border bg-background px-3 text-sm" />
+        <input name="to" type="date" defaultValue={to.toISOString().slice(0, 10)} className="h-11 rounded-md border bg-background px-3 text-sm" />
         <Button>تطبيق</Button>
       </form>
 
-      <div className="mb-6 grid gap-4 md:grid-cols-3">
-        <Metric title="إجمالي الحالات" value={referrals.length} />
-        <Metric title="إجمالي الأقساط" value={formatCurrency(totalPremium)} />
-        <Metric title="إجمالي العمولات" value={formatCurrency(totalCommission)} />
-      </div>
+      {reportType === "monthly-operational" ? (
+        <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <Metric title="عدد الإحالات" value={referrals.length} />
+          <Metric title="عدد الوثائق الصادرة" value={issuedCount} />
+          <Metric title="معدل/نسبة التحويل" value={`${conversionRate.toFixed(1)}%`} />
+          <Metric title="إجمالي الاشتراكات" value={formatCurrency(totalPremium)} />
+          <Metric title="إجمالي العمولات" value={formatCurrency(totalCommission)} />
+        </div>
+      ) : (
+        <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Metric title="مراجعة الالتزام بنموذج الإحالة" value={`${complianceScore}%`} />
+          <Metric title="حالات الشكاوى" value="0" />
+          <Metric title="أي مخالفات تنظيمية" value="0" />
+          <Metric title="تقييم مخاطر الامتثال" value={riskLevel} />
+        </div>
+      )}
+
+      {reportType === "quarterly-regulatory" ? (
+        <Card className="mb-6">
+          <CardHeader><CardTitle className="flex items-center gap-2"><ShieldAlert className="h-5 w-5 text-primary" />ملخص رقابي</CardTitle></CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            <Info label="نماذج تحتاج إكمال" value={incompleteForms} />
+            <Info label="أساس تقييم الالتزام" value="اكتمال الحقول الأساسية في نموذج الإحالة" />
+            <Info label="الشكاوى" value="لا توجد شكاوى مسجلة ضمن النظام الحالي" />
+            <Info label="المخالفات التنظيمية" value="لا توجد مخالفات مسجلة ضمن النظام الحالي" />
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
-        <CardHeader><CardTitle>تفاصيل التقرير</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5 text-primary" />تفاصيل التقرير</CardTitle></CardHeader>
         <CardContent className="overflow-x-auto p-0">
-          <table className="w-full min-w-[900px] text-sm">
+          <table className="w-full min-w-[920px] text-sm">
             <thead className="bg-muted/40 text-xs text-muted-foreground">
               <tr>
                 <th className="p-3 text-right">رقم الإحالة</th>
@@ -61,6 +99,7 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
                 <th className="p-3 text-right">المصرف/المستخدم</th>
                 <th className="p-3 text-right">القسط</th>
                 <th className="p-3 text-right">العمولة</th>
+                <th className="p-3 text-right">اكتمال النموذج</th>
                 <th className="p-3 text-right">التاريخ</th>
               </tr>
             </thead>
@@ -69,13 +108,15 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
                 <tr key={item.id}>
                   <td className="p-3 font-mono font-black text-primary" dir="ltr">{item.referralNumber}</td>
                   <td className="p-3">{referralStatusLabels[item.status]}</td>
-                  <td className="p-3">{item.applicantName}</td>
+                  <td className="p-3">{item.applicantName || "-"}</td>
                   <td className="p-3">{item.createdByBank || item.createdByName || "-"}</td>
                   <td className="p-3" dir="ltr">{formatCurrency(Number(item.totalPremium))}</td>
                   <td className="p-3" dir="ltr">{formatCurrency(Number(item.commission?.commissionAmount ?? 0))}</td>
+                  <td className="p-3">{referralCompletion(item)}%</td>
                   <td className="p-3">{formatDate(item.createdAt)}</td>
                 </tr>
               ))}
+              {!referrals.length ? <tr><td colSpan={8} className="p-10 text-center text-muted-foreground">لا توجد بيانات ضمن الفترة المحددة.</td></tr> : null}
             </tbody>
           </table>
         </CardContent>
@@ -84,6 +125,43 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
   );
 }
 
+function referralCompletion(referral: {
+  applicantName: string | null;
+  beneficiaryName: string | null;
+  insuredAmount: unknown;
+  insuranceFrom: Date | null;
+  insuranceTo: Date | null;
+  totalInsuredAfterIncrease: unknown;
+  coverType: string | null;
+  cargoDescription: string | null;
+  routeFrom: string | null;
+  routeTo: string | null;
+  transportMode: unknown;
+  packagingType: string | null;
+  invoiceNumber: string | null;
+}) {
+  const fields = [
+    referral.applicantName,
+    referral.beneficiaryName,
+    referral.insuredAmount,
+    referral.insuranceFrom,
+    referral.insuranceTo,
+    referral.totalInsuredAfterIncrease,
+    referral.coverType,
+    referral.cargoDescription,
+    referral.routeFrom,
+    referral.routeTo,
+    referral.transportMode,
+    referral.packagingType,
+    referral.invoiceNumber
+  ];
+  return Math.round(fields.filter(Boolean).length / fields.length * 100);
+}
+
 function Metric({ title, value }: { title: string; value: string | number }) {
   return <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">{title}</p><p className="mt-2 text-2xl font-black">{value}</p></CardContent></Card>;
+}
+
+function Info({ label, value }: { label: string; value: string | number }) {
+  return <div className="rounded-lg border bg-muted/10 p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-bold">{value}</p></div>;
 }
