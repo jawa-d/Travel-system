@@ -24,41 +24,57 @@ export const transportModeLabels: Record<TransportMode, string> = {
 export const coverTypes = ["Cluse A", "Cluse B", "Cluse C"] as const;
 export const extraRiskOptions = ["الحرب", "الارهاب", "الشغب والاضطرابات"] as const;
 
-export const referralSchema = z.object({
+const optionalText = z.preprocess((value) => value === "" ? null : value, z.string().trim().max(2000).nullable().optional());
+const optionalNumber = z.preprocess((value) => value === "" || value === null ? null : value, z.coerce.number().nonnegative().nullable().optional());
+const optionalDate = z.preprocess((value) => value === "" || value === null ? null : value, z.coerce.date().nullable().optional());
+
+const referralPayload = {
   type: z.nativeEnum(ReferralType).default(ReferralType.MARINE),
-  applicantName: z.string().trim().min(2),
-  beneficiaryName: z.string().trim().min(2),
-  insuredAmount: z.coerce.number().positive(),
-  insuranceFrom: z.coerce.date(),
-  insuranceTo: z.coerce.date(),
-  totalInsuredAfterIncrease: z.coerce.number().positive(),
-  increaseRate: z.coerce.number().min(0).max(100),
-  coverType: z.enum(coverTypes),
-  cargoDescription: z.string().trim().min(2),
-  routeFrom: z.string().trim().min(2),
-  routeTo: z.string().trim().min(2),
-  transportMode: z.nativeEnum(TransportMode),
-  packagingType: z.string().trim().min(2),
-  lcNumber: z.string().trim().max(120).optional().or(z.literal("")),
-  carrierName: z.string().trim().max(160).optional().or(z.literal("")),
-  invoiceNumber: z.string().trim().min(1),
-  currency: z.string().trim().min(2).max(8).default("IQD"),
+  applicantName: optionalText,
+  beneficiaryName: optionalText,
+  insuredAmount: optionalNumber,
+  insuranceFrom: optionalDate,
+  insuranceTo: optionalDate,
+  totalInsuredAfterIncrease: optionalNumber,
+  increaseRate: optionalNumber,
+  coverType: z.preprocess((value) => value === "" ? null : value, z.enum(coverTypes).nullable().optional()),
+  cargoDescription: optionalText,
+  routeFrom: optionalText,
+  routeTo: optionalText,
+  transportMode: z.preprocess((value) => value === "" ? null : value, z.nativeEnum(TransportMode).nullable().optional()),
+  packagingType: optionalText,
+  lcNumber: optionalText,
+  carrierName: optionalText,
+  invoiceNumber: optionalText,
+  currency: z.preprocess((value) => value === "" || value === null ? "IQD" : value, z.string().trim().min(2).max(8).default("IQD")),
   extraRisks: z.array(z.string()).default([]),
   hasPreviousCompensation: z.coerce.boolean().default(false),
-  totalPremium: z.coerce.number().nonnegative(),
+  totalPremium: z.coerce.number().nonnegative().default(0),
   installments: z.array(z.object({
-    label: z.string().trim().min(1),
-    amount: z.coerce.number().positive(),
-    dueDate: z.coerce.date().optional().nullable()
-  })).min(1),
-  notes: z.string().trim().max(2000).optional().or(z.literal(""))
-}).refine((data) => data.type === ReferralType.MARINE, {
+    label: optionalText,
+    amount: optionalNumber,
+    dueDate: optionalDate
+  })).default([]),
+  notes: optionalText
+};
+
+const referralBaseSchema = z.object(referralPayload);
+
+function refineReferralSchema<T extends z.ZodTypeAny>(schema: T) {
+  return schema.refine((data) => data.type === ReferralType.MARINE, {
   message: "الاحالة البحرية هي النوع المفعل حاليا.",
   path: ["type"]
-}).refine((data) => data.insuranceTo >= data.insuranceFrom, {
+}).refine((data) => !data.insuranceFrom || !data.insuranceTo || data.insuranceTo >= data.insuranceFrom, {
   message: "تاريخ نهاية التأمين يجب أن يكون بعد تاريخ البداية.",
   path: ["insuranceTo"]
 });
+}
+
+export const referralSchema = refineReferralSchema(referralBaseSchema);
+
+export const referralUpdateSchema = refineReferralSchema(referralBaseSchema.extend({
+  status: z.nativeEnum(ReferralStatus).optional()
+}));
 
 export const referralStatusSchema = z.object({
   status: z.nativeEnum(ReferralStatus)
@@ -66,8 +82,8 @@ export const referralStatusSchema = z.object({
 
 export const referralCommissionSchema = z.object({
   premiumAmount: z.coerce.number().positive(),
-  commissionRate: z.coerce.number().min(0).max(100).default(10),
-  notes: z.string().trim().max(2000).optional().or(z.literal(""))
+  commissionRate: z.coerce.number().min(10).max(10).default(10),
+  notes: optionalText
 });
 
 export function commissionAmount(premium: number, rate = 10) {

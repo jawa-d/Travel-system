@@ -1,0 +1,19 @@
+ALTER TABLE "Referral"
+  ALTER COLUMN "applicantName" DROP NOT NULL,
+  ALTER COLUMN "beneficiaryName" DROP NOT NULL,
+  ALTER COLUMN "insuredAmount" DROP NOT NULL,
+  ALTER COLUMN "insuranceFrom" DROP NOT NULL,
+  ALTER COLUMN "insuranceTo" DROP NOT NULL,
+  ALTER COLUMN "totalInsuredAfterIncrease" DROP NOT NULL,
+  ALTER COLUMN "increaseRate" DROP NOT NULL,
+  ALTER COLUMN "coverType" DROP NOT NULL,
+  ALTER COLUMN "cargoDescription" DROP NOT NULL,
+  ALTER COLUMN "routeFrom" DROP NOT NULL,
+  ALTER COLUMN "routeTo" DROP NOT NULL,
+  ALTER COLUMN "transportMode" DROP NOT NULL,
+  ALTER COLUMN "packagingType" DROP NOT NULL,
+  ALTER COLUMN "invoiceNumber" DROP NOT NULL;
+
+ALTER TABLE "ReferralInstallment"
+  ALTER COLUMN "label" DROP NOT NULL,
+  ALTER COLUMN "amount" DROP NOT NULL;

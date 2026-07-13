@@ -266,22 +266,22 @@ model Referral {
   referralNumber        String           @unique
   type                  ReferralType     @default(MARINE)
   status                ReferralStatus   @default(RECEIVED)
-  applicantName         String
-  beneficiaryName       String
-  insuredAmount         Decimal          @db.Decimal(12, 2)
-  insuranceFrom         DateTime
-  insuranceTo           DateTime
-  totalInsuredAfterIncrease Decimal      @db.Decimal(12, 2)
-  increaseRate          Decimal          @db.Decimal(5, 2)
-  coverType             String
-  cargoDescription      String           @db.Text
-  routeFrom             String
-  routeTo               String
-  transportMode         TransportMode
-  packagingType         String
+  applicantName         String?
+  beneficiaryName       String?
+  insuredAmount         Decimal?         @db.Decimal(12, 2)
+  insuranceFrom         DateTime?
+  insuranceTo           DateTime?
+  totalInsuredAfterIncrease Decimal?     @db.Decimal(12, 2)
+  increaseRate          Decimal?         @db.Decimal(5, 2)
+  coverType             String?
+  cargoDescription      String?          @db.Text
+  routeFrom             String?
+  routeTo               String?
+  transportMode         TransportMode?
+  packagingType         String?
   lcNumber              String?
   carrierName           String?
-  invoiceNumber         String
+  invoiceNumber         String?
   currency              String           @default("IQD")
   extraRisks            String[]         @default([])
   hasPreviousCompensation Boolean        @default(false)
@@ -310,8 +310,8 @@ model ReferralInstallment {
   id          String    @id @default(cuid())
   referralId  String
   referral    Referral  @relation(fields: [referralId], references: [id], onDelete: Cascade)
-  label       String
-  amount      Decimal   @db.Decimal(12, 2)
+  label       String?
+  amount      Decimal?  @db.Decimal(12, 2)
   dueDate     DateTime?
   paid        Boolean   @default(false)
   createdAt   DateTime  @default(now())

@@ -14,26 +14,27 @@ export async function POST(request: NextRequest) {
       select: { name: true, email: true, role: true, agency: { select: { name: true } } }
     }) : null;
 
+    const installments = payload.installments as Array<{ label?: string | null; amount?: number | null; dueDate?: Date | null }>;
     const created = await prisma.referral.create({
       data: {
         referralNumber: createReferralNumber(),
         type: payload.type,
-        applicantName: payload.applicantName,
-        beneficiaryName: payload.beneficiaryName,
+        applicantName: payload.applicantName || null,
+        beneficiaryName: payload.beneficiaryName || null,
         insuredAmount: payload.insuredAmount,
         insuranceFrom: payload.insuranceFrom,
         insuranceTo: payload.insuranceTo,
         totalInsuredAfterIncrease: payload.totalInsuredAfterIncrease,
         increaseRate: payload.increaseRate,
-        coverType: payload.coverType,
-        cargoDescription: payload.cargoDescription,
-        routeFrom: payload.routeFrom,
-        routeTo: payload.routeTo,
+        coverType: payload.coverType || null,
+        cargoDescription: payload.cargoDescription || null,
+        routeFrom: payload.routeFrom || null,
+        routeTo: payload.routeTo || null,
         transportMode: payload.transportMode,
-        packagingType: payload.packagingType,
+        packagingType: payload.packagingType || null,
         lcNumber: payload.lcNumber || null,
         carrierName: payload.carrierName || null,
-        invoiceNumber: payload.invoiceNumber,
+        invoiceNumber: payload.invoiceNumber || null,
         currency: payload.currency,
         extraRisks: payload.extraRisks,
         hasPreviousCompensation: payload.hasPreviousCompensation,
@@ -44,13 +45,15 @@ export async function POST(request: NextRequest) {
         createdByEmail: account?.email ?? user.email ?? null,
         createdByRole: account?.role ?? user.role,
         createdByBank: account?.role === Role.BANK ? account.agency?.name ?? account.name ?? user.email ?? null : account?.agency?.name ?? null,
-        installments: {
-          create: payload.installments.map((item, index) => ({
-            label: item.label || `دفعة ${index + 1}`,
-            amount: item.amount,
-            dueDate: item.dueDate ?? null
-          }))
-        }
+        installments: installments.length ? {
+          create: installments
+            .filter((item) => item.label || item.amount)
+            .map((item, index) => ({
+              label: item.label || `دفعة ${index + 1}`,
+              amount: item.amount ?? null,
+              dueDate: item.dueDate ?? null
+            }))
+        } : undefined
       },
       select: { id: true, referralNumber: true }
     });

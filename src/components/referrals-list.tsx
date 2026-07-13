@@ -16,8 +16,8 @@ export type ReferralListItem = {
   id: string;
   referralNumber: string;
   status: ReferralStatus;
-  applicantName: string;
-  beneficiaryName: string;
+  applicantName: string | null;
+  beneficiaryName: string | null;
   totalPremium: string;
   currency: string;
   createdByName: string | null;
@@ -95,8 +95,8 @@ export function ReferralsList({ referrals, canManage, canPayCommission }: { refe
             {referrals.map((referral) => (
               <tr key={referral.id} className="hover:bg-muted/20">
                 <td className="p-3 font-mono font-black text-primary" dir="ltr">{referral.referralNumber}</td>
-                <td className="p-3 font-bold">{referral.applicantName}</td>
-                <td className="p-3">{referral.beneficiaryName}</td>
+                <td className="p-3 font-bold">{referral.applicantName || "-"}</td>
+                <td className="p-3">{referral.beneficiaryName || "-"}</td>
                 <td className="p-3">{referral.createdByBank || referral.createdByName || "-"}</td>
                 <td className="p-3" dir="ltr">{formatCurrency(Number(referral.totalPremium))} {referral.currency}</td>
                 <td className="p-3">
