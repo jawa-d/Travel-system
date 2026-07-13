@@ -43,12 +43,31 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
       ] } : {}
     ]
   };
+  const bankOptionWhere = {
+    AND: [
+      { createdAt: { gte: from, lte: to } },
+      status ? { status } : {},
+      params.referralNumber ? { referralNumber: { contains: params.referralNumber, mode: "insensitive" as const } } : {},
+      params.applicant ? { applicantName: { contains: params.applicant, mode: "insensitive" as const } } : {}
+    ]
+  };
 
-  const referrals = await prisma.referral.findMany({
-    where,
-    include: { commission: true, installments: true },
-    orderBy: { createdAt: "desc" }
-  });
+  const [referrals, bankSources] = await Promise.all([
+    prisma.referral.findMany({
+      where,
+      include: { commission: true, installments: true },
+      orderBy: { createdAt: "desc" }
+    }),
+    prisma.referral.findMany({
+      where: bankOptionWhere,
+      select: { createdByBank: true, createdByName: true, createdByEmail: true },
+      orderBy: { createdAt: "desc" }
+    })
+  ]);
+  const bankOptions = Array.from(new Set(bankSources
+    .map((item) => item.createdByBank || item.createdByName || item.createdByEmail)
+    .filter((value): value is string => Boolean(value?.trim()))
+  )).sort((a, b) => a.localeCompare(b, "ar"));
 
   const issuedCount = referrals.filter((item) => item.status === "ISSUED").length;
   const premiumByCurrency: Record<string, number> = {};
@@ -92,7 +111,10 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
         </select>
         <input name="from" type="date" defaultValue={from.toISOString().slice(0, 10)} className="h-11 rounded-md border bg-background px-3 text-sm" />
         <input name="to" type="date" defaultValue={to.toISOString().slice(0, 10)} className="h-11 rounded-md border bg-background px-3 text-sm" />
-        <input name="bank" defaultValue={params.bank} placeholder="المصرف/المستخدم" className="h-11 rounded-md border bg-background px-3 text-sm" />
+        <select name="bank" defaultValue={params.bank ?? ""} className="h-11 rounded-md border bg-background px-3 text-sm">
+          <option value="">كل المصارف/المستخدمين</option>
+          {bankOptions.map((bank) => <option key={bank} value={bank}>{bank}</option>)}
+        </select>
         <select name="status" defaultValue={params.status ?? ""} className="h-11 rounded-md border bg-background px-3 text-sm">
           <option value="">كل الحالات</option>
           {Object.entries(referralStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}

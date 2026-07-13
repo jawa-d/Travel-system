@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     const payload = referralSchema.parse(await request.json());
     const account = user.id ? await prisma.user.findUnique({
       where: { id: user.id },
-      select: { name: true, email: true, role: true, agency: { select: { name: true } } }
+      select: { id: true, name: true, email: true, role: true, agency: { select: { name: true } } }
     }) : null;
 
     const installments = payload.installments as Array<{ label?: string | null; amount?: number | null; dueDate?: Date | null }>;
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
         hasPreviousCompensation: payload.hasPreviousCompensation,
         totalPremium: payload.totalPremium,
         notes: payload.notes || null,
-        createdById: user.id,
+        createdById: account?.id ?? null,
         createdByName: account?.name ?? user.name ?? "User",
         createdByEmail: account?.email ?? user.email ?? null,
         createdByRole: account?.role ?? user.role,
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     });
 
     await writeAuditLog({
-      userId: user.id,
+      userId: account?.id ?? null,
       role: user.role,
       action: "REFERRAL_CREATED",
       entity: "Referral",
