@@ -47,6 +47,7 @@ const groups: Array<{ label: string; items: NavItem[]; collapsible?: boolean }> 
     items: [
       { href: "/", label: "لوحة التحكم", icon: Home, permission: "dashboard" },
       { href: "/referrals", label: "الإحالات", icon: Ship, featured: true, permission: "referralsRead" },
+      { href: "/referral-sla", label: "SLA / KPIs", icon: ShieldCheck, permission: "referralsRead" },
       { href: "/motor-requests", label: "طلبات تأمين المركبات", icon: CarFront, featured: true, permission: "motorRequestsRead" },
       { href: "/policies/new", label: "إصدار وثيقة", icon: FilePlus2, featured: true, permission: "policiesWrite" }
     ]
