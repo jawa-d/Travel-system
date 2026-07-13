@@ -6,11 +6,12 @@ export const roleLabels: Record<Role, string> = {
   UNDERWRITER: "مكتتب",
   FINANCE: "مالية",
   AGENT: "وكيل",
+  BANK: "صلاحية البنوك",
   VIEWER: "مشاهد"
 };
 
 const permissions = {
-  dashboard: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.FINANCE, Role.AGENT, Role.VIEWER],
+  dashboard: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.FINANCE, Role.AGENT, Role.BANK, Role.VIEWER],
   customersRead: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.FINANCE, Role.AGENT, Role.VIEWER],
   customersWrite: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.AGENT],
   customersDelete: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER],
@@ -28,6 +29,12 @@ const permissions = {
   claimsWrite: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.AGENT],
   claimsManage: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER],
   reportsRead: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.FINANCE, Role.AGENT],
+  referralsRead: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.FINANCE, Role.BANK],
+  referralsCreate: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.BANK],
+  referralsManage: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER],
+  referralCommissionsRead: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE],
+  referralCommissionsWrite: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE],
+  referralReportsRead: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.FINANCE],
   auditRead: [Role.SUPER_ADMIN, Role.ADMIN],
   notificationsRead: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.FINANCE, Role.VIEWER],
   endorsementsRead: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER],
@@ -46,8 +53,8 @@ const permissions = {
   motorRequestsTermsWrite: [Role.SUPER_ADMIN, Role.UNDERWRITER],
   motorRequestsTermsApprove: [Role.SUPER_ADMIN],
   motorRequestsApprovalAssets: [Role.SUPER_ADMIN, Role.UNDERWRITER],
-  systemManage: [Role.SUPER_ADMIN, Role.ADMIN]
-  ,lookupsManage: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER]
+  systemManage: [Role.SUPER_ADMIN, Role.ADMIN],
+  lookupsManage: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER]
 } as const;
 
 export type Permission = keyof typeof permissions;

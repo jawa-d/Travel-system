@@ -13,6 +13,7 @@ enum Role {
   UNDERWRITER
   FINANCE
   AGENT
+  BANK
   VIEWER
 }
 
@@ -125,6 +126,26 @@ enum MotorRequestStatus {
   REJECTED
 }
 
+enum ReferralType {
+  MARINE
+  ENGINEERING
+  HEALTH
+  OTHER
+}
+
+enum ReferralStatus {
+  RECEIVED
+  UNDER_REVIEW
+  CONTACTING
+  ISSUED
+}
+
+enum TransportMode {
+  SEA
+  LAND
+  AIR
+}
+
 model Agency {
   id        String   @id @default(cuid())
   name      String
@@ -157,6 +178,8 @@ model User {
   ownedPolicies Policy[]   @relation("PolicyOwner")
   motorRequests MotorInsuranceRequest[] @relation("MotorRequestAgent")
   motorCommissions MotorCommission[] @relation("MotorCommissionPayer")
+  referrals Referral[] @relation("ReferralCreator")
+  referralCommissions ReferralCommission[] @relation("ReferralCommissionPayer")
   claims        Claim[]     @relation("ClaimCreator")
   notifications Notification[]
   auditLogs     AuditLog[]
@@ -236,6 +259,87 @@ model MotorInsuranceRequest {
   @@index([customerNationalId])
   @@index([plateNumber])
   @@index([policyIssuedAt])
+}
+
+model Referral {
+  id                    String           @id @default(cuid())
+  referralNumber        String           @unique
+  type                  ReferralType     @default(MARINE)
+  status                ReferralStatus   @default(RECEIVED)
+  applicantName         String
+  beneficiaryName       String
+  insuredAmount         Decimal          @db.Decimal(12, 2)
+  insuranceFrom         DateTime
+  insuranceTo           DateTime
+  totalInsuredAfterIncrease Decimal      @db.Decimal(12, 2)
+  increaseRate          Decimal          @db.Decimal(5, 2)
+  coverType             String
+  cargoDescription      String           @db.Text
+  routeFrom             String
+  routeTo               String
+  transportMode         TransportMode
+  packagingType         String
+  lcNumber              String?
+  carrierName           String?
+  invoiceNumber         String
+  currency              String           @default("IQD")
+  extraRisks            String[]         @default([])
+  hasPreviousCompensation Boolean        @default(false)
+  totalPremium          Decimal          @default(0) @db.Decimal(12, 2)
+  notes                 String?          @db.Text
+  createdById           String?
+  createdBy             User?            @relation("ReferralCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdByName         String?
+  createdByEmail        String?
+  createdByRole         Role?
+  createdByBank         String?
+  issuedAt              DateTime?
+  installments          ReferralInstallment[]
+  commission            ReferralCommission?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  @@index([status])
+  @@index([type])
+  @@index([createdById])
+  @@index([createdAt])
+  @@index([issuedAt])
+}
+
+model ReferralInstallment {
+  id          String    @id @default(cuid())
+  referralId  String
+  referral    Referral  @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  label       String
+  amount      Decimal   @db.Decimal(12, 2)
+  dueDate     DateTime?
+  paid        Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  @@index([referralId])
+}
+
+model ReferralCommission {
+  id               String    @id @default(cuid())
+  referralId       String    @unique
+  referral         Referral  @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  premiumAmount    Decimal   @db.Decimal(12, 2)
+  commissionRate   Decimal   @db.Decimal(5, 2)
+  commissionAmount Decimal   @db.Decimal(12, 2)
+  currency         String    @default("IQD")
+  paid             Boolean   @default(true)
+  paidAt           DateTime  @default(now())
+  paidById         String?
+  paidBy           User?     @relation("ReferralCommissionPayer", fields: [paidById], references: [id], onDelete: SetNull)
+  paidByName       String?
+  paidToName       String?
+  paidToBank       String?
+  notes            String?   @db.Text
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([paidAt])
+  @@index([paidById])
 }
 
 model MotorCommission {

@@ -1,14 +1,60 @@
 import { subMonths } from "date-fns";
+import Link from "next/link";
+import { FileText, Plus, Ship } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ExecutiveDashboard, type ExecutiveDashboardData } from "@/components/executive-dashboard";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { requirePagePermission } from "@/lib/page-guard";
 import { prisma } from "@/lib/prisma";
+import { referralStatusLabels } from "@/lib/referrals";
 import { visibleCustomerWhere, visiblePolicyWhere } from "@/lib/policy-access";
 
 const monthFormatter = new Intl.DateTimeFormat("en-US-u-nu-latn", { month: "short" });
 
 export default async function DashboardPage() {
   const user = await requirePagePermission("dashboard");
+  if (user.role === "BANK") {
+    const referrals = await prisma.referral.findMany({
+      where: { createdById: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      select: { id: true, referralNumber: true, applicantName: true, status: true, totalPremium: true, currency: true, createdAt: true }
+    });
+    const pending = referrals.filter((item) => item.status !== "ISSUED").length;
+    const issued = referrals.filter((item) => item.status === "ISSUED").length;
+    return (
+      <AppShell>
+        <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+          <div>
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary"><Ship className="h-4 w-4" />صلاحية البنوك</div>
+            <h1 className="text-2xl font-black sm:text-3xl">لوحة إحالات البنك</h1>
+            <p className="mt-2 text-sm text-muted-foreground">أرقام الإحالات التي تم رفعها من حسابك وحالة كل إحالة.</p>
+          </div>
+          <Button asChild><Link href="/referrals/new"><Plus className="h-4 w-4" />رفع إحالة</Link></Button>
+        </div>
+        <div className="mb-6 grid gap-4 md:grid-cols-3">
+          <BankMetric title="إجمالي الإحالات" value={referrals.length} />
+          <BankMetric title="قيد المتابعة" value={pending} />
+          <BankMetric title="تم الإصدار" value={issued} />
+        </div>
+        <Card>
+          <CardContent className="divide-y p-0">
+            {referrals.map((item) => (
+              <Link key={item.id} href={`/referrals/${item.id}`} className="flex flex-col justify-between gap-2 p-4 hover:bg-muted/30 sm:flex-row sm:items-center">
+                <div>
+                  <p className="font-mono text-sm font-black text-primary" dir="ltr">{item.referralNumber}</p>
+                  <p className="mt-1 font-bold">{item.applicantName}</p>
+                </div>
+                <div className="text-sm text-muted-foreground">{referralStatusLabels[item.status]}</div>
+              </Link>
+            ))}
+            {!referrals.length ? <div className="p-10 text-center text-sm text-muted-foreground"><FileText className="mx-auto mb-3 h-8 w-8" />لا توجد إحالات مرفوعة من حسابك بعد.</div> : null}
+          </CardContent>
+        </Card>
+      </AppShell>
+    );
+  }
   const policyWhere = visiblePolicyWhere(user);
   const customerWhere = visibleCustomerWhere(user);
   const isSuperAdmin = user.role === "SUPER_ADMIN";
@@ -180,4 +226,8 @@ export default async function DashboardPage() {
   };
 
   return <AppShell><ExecutiveDashboard data={data} /></AppShell>;
+}
+
+function BankMetric({ title, value }: { title: string; value: string | number }) {
+  return <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">{title}</p><p className="mt-2 text-3xl font-black">{value}</p></CardContent></Card>;
 }

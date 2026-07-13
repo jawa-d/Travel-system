@@ -22,8 +22,10 @@ import {
   ReceiptText,
   ScrollText,
   Settings2,
+  Ship,
   ShieldCheck,
   Users,
+  WalletCards,
   X,
   XCircle
 } from "lucide-react";
@@ -44,6 +46,7 @@ const groups: Array<{ label: string; items: NavItem[]; collapsible?: boolean }> 
     label: "الرئيسية",
     items: [
       { href: "/", label: "لوحة التحكم", icon: Home, permission: "dashboard" },
+      { href: "/referrals", label: "الإحالات", icon: Ship, featured: true, permission: "referralsRead" },
       { href: "/motor-requests", label: "طلبات تأمين المركبات", icon: CarFront, featured: true, permission: "motorRequestsRead" },
       { href: "/policies/new", label: "إصدار وثيقة", icon: FilePlus2, featured: true, permission: "policiesWrite" }
     ]
@@ -64,6 +67,7 @@ const groups: Array<{ label: string; items: NavItem[]; collapsible?: boolean }> 
       { href: "/pricing", label: "حاسبة السعر", icon: CircleDollarSign, permission: "financeRead" },
       { href: "/motor-accounts", label: "حسابات وثائق المركبات", icon: ReceiptText, permission: "motorAccountsRead" },
       { href: "/motor-commissions", label: "عمولات المركبات", icon: BadgeDollarSign, permission: "motorCommissionsRead" },
+      { href: "/referral-reports", label: "تقرير الإحالات والعمولات", icon: WalletCards, permission: "referralReportsRead" },
       { href: "/reports", label: "التقارير", icon: BarChart3, permission: "reportsRead" },
       { href: "/agency", label: "بوابة الوكلاء", icon: BriefcaseBusiness, permission: "agencyRead" },
       { href: "/agent-accounts", label: "حسابات الوكلاء", icon: Landmark, permission: "agentAccountsRead" }

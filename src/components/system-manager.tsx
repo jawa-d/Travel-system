@@ -10,7 +10,7 @@ import { appendLocalAudit } from "@/lib/local-storage";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast-provider";
 
-type Role = "SUPER_ADMIN" | "ADMIN" | "UNDERWRITER" | "FINANCE" | "AGENT" | "VIEWER";
+type Role = "SUPER_ADMIN" | "ADMIN" | "UNDERWRITER" | "FINANCE" | "AGENT" | "BANK" | "VIEWER";
 type SystemUser = { id: string; name: string | null; email: string; role: Role; active: boolean };
 
 function isSystemUser(user: SystemUser | null | undefined): user is SystemUser {
@@ -19,7 +19,7 @@ function isSystemUser(user: SystemUser | null | undefined): user is SystemUser {
 
 const roles: Record<Role, string> = {
   SUPER_ADMIN: "مدير عام", ADMIN: "مدير", UNDERWRITER: "مكتتب",
-  FINANCE: "المالية", AGENT: "وكيل", VIEWER: "مشاهد"
+  FINANCE: "المالية", AGENT: "وكيل", BANK: "صلاحية البنوك", VIEWER: "مشاهد"
 };
 
 export function SystemManager({ users: initialUsers, currentUserId }: { users: SystemUser[]; currentUserId: string }) {
