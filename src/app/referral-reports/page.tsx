@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { endOfDay, endOfMonth, endOfQuarter, startOfDay, startOfMonth, startOfQuarter } from "date-fns";
+import { ReferralStatus } from "@prisma/client";
 import { ClipboardCheck, Download, FileText, ShieldAlert, WalletCards } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -11,16 +12,40 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 
 type ReportType = "monthly-operational" | "quarterly-regulatory";
 
-export default async function ReferralReportsPage({ searchParams }: { searchParams: Promise<{ type?: string; from?: string; to?: string }> }) {
+type Params = {
+  type?: string;
+  from?: string;
+  to?: string;
+  bank?: string;
+  status?: string;
+  applicant?: string;
+  referralNumber?: string;
+};
+
+export default async function ReferralReportsPage({ searchParams }: { searchParams: Promise<Params> }) {
   await requirePagePermission("referralReportsRead");
   const params = await searchParams;
   const reportType = (params.type === "quarterly-regulatory" ? "quarterly-regulatory" : "monthly-operational") satisfies ReportType;
   const now = new Date();
   const from = params.from ? startOfDay(new Date(params.from)) : reportType === "quarterly-regulatory" ? startOfQuarter(now) : startOfMonth(now);
   const to = params.to ? endOfDay(new Date(params.to)) : reportType === "quarterly-regulatory" ? endOfQuarter(now) : endOfMonth(now);
+  const status = Object.values(ReferralStatus).includes(params.status as ReferralStatus) ? params.status as ReferralStatus : undefined;
+  const where = {
+    AND: [
+      { createdAt: { gte: from, lte: to } },
+      status ? { status } : {},
+      params.referralNumber ? { referralNumber: { contains: params.referralNumber, mode: "insensitive" as const } } : {},
+      params.applicant ? { applicantName: { contains: params.applicant, mode: "insensitive" as const } } : {},
+      params.bank ? { OR: [
+        { createdByBank: { contains: params.bank, mode: "insensitive" as const } },
+        { createdByName: { contains: params.bank, mode: "insensitive" as const } },
+        { createdByEmail: { contains: params.bank, mode: "insensitive" as const } }
+      ] } : {}
+    ]
+  };
 
   const referrals = await prisma.referral.findMany({
-    where: { createdAt: { gte: from, lte: to } },
+    where,
     include: { commission: true, installments: true },
     orderBy: { createdAt: "desc" }
   });
@@ -32,7 +57,15 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
   const incompleteForms = referrals.filter((item) => referralCompletion(item) < 80).length;
   const complianceScore = referrals.length ? Math.round(referrals.reduce((sum, item) => sum + referralCompletion(item), 0) / referrals.length) : 100;
   const riskLevel = complianceScore >= 90 ? "منخفض" : complianceScore >= 70 ? "متوسط" : "مرتفع";
-  const query = new URLSearchParams({ type: reportType, from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) });
+  const query = new URLSearchParams({
+    type: reportType,
+    from: from.toISOString().slice(0, 10),
+    to: to.toISOString().slice(0, 10),
+    ...(params.bank ? { bank: params.bank } : {}),
+    ...(params.status ? { status: params.status } : {}),
+    ...(params.applicant ? { applicant: params.applicant } : {}),
+    ...(params.referralNumber ? { referralNumber: params.referralNumber } : {})
+  });
 
   return (
     <AppShell>
@@ -40,7 +73,7 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
         <div>
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary"><WalletCards className="h-4 w-4" />تقارير الإحالات</div>
           <h1 className="text-2xl font-black sm:text-3xl">{reportType === "quarterly-regulatory" ? "تقرير ربع سنوي رقابي" : "تقرير شهري تشغيلي"}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">مؤشرات تشغيلية ورقابية للإحالات والوثائق الصادرة والعمولات.</p>
+          <p className="mt-2 text-sm text-muted-foreground">بحث تفصيلي حسب المصرف، الحالة، طالب التأمين، ورقم الحالة مع تصدير PDF وXLSX.</p>
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline"><Link href={`/api/referral-reports?${query}&format=xlsx`}><Download className="h-4 w-4" />XLSX</Link></Button>
@@ -48,13 +81,20 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
         </div>
       </div>
 
-      <form className="mb-6 grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-[220px_1fr_1fr_auto]">
+      <form className="mb-6 grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-2 xl:grid-cols-[220px_1fr_1fr_1fr_1fr_1fr_1fr_auto]">
         <select name="type" defaultValue={reportType} className="h-11 rounded-md border bg-background px-3 text-sm">
           <option value="monthly-operational">تقرير شهري تشغيلي</option>
           <option value="quarterly-regulatory">تقرير ربع سنوي رقابي</option>
         </select>
         <input name="from" type="date" defaultValue={from.toISOString().slice(0, 10)} className="h-11 rounded-md border bg-background px-3 text-sm" />
         <input name="to" type="date" defaultValue={to.toISOString().slice(0, 10)} className="h-11 rounded-md border bg-background px-3 text-sm" />
+        <input name="bank" defaultValue={params.bank} placeholder="المصرف/المستخدم" className="h-11 rounded-md border bg-background px-3 text-sm" />
+        <select name="status" defaultValue={params.status ?? ""} className="h-11 rounded-md border bg-background px-3 text-sm">
+          <option value="">كل الحالات</option>
+          {Object.entries(referralStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+        <input name="applicant" defaultValue={params.applicant} placeholder="طالب التأمين" className="h-11 rounded-md border bg-background px-3 text-sm" />
+        <input name="referralNumber" defaultValue={params.referralNumber} placeholder="رقم الحالة" className="h-11 rounded-md border bg-background px-3 text-sm" dir="ltr" />
         <Button>تطبيق</Button>
       </form>
 
@@ -93,7 +133,7 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
           <table className="w-full min-w-[920px] text-sm">
             <thead className="bg-muted/40 text-xs text-muted-foreground">
               <tr>
-                <th className="p-3 text-right">رقم الإحالة</th>
+                <th className="p-3 text-right">رقم الحالة</th>
                 <th className="p-3 text-right">الحالة</th>
                 <th className="p-3 text-right">طالب التأمين</th>
                 <th className="p-3 text-right">المصرف/المستخدم</th>

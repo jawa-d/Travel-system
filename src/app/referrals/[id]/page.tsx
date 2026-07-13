@@ -115,6 +115,7 @@ export default async function ReferralDetailsPage({ params }: { params: Promise<
               currency: referral.currency,
               extraRisks: referral.extraRisks,
               hasPreviousCompensation: referral.hasPreviousCompensation,
+              totalPremium: String(referral.totalPremium),
               notes: referral.notes ?? "",
               installments: referral.installments.map((item) => ({
                 label: item.label ?? "",

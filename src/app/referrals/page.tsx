@@ -63,6 +63,7 @@ export default async function ReferralsPage() {
               }))}
               canManage={can(user.role, "referralsManage")}
               canPayCommission={can(user.role, "referralCommissionsWrite")}
+              canDelete={can(user.role, "referralsDelete")}
             />
           ) : (
             <div className="p-10 text-center text-sm text-muted-foreground">لا توجد إحالات حتى الآن.</div>

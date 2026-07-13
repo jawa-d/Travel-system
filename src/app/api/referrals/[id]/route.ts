@@ -101,3 +101,27 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return jsonError(error);
   }
 }
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const user = await requirePermission("referralsDelete");
+    const { id } = await params;
+    const existing = await prisma.referral.findUnique({ where: { id }, select: { referralNumber: true } });
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    await prisma.referral.delete({ where: { id } });
+    await writeAuditLog({
+      userId: user.id,
+      role: user.role,
+      action: "REFERRAL_DELETED",
+      entity: "Referral",
+      entityId: id,
+      ipAddress: getIpAddress(request.headers),
+      metadata: { referralNumber: existing.referralNumber }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return jsonError(error);
+  }
+}

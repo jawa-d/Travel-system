@@ -4,7 +4,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { BadgeDollarSign, Eye, X } from "lucide-react";
+import { BadgeDollarSign, Eye, Trash2, X } from "lucide-react";
 import { ReferralStatus } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ export type ReferralListItem = {
   commission: { id: string; commissionAmount: string } | null;
 };
 
-export function ReferralsList({ referrals, canManage, canPayCommission }: { referrals: ReferralListItem[]; canManage: boolean; canPayCommission: boolean }) {
+export function ReferralsList({ referrals, canManage, canPayCommission, canDelete = false }: { referrals: ReferralListItem[]; canManage: boolean; canPayCommission: boolean; canDelete?: boolean }) {
   const router = useRouter();
   const { toast } = useToast();
   const [busy, setBusy] = useState("");
@@ -72,6 +72,20 @@ export function ReferralsList({ referrals, canManage, canPayCommission }: { refe
     }
     toast({ title: "تم صرف العمولة", description: "تم احتساب 10% من قسط الوثيقة وتسجيلها.", tone: "success" });
     setCommissionReferral(null);
+    router.refresh();
+  }
+
+  async function deleteReferral(referral: ReferralListItem) {
+    if (!window.confirm(`حذف الإحالة ${referral.referralNumber}؟`)) return;
+    setBusy(referral.id);
+    const response = await fetch(`/api/referrals/${referral.id}`, { method: "DELETE" });
+    const result = await response.json().catch(() => null);
+    setBusy("");
+    if (!response.ok) {
+      toast({ title: "تعذر حذف الإحالة", description: result?.error, tone: "error" });
+      return;
+    }
+    toast({ title: "تم حذف الإحالة", tone: "success" });
     router.refresh();
   }
 
@@ -124,6 +138,12 @@ export function ReferralsList({ referrals, canManage, canPayCommission }: { refe
                     <Button asChild size="sm" variant="outline">
                       <Link href={`/referrals/${referral.id}`}><Eye className="h-4 w-4" />عرض</Link>
                     </Button>
+                    {canDelete ? (
+                      <Button type="button" size="sm" variant="destructive" disabled={busy === referral.id} onClick={() => deleteReferral(referral)}>
+                        <Trash2 className="h-4 w-4" />
+                        حذف
+                      </Button>
+                    ) : null}
                   </div>
                 </td>
               </tr>

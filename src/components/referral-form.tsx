@@ -35,6 +35,7 @@ export type ReferralFormInitialData = {
   currency: string;
   extraRisks: string[];
   hasPreviousCompensation: boolean;
+  totalPremium: string;
   notes: string;
   installments: Installment[];
 };
@@ -45,7 +46,8 @@ export function ReferralForm({ initialData, canEditStatus = false }: { initialDa
   const [busy, setBusy] = useState(false);
   const [extraRisks, setExtraRisks] = useState<string[]>(initialData?.extraRisks ?? []);
   const [installments, setInstallments] = useState<Installment[]>(initialData?.installments.length ? initialData.installments : [{ label: "الدفعة الاولى", amount: "", dueDate: "" }]);
-  const totalPremium = useMemo(() => installments.reduce((sum, item) => sum + Number(item.amount || 0), 0), [installments]);
+  const installmentsTotal = useMemo(() => installments.reduce((sum, item) => sum + Number(item.amount || 0), 0), [installments]);
+  const [totalPremium, setTotalPremium] = useState(initialData?.totalPremium ?? "");
 
   function updateInstallment(index: number, field: keyof Installment, value: string) {
     setInstallments((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item));
@@ -77,7 +79,7 @@ export function ReferralForm({ initialData, canEditStatus = false }: { initialDa
       currency: form.get("currency") || "IQD",
       extraRisks,
       hasPreviousCompensation: form.get("hasPreviousCompensation") === "true",
-      totalPremium,
+      totalPremium: totalPremium === "" ? installmentsTotal : totalPremium,
       installments: installments.map((item) => ({ label: item.label, amount: item.amount, dueDate: item.dueDate || null })),
       notes: form.get("notes") || ""
     };
@@ -197,8 +199,12 @@ export function ReferralForm({ initialData, canEditStatus = false }: { initialDa
           ))}
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <Button type="button" variant="outline" onClick={() => setInstallments((current) => [...current, { label: `دفعة ${current.length + 1}`, amount: "", dueDate: "" }])}><Plus className="h-4 w-4" />إضافة دفعة</Button>
-            <div className="rounded-lg bg-primary/10 px-4 py-2 text-sm font-black text-primary">القسط الكلي: {totalPremium.toLocaleString("en-US")}</div>
+            <div className="rounded-lg bg-primary/10 px-4 py-2 text-sm font-black text-primary">مجموع الدفعات: {installmentsTotal.toLocaleString("en-US")}</div>
           </div>
+          <label className="block space-y-1.5 text-sm font-bold">
+            <span>القسط الكلي</span>
+            <Input value={totalPremium} onChange={(event) => setTotalPremium(event.target.value)} placeholder="يمكن تعديله من المدير العام" type="number" min="0" step="0.01" dir="ltr" />
+          </label>
           <label className="block space-y-1.5 text-sm font-bold">
             <span>نوت شرح</span>
             <textarea name="notes" defaultValue={initialData?.notes} placeholder="يمكن ترك هذا الحقل فارغ" className="min-h-24 w-full rounded-lg border bg-background px-3 py-2 text-sm" />

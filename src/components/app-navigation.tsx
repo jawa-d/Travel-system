@@ -67,6 +67,7 @@ const groups: Array<{ label: string; items: NavItem[]; collapsible?: boolean }> 
       { href: "/pricing", label: "حاسبة السعر", icon: CircleDollarSign, permission: "financeRead" },
       { href: "/motor-accounts", label: "حسابات وثائق المركبات", icon: ReceiptText, permission: "motorAccountsRead" },
       { href: "/motor-commissions", label: "عمولات المركبات", icon: BadgeDollarSign, permission: "motorCommissionsRead" },
+      { href: "/referral-commissions", label: "عمولات الإحالات", icon: BadgeDollarSign, permission: "referralCommissionsRead" },
       { href: "/referral-reports", label: "تقرير الإحالات والعمولات", icon: WalletCards, permission: "referralReportsRead" },
       { href: "/reports", label: "التقارير", icon: BarChart3, permission: "reportsRead" },
       { href: "/agency", label: "بوابة الوكلاء", icon: BriefcaseBusiness, permission: "agencyRead" },

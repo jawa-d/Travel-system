@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { endOfDay, endOfMonth, endOfQuarter, startOfDay, startOfMonth, startOfQuarter } from "date-fns";
+import { ReferralStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/api";
 import { rowsToExcelBuffer, rowsToPdfBuffer } from "@/lib/exports";
@@ -12,11 +13,29 @@ export async function GET(request: NextRequest) {
   const now = new Date();
   const fromParam = request.nextUrl.searchParams.get("from");
   const toParam = request.nextUrl.searchParams.get("to");
+  const bank = request.nextUrl.searchParams.get("bank")?.trim();
+  const applicant = request.nextUrl.searchParams.get("applicant")?.trim();
+  const referralNumber = request.nextUrl.searchParams.get("referralNumber")?.trim();
+  const statusParam = request.nextUrl.searchParams.get("status");
+  const status = Object.values(ReferralStatus).includes(statusParam as ReferralStatus) ? statusParam as ReferralStatus : undefined;
   const from = fromParam ? startOfDay(new Date(fromParam)) : reportType === "quarterly-regulatory" ? startOfQuarter(now) : startOfMonth(now);
   const to = toParam ? endOfDay(new Date(toParam)) : reportType === "quarterly-regulatory" ? endOfQuarter(now) : endOfMonth(now);
+  const where = {
+    AND: [
+      { createdAt: { gte: from, lte: to } },
+      status ? { status } : {},
+      referralNumber ? { referralNumber: { contains: referralNumber, mode: "insensitive" as const } } : {},
+      applicant ? { applicantName: { contains: applicant, mode: "insensitive" as const } } : {},
+      bank ? { OR: [
+        { createdByBank: { contains: bank, mode: "insensitive" as const } },
+        { createdByName: { contains: bank, mode: "insensitive" as const } },
+        { createdByEmail: { contains: bank, mode: "insensitive" as const } }
+      ] } : {}
+    ]
+  };
 
   const referrals = await prisma.referral.findMany({
-    where: { createdAt: { gte: from, lte: to } },
+    where,
     include: { commission: true, installments: true },
     orderBy: { createdAt: "desc" }
   });
