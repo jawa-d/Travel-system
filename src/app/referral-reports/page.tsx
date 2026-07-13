@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requirePagePermission } from "@/lib/page-guard";
 import { prisma } from "@/lib/prisma";
-import { referralStatusLabels } from "@/lib/referrals";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { addCurrencyTotal, formatCurrencyTotals, formatReferralMoney, referralStatusLabels } from "@/lib/referrals";
+import { formatDate } from "@/lib/utils";
 
 type ReportType = "monthly-operational" | "quarterly-regulatory";
 
@@ -51,8 +51,12 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
   });
 
   const issuedCount = referrals.filter((item) => item.status === "ISSUED").length;
-  const totalPremium = referrals.reduce((sum, item) => sum + Number(item.totalPremium), 0);
-  const totalCommission = referrals.reduce((sum, item) => sum + Number(item.commission?.commissionAmount ?? 0), 0);
+  const premiumByCurrency: Record<string, number> = {};
+  const commissionByCurrency: Record<string, number> = {};
+  referrals.forEach((item) => {
+    addCurrencyTotal(premiumByCurrency, item.currency, Number(item.totalPremium));
+    addCurrencyTotal(commissionByCurrency, item.currency, Number(item.commission?.commissionAmount ?? 0));
+  });
   const conversionRate = referrals.length ? issuedCount / referrals.length * 100 : 0;
   const incompleteForms = referrals.filter((item) => referralCompletion(item) < 80).length;
   const complianceScore = referrals.length ? Math.round(referrals.reduce((sum, item) => sum + referralCompletion(item), 0) / referrals.length) : 100;
@@ -103,8 +107,8 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
           <Metric title="عدد الإحالات" value={referrals.length} />
           <Metric title="عدد الوثائق الصادرة" value={issuedCount} />
           <Metric title="معدل/نسبة التحويل" value={`${conversionRate.toFixed(1)}%`} />
-          <Metric title="إجمالي الاشتراكات" value={formatCurrency(totalPremium)} />
-          <Metric title="إجمالي العمولات" value={formatCurrency(totalCommission)} />
+          <Metric title="إجمالي الاشتراكات" value={formatCurrencyTotals(premiumByCurrency)} />
+          <Metric title="إجمالي العمولات" value={formatCurrencyTotals(commissionByCurrency)} />
         </div>
       ) : (
         <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -150,8 +154,8 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
                   <td className="p-3">{referralStatusLabels[item.status]}</td>
                   <td className="p-3">{item.applicantName || "-"}</td>
                   <td className="p-3">{item.createdByBank || item.createdByName || "-"}</td>
-                  <td className="p-3" dir="ltr">{formatCurrency(Number(item.totalPremium))}</td>
-                  <td className="p-3" dir="ltr">{formatCurrency(Number(item.commission?.commissionAmount ?? 0))}</td>
+                  <td className="p-3" dir="ltr">{formatReferralMoney(Number(item.totalPremium), item.currency)}</td>
+                  <td className="p-3" dir="ltr">{formatReferralMoney(Number(item.commission?.commissionAmount ?? 0), item.currency)}</td>
                   <td className="p-3">{referralCompletion(item)}%</td>
                   <td className="p-3">{formatDate(item.createdAt)}</td>
                 </tr>
@@ -205,3 +209,4 @@ function Metric({ title, value }: { title: string; value: string | number }) {
 function Info({ label, value }: { label: string; value: string | number }) {
   return <div className="rounded-lg border bg-muted/10 p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-bold">{value}</p></div>;
 }
+

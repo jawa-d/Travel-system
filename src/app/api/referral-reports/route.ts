@@ -4,7 +4,7 @@ import { ReferralStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/api";
 import { rowsToExcelBuffer, rowsToPdfBuffer } from "@/lib/exports";
-import { referralStatusLabels } from "@/lib/referrals";
+import { addCurrencyTotal, formatCurrencyTotals, formatReferralMoney, referralStatusLabels } from "@/lib/referrals";
 
 export async function GET(request: NextRequest) {
   const user = await requirePermission("referralReportsRead");
@@ -41,8 +41,12 @@ export async function GET(request: NextRequest) {
   });
 
   const issuedCount = referrals.filter((item) => item.status === "ISSUED").length;
-  const totalPremium = referrals.reduce((sum, item) => sum + Number(item.totalPremium), 0);
-  const totalCommission = referrals.reduce((sum, item) => sum + Number(item.commission?.commissionAmount ?? 0), 0);
+  const premiumByCurrency: Record<string, number> = {};
+  const commissionByCurrency: Record<string, number> = {};
+  referrals.forEach((item) => {
+    addCurrencyTotal(premiumByCurrency, item.currency, Number(item.totalPremium));
+    addCurrencyTotal(commissionByCurrency, item.currency, Number(item.commission?.commissionAmount ?? 0));
+  });
   const conversionRate = referrals.length ? issuedCount / referrals.length * 100 : 0;
   const complianceScore = referrals.length ? Math.round(referrals.reduce((sum, item) => sum + referralCompletion(item), 0) / referrals.length) : 100;
   const incompleteForms = referrals.filter((item) => referralCompletion(item) < 80).length;
@@ -58,8 +62,8 @@ export async function GET(request: NextRequest) {
     { metric: "Referral count", value: referrals.length },
     { metric: "Issued policy count", value: issuedCount },
     { metric: "Conversion rate", value: `${conversionRate.toFixed(1)}%` },
-    { metric: "Total subscriptions", value: totalPremium },
-    { metric: "Total commissions", value: totalCommission }
+    { metric: "Total subscriptions", value: formatCurrencyTotals(premiumByCurrency) },
+    { metric: "Total commissions", value: formatCurrencyTotals(commissionByCurrency) }
   ];
 
   const detailRows = referrals.map((item) => ({
@@ -67,8 +71,8 @@ export async function GET(request: NextRequest) {
     status: referralStatusLabels[item.status],
     applicantName: item.applicantName ?? "",
     bank: item.createdByBank ?? item.createdByName ?? "",
-    totalPremium: Number(item.totalPremium),
-    commissionAmount: Number(item.commission?.commissionAmount ?? 0),
+    totalPremium: formatReferralMoney(Number(item.totalPremium), item.currency),
+    commissionAmount: formatReferralMoney(Number(item.commission?.commissionAmount ?? 0), item.currency),
     formCompletion: `${referralCompletion(item)}%`,
     createdAt: item.createdAt.toISOString().slice(0, 10)
   }));

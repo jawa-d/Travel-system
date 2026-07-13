@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requirePagePermission } from "@/lib/page-guard";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
-import { formatCurrency } from "@/lib/utils";
+import { addCurrencyTotal, formatCurrencyTotals } from "@/lib/referrals";
 
 export default async function ReferralsPage() {
   const user = await requirePagePermission("referralsRead");
@@ -19,9 +19,13 @@ export default async function ReferralsPage() {
     orderBy: { createdAt: "desc" },
     take: 100
   });
-  const totalPremium = referrals.reduce((sum, item) => sum + Number(item.totalPremium), 0);
+  const premiumByCurrency: Record<string, number> = {};
+  const commissionByCurrency: Record<string, number> = {};
+  referrals.forEach((item) => {
+    addCurrencyTotal(premiumByCurrency, item.currency, Number(item.totalPremium));
+    addCurrencyTotal(commissionByCurrency, item.currency, Number(item.commission?.commissionAmount ?? 0));
+  });
   const issued = referrals.filter((item) => item.status === "ISSUED").length;
-  const commissionTotal = referrals.reduce((sum, item) => sum + Number(item.commission?.commissionAmount ?? 0), 0);
 
   return (
     <AppShell>
@@ -39,8 +43,8 @@ export default async function ReferralsPage() {
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <Metric title="إجمالي الإحالات" value={referrals.length} icon={FileText} />
         <Metric title="تم الإصدار" value={issued} icon={Ship} />
-        <Metric title="إجمالي الأقساط" value={formatCurrency(totalPremium)} icon={Banknote} />
-        <Metric title="العمولات المصروفة" value={formatCurrency(commissionTotal)} icon={WalletCards} />
+        <Metric title="إجمالي الأقساط" value={formatCurrencyTotals(premiumByCurrency)} icon={Banknote} />
+        <Metric title="العمولات المصروفة" value={formatCurrencyTotals(commissionByCurrency)} icon={WalletCards} />
       </div>
 
       <Card>
@@ -77,3 +81,4 @@ export default async function ReferralsPage() {
 function Metric({ title, value, icon: Icon }: { title: string; value: string | number; icon: typeof FileText }) {
   return <Card><CardContent className="flex items-center justify-between gap-4 p-5"><div><p className="text-sm text-muted-foreground">{title}</p><p className="mt-2 text-2xl font-black">{value}</p></div><span className="grid h-11 w-11 place-items-center rounded-lg bg-primary/10 text-primary"><Icon className="h-5 w-5" /></span></CardContent></Card>;
 }
+

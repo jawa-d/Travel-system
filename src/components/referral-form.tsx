@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast-provider";
-import { coverTypes, extraRiskOptions, referralStatusLabels, referralTypeLabels, transportModeLabels } from "@/lib/referrals";
+import { coverTypes, extraRiskOptions, referralCurrencies, referralCurrencyLabels, referralStatusLabels, referralTypeLabels, transportModeLabels } from "@/lib/referrals";
 
 type Installment = { label: string; amount: string; dueDate: string };
 
@@ -121,7 +121,12 @@ export function ReferralForm({ initialData, canEditStatus = false }: { initialDa
           ) : null}
           <Field name="applicantName" label="اسم طالب التأمين (المشترك)" defaultValue={initialData?.applicantName} />
           <Field name="beneficiaryName" label="المستفيد" defaultValue={initialData?.beneficiaryName} />
-          <Field name="currency" label="العملة" defaultValue={initialData?.currency ?? "IQD"} />
+          <label className="space-y-1.5 text-sm font-bold">
+            <span>العملة</span>
+            <select name="currency" defaultValue={initialData?.currency ?? "IQD"} className="h-11 w-full rounded-lg border bg-background px-3">
+              {referralCurrencies.map((currency) => <option key={currency} value={currency}>{referralCurrencyLabels[currency]}</option>)}
+            </select>
+          </label>
         </CardContent>
       </Card>
 

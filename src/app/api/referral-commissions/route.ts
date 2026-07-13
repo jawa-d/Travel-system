@@ -3,6 +3,7 @@ import { endOfDay, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/api";
 import { rowsToExcelBuffer, rowsToPdfBuffer } from "@/lib/exports";
+import { addCurrencyTotal, formatCurrencyTotals, formatReferralMoney } from "@/lib/referrals";
 
 export async function GET(request: NextRequest) {
   await requirePermission("referralCommissionsRead");
@@ -30,16 +31,20 @@ export async function GET(request: NextRequest) {
     orderBy: { paidAt: "desc" }
   });
 
-  const rows = commissions.map((item) => ({
+  const commissionByCurrency: Record<string, number> = {};
+  const rows = commissions.map((item) => {
+    addCurrencyTotal(commissionByCurrency, item.currency, Number(item.commissionAmount));
+    return {
     referralNumber: item.referral.referralNumber,
     bank: item.paidToBank || item.referral.createdByBank || item.paidToName || item.referral.createdByName || "",
     applicantName: item.referral.applicantName ?? "",
-    premiumAmount: Number(item.premiumAmount),
+    premiumAmount: formatReferralMoney(Number(item.premiumAmount), item.currency),
     commissionRate: `${item.commissionRate}%`,
-    commissionAmount: Number(item.commissionAmount),
+    commissionAmount: formatReferralMoney(Number(item.commissionAmount), item.currency),
     currency: item.currency,
     paidAt: item.paidAt.toISOString().slice(0, 10)
-  }));
+    };
+  });
 
   if (format === "xlsx") {
     const buffer = rowsToExcelBuffer(rows, "Referral Commissions");
@@ -60,7 +65,8 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     totalCommissions: commissions.length,
-    totalAmount: commissions.reduce((sum, item) => sum + Number(item.commissionAmount), 0),
+    totalAmount: formatCurrencyTotals(commissionByCurrency),
+    totalByCurrency: commissionByCurrency,
     rows
   });
 }

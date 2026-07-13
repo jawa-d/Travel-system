@@ -23,6 +23,11 @@ export const transportModeLabels: Record<TransportMode, string> = {
 
 export const coverTypes = ["Cluse A", "Cluse B", "Cluse C"] as const;
 export const extraRiskOptions = ["الحرب", "الارهاب", "الشغب والاضطرابات"] as const;
+export const referralCurrencies = ["IQD", "USD"] as const;
+export const referralCurrencyLabels: Record<typeof referralCurrencies[number], string> = {
+  IQD: "IQD - دينار عراقي",
+  USD: "USD - دولار أمريكي"
+};
 
 const optionalText = z.preprocess((value) => value === "" ? null : value, z.string().trim().max(2000).nullable().optional());
 const optionalNumber = z.preprocess((value) => value === "" || value === null ? null : value, z.coerce.number().nonnegative().nullable().optional());
@@ -46,7 +51,7 @@ const referralPayload = {
   lcNumber: optionalText,
   carrierName: optionalText,
   invoiceNumber: optionalText,
-  currency: z.preprocess((value) => value === "" || value === null ? "IQD" : value, z.string().trim().min(2).max(8).default("IQD")),
+  currency: z.preprocess((value) => typeof value === "string" ? value.toUpperCase() : value, z.enum(referralCurrencies).default("IQD")),
   extraRisks: z.array(z.string()).default([]),
   hasPreviousCompensation: z.coerce.boolean().default(false),
   totalPremium: z.coerce.number().nonnegative().default(0),
@@ -88,6 +93,30 @@ export const referralCommissionSchema = z.object({
 
 export function commissionAmount(premium: number, rate = 10) {
   return Math.round((premium * rate / 100) * 100) / 100;
+}
+
+export function addCurrencyTotal(target: Record<string, number>, currency: string | null | undefined, amount: number) {
+  const key = currency === "USD" ? "USD" : "IQD";
+  target[key] = (target[key] ?? 0) + amount;
+}
+
+export function formatReferralMoney(amount: number, currency: string | null | undefined) {
+  const code = currency === "USD" ? "USD" : "IQD";
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: code,
+      maximumFractionDigits: code === "IQD" ? 0 : 2
+    }).format(amount);
+  } catch {
+    return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(amount)} ${code}`;
+  }
+}
+
+export function formatCurrencyTotals(totals: Record<string, number>) {
+  const entries = Object.entries(totals).filter(([, amount]) => amount > 0);
+  if (!entries.length) return formatReferralMoney(0, "IQD");
+  return entries.map(([currency, amount]) => formatReferralMoney(amount, currency)).join(" / ");
 }
 
 export function createReferralNumber(date = new Date()) {

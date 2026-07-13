@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requirePagePermission } from "@/lib/page-guard";
 import { prisma } from "@/lib/prisma";
-import { referralStatusLabels, referralTypeLabels, transportModeLabels } from "@/lib/referrals";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatReferralMoney, referralStatusLabels, referralTypeLabels, transportModeLabels } from "@/lib/referrals";
+import { formatDate } from "@/lib/utils";
 
 export default async function ReferralDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requirePagePermission("referralsRead");
@@ -72,7 +72,7 @@ export default async function ReferralDetailsPage({ params }: { params: Promise<
                 </div>
               ))}
               {!referral.installments.length ? <p className="text-sm text-muted-foreground">لا توجد دفعات مسجلة.</p> : null}
-              <div className="rounded-lg bg-primary/10 p-3 font-black text-primary">القسط الكلي: {formatCurrency(Number(referral.totalPremium))}</div>
+              <div className="rounded-lg bg-primary/10 p-3 font-black text-primary">القسط الكلي: {formatReferralMoney(Number(referral.totalPremium), referral.currency)}</div>
             </CardContent>
           </Card>
           <Card>
@@ -80,7 +80,7 @@ export default async function ReferralDetailsPage({ params }: { params: Promise<
             <CardContent>
               {referral.commission ? (
                 <div className="space-y-2 text-sm">
-                  <Info label="مبلغ العمولة" value={`${formatCurrency(Number(referral.commission.commissionAmount))} ${referral.commission.currency}`} />
+                  <Info label="مبلغ العمولة" value={formatReferralMoney(Number(referral.commission.commissionAmount), referral.commission.currency)} />
                   <Info label="النسبة" value={`${referral.commission.commissionRate}%`} />
                   <Info label="مصروفة إلى" value={referral.commission.paidToBank || referral.commission.paidToName || "-"} />
                 </div>
@@ -156,7 +156,7 @@ function date(value: Date | null) {
 }
 
 function money(value: unknown, currency: string) {
-  return value === null || value === undefined ? "-" : `${formatCurrency(Number(value))} ${currency}`;
+  return value === null || value === undefined ? "-" : formatReferralMoney(Number(value), currency);
 }
 
 function attachmentsFrom(value: unknown): ReferralAttachment[] {
@@ -170,3 +170,4 @@ function attachmentsFrom(value: unknown): ReferralAttachment[] {
     typeof (item as { name?: unknown }).name === "string"
   ));
 }
+

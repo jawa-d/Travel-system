@@ -9,8 +9,8 @@ import { ReferralStatus } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast-provider";
-import { referralStatusLabels } from "@/lib/referrals";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatReferralMoney, referralStatusLabels } from "@/lib/referrals";
+import { formatDate } from "@/lib/utils";
 
 export type ReferralListItem = {
   id: string;
@@ -112,7 +112,7 @@ export function ReferralsList({ referrals, canManage, canPayCommission, canDelet
                 <td className="p-3 font-bold">{referral.applicantName || "-"}</td>
                 <td className="p-3">{referral.beneficiaryName || "-"}</td>
                 <td className="p-3">{referral.createdByBank || referral.createdByName || "-"}</td>
-                <td className="p-3" dir="ltr">{formatCurrency(Number(referral.totalPremium))} {referral.currency}</td>
+                <td className="p-3" dir="ltr">{formatReferralMoney(Number(referral.totalPremium), referral.currency)}</td>
                 <td className="p-3">
                   {canManage ? (
                     <select value={referral.status} disabled={busy === referral.id} onChange={(event) => updateStatus(referral.id, event.target.value as ReferralStatus)} className="h-9 rounded-md border bg-background px-2 text-xs font-bold">
@@ -170,7 +170,7 @@ export function ReferralsList({ referrals, canManage, canPayCommission, canDelet
               </label>
               <div className="rounded-lg border bg-muted/20 p-3">
                 <p className="text-xs text-muted-foreground">مبلغ العمولة 10%</p>
-                <p className="mt-1 text-2xl font-black text-primary" dir="ltr">{formatCurrency(Number(premiumAmount || 0) * 0.1)}</p>
+                <p className="mt-1 text-2xl font-black text-primary" dir="ltr">{formatReferralMoney(Number(premiumAmount || 0) * 0.1, commissionReferral?.currency)}</p>
               </div>
               <label className="space-y-1.5 text-sm font-bold">
                 <span>ملاحظات</span>

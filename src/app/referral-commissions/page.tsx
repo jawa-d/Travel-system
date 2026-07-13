@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requirePagePermission } from "@/lib/page-guard";
 import { prisma } from "@/lib/prisma";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { addCurrencyTotal, formatCurrencyTotals, formatReferralMoney } from "@/lib/referrals";
+import { formatDate } from "@/lib/utils";
 
 export default async function ReferralCommissionsPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string; bank?: string; referralNumber?: string }> }) {
   await requirePagePermission("referralCommissionsRead");
@@ -28,17 +29,18 @@ export default async function ReferralCommissionsPage({ searchParams }: { search
     include: { referral: true },
     orderBy: { paidAt: "desc" }
   });
-  const grouped = new Map<string, { bank: string; referralCount: number; commissionTotal: number; premiumTotal: number }>();
+  const grouped = new Map<string, { bank: string; referralCount: number; commissionByCurrency: Record<string, number>; premiumByCurrency: Record<string, number> }>();
+  const totalCommissionByCurrency: Record<string, number> = {};
   for (const commission of commissions) {
     const bank = commission.paidToBank || commission.referral.createdByBank || commission.paidToName || commission.referral.createdByName || "غير محدد";
-    const current = grouped.get(bank) ?? { bank, referralCount: 0, commissionTotal: 0, premiumTotal: 0 };
+    const current = grouped.get(bank) ?? { bank, referralCount: 0, commissionByCurrency: {}, premiumByCurrency: {} };
     current.referralCount += 1;
-    current.commissionTotal += Number(commission.commissionAmount);
-    current.premiumTotal += Number(commission.premiumAmount);
+    addCurrencyTotal(current.commissionByCurrency, commission.currency, Number(commission.commissionAmount));
+    addCurrencyTotal(totalCommissionByCurrency, commission.currency, Number(commission.commissionAmount));
+    addCurrencyTotal(current.premiumByCurrency, commission.currency, Number(commission.premiumAmount));
     grouped.set(bank, current);
   }
-  const summaries = [...grouped.values()].sort((a, b) => b.commissionTotal - a.commissionTotal);
-  const totalCommission = commissions.reduce((sum, item) => sum + Number(item.commissionAmount), 0);
+  const summaries = [...grouped.values()].sort((a, b) => b.referralCount - a.referralCount);
   const query = new URLSearchParams({
     ...(params.from ? { from: params.from } : {}),
     ...(params.to ? { to: params.to } : {}),
@@ -71,7 +73,7 @@ export default async function ReferralCommissionsPage({ searchParams }: { search
       <div className="mb-6 grid gap-4 md:grid-cols-3">
         <Metric title="عدد المصارف" value={summaries.length} />
         <Metric title="عدد العمولات" value={commissions.length} />
-        <Metric title="إجمالي العمولات" value={formatCurrency(totalCommission)} />
+        <Metric title="إجمالي العمولات" value={formatCurrencyTotals(totalCommissionByCurrency)} />
       </div>
 
       <Card className="mb-6">
@@ -91,8 +93,8 @@ export default async function ReferralCommissionsPage({ searchParams }: { search
                 <tr key={item.bank}>
                   <td className="p-3 font-bold">{item.bank}</td>
                   <td className="p-3">{item.referralCount}</td>
-                  <td className="p-3" dir="ltr">{formatCurrency(item.premiumTotal)}</td>
-                  <td className="p-3" dir="ltr">{formatCurrency(item.commissionTotal)}</td>
+                  <td className="p-3" dir="ltr">{formatCurrencyTotals(item.premiumByCurrency)}</td>
+                  <td className="p-3" dir="ltr">{formatCurrencyTotals(item.commissionByCurrency)}</td>
                 </tr>
               ))}
             </tbody>
@@ -120,8 +122,8 @@ export default async function ReferralCommissionsPage({ searchParams }: { search
                   <td className="p-3 font-mono font-black text-primary" dir="ltr">{item.referral.referralNumber}</td>
                   <td className="p-3">{item.paidToBank || item.referral.createdByBank || item.paidToName || item.referral.createdByName || "-"}</td>
                   <td className="p-3">{item.referral.applicantName || "-"}</td>
-                  <td className="p-3" dir="ltr">{formatCurrency(Number(item.premiumAmount))}</td>
-                  <td className="p-3" dir="ltr">{formatCurrency(Number(item.commissionAmount))}</td>
+                  <td className="p-3" dir="ltr">{formatReferralMoney(Number(item.premiumAmount), item.currency)}</td>
+                  <td className="p-3" dir="ltr">{formatReferralMoney(Number(item.commissionAmount), item.currency)}</td>
                   <td className="p-3">{formatDate(item.paidAt)}</td>
                 </tr>
               ))}
@@ -137,3 +139,4 @@ export default async function ReferralCommissionsPage({ searchParams }: { search
 function Metric({ title, value }: { title: string; value: string | number }) {
   return <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">{title}</p><p className="mt-2 text-2xl font-black">{value}</p></CardContent></Card>;
 }
+
