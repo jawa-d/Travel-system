@@ -5,7 +5,6 @@ import { auth } from "@/auth";
 import { can, type Permission } from "@/lib/rbac";
 import { directAccessUser, isDirectAccessEnabled } from "@/lib/direct-access";
 import { prisma } from "@/lib/prisma";
-
 export async function requireUser() {
   const session = await auth();
   const user = session?.user ?? (isDirectAccessEnabled() ? directAccessUser : null);
@@ -16,11 +15,6 @@ export async function requireUser() {
   }
   return user;
 }
-
-
-
-
-
 export async function requirePermission(permission: Permission) {
   const user = await requireUser();
   if (!can(user.role, permission)) throw new Response("Forbidden", { status: 403 });
@@ -38,5 +32,7 @@ export function jsonError(error: unknown) {
     return NextResponse.json({ error: "السجل موجود مسبقاً" }, { status: 409 });
   }
   const message = error instanceof Error ? error.message : "حدث خطأ غير متوقع";
+
+
   return NextResponse.json({ error: message }, { status: 400 });
 }
