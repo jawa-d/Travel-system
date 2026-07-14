@@ -116,7 +116,7 @@ export function formatReferralMoney(amount: number, currency: string | null | un
 export function formatCurrencyTotals(totals: Record<string, number>) {
   const entries = Object.entries(totals).filter(([, amount]) => amount > 0);
   if (!entries.length) return formatReferralMoney(0, "IQD");
-  return entries.map(([currency, amount]) => formatReferralMoney(amount, currency)).join(" / ");
+  return entries.map(([currency, amount]) => formatReferralMoney(amount, currency)).join("\n");
 }
 
 export function createReferralNumber(date = new Date()) {

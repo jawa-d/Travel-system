@@ -182,8 +182,8 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
                   <td className="p-3 font-bold">{item.bank}</td>
                   <td className="p-3">{item.referralCount}</td>
                   <td className="p-3">{item.issuedCount}</td>
-                  <td className="p-3" dir="ltr">{formatCurrencyTotals(item.premiumByCurrency)}</td>
-                  <td className="p-3" dir="ltr">{formatCurrencyTotals(item.commissionByCurrency)}</td>
+                  <td className="whitespace-pre-line p-3" dir="ltr">{formatCurrencyTotals(item.premiumByCurrency)}</td>
+                  <td className="whitespace-pre-line p-3" dir="ltr">{formatCurrencyTotals(item.commissionByCurrency)}</td>
                 </tr>
               ))}
               {!bankSummaryRows.length ? <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">لا توجد بيانات ملخص ضمن معايير البحث.</td></tr> : null}
@@ -266,7 +266,7 @@ function referralCompletion(referral: {
 }
 
 function Metric({ title, value }: { title: string; value: string | number }) {
-  return <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">{title}</p><p className="mt-2 text-2xl font-black">{value}</p></CardContent></Card>;
+  return <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">{title}</p><p className="mt-2 whitespace-pre-line text-2xl font-black" dir="ltr">{value}</p></CardContent></Card>;
 }
 
 function Info({ label, value }: { label: string; value: string | number }) {

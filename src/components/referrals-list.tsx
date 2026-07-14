@@ -123,7 +123,7 @@ export function ReferralsList({ referrals, canManage, canPayCommission, canDelet
                 <td className="p-3" dir="ltr">{formatReferralMoney(Number(referral.totalPremium), referral.currency)}</td>
                 <td className="p-3">
                   {canManage ? (
-                    <select value={referral.status} disabled={busy === referral.id} onChange={(event) => updateStatus(referral.id, event.target.value as ReferralStatus)} className="h-9 rounded-md border bg-background px-2 text-xs font-bold">
+                    <select value={referral.status} disabled={busy === referral.id} onChange={(event) => updateStatus(referral.id, event.target.value as ReferralStatus)} className={`h-9 rounded-md border px-2 text-xs font-bold ${statusClasses[referral.status]}`}>
                       {Object.entries(referralStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                     </select>
                   ) : (
@@ -200,7 +200,7 @@ export function ReferralsList({ referrals, canManage, canPayCommission, canDelet
 }
 
 const statusClasses: Record<ReferralStatus, string> = {
-  RECEIVED: "bg-blue-100 text-blue-700 hover:bg-blue-100",
+  RECEIVED: "bg-slate-100 text-slate-700 hover:bg-slate-100",
   UNDER_REVIEW: "bg-cyan-100 text-cyan-700 hover:bg-cyan-100",
   CONTACTING: "bg-amber-100 text-amber-700 hover:bg-amber-100",
   ISSUED: "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
