@@ -220,6 +220,16 @@ export function CancellationManager({
               <p className="mt-1 text-xs text-emerald-700/75">80% من القسط ناقص الرسوم الإدارية</p>
             </div>
 
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+              <div className="flex items-center gap-2 text-sm font-bold">
+                <ShieldAlert className="h-4 w-4" />رابعاً: الاسترداد
+              </div>
+              <ol className="mt-3 list-decimal space-y-2 pr-5 text-sm leading-6">
+                <li>في حال إلغاء الوثيقة خلال فترة السماح القانونية أو عدم سداد الاشتراك، يحق لشركة التكافل خصم العمولة من الدفعات المستقبلية.</li>
+                <li>في حال عدم وجود عمولات مستحقة مستقبلية، يلتزم المصرف برد المبلغ خلال (30) يوماً من الإشعار.</li>
+              </ol>
+            </div>
+
             {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <Button variant="destructive" className="w-full" disabled={busy || !availablePolicyOptions.length}>
               {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ReceiptText className="h-4 w-4" />}

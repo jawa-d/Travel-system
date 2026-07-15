@@ -4,12 +4,12 @@ import { ReferralStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/api";
 import { rowsToExcelBuffer, rowsToPdfBuffer } from "@/lib/exports";
-import { addCurrencyTotal, formatCurrencyTotals, formatReferralMoney, referralStatusLabels } from "@/lib/referrals";
+import { addCurrencyTotal, formatCurrencyTotals, formatReferralMoney, referralStatusLabels, referralTypeLabels } from "@/lib/referrals";
 
 export async function GET(request: NextRequest) {
   const user = await requirePermission("referralReportsRead");
   const format = request.nextUrl.searchParams.get("format") ?? "json";
-  const reportType = request.nextUrl.searchParams.get("type") === "quarterly-regulatory" ? "quarterly-regulatory" : "monthly-operational";
+  const reportType = request.nextUrl.searchParams.get("type") === "quarterly-regulatory" ? "quarterly-regulatory" : request.nextUrl.searchParams.get("type") === "monthly-cash" ? "monthly-cash" : "monthly-operational";
   const now = new Date();
   const fromParam = request.nextUrl.searchParams.get("from");
   const toParam = request.nextUrl.searchParams.get("to");
@@ -17,12 +17,16 @@ export async function GET(request: NextRequest) {
   const applicant = request.nextUrl.searchParams.get("applicant")?.trim();
   const referralNumber = request.nextUrl.searchParams.get("referralNumber")?.trim();
   const statusParam = request.nextUrl.searchParams.get("status");
-  const status = Object.values(ReferralStatus).includes(statusParam as ReferralStatus) ? statusParam as ReferralStatus : undefined;
+  const requestedStatus = Object.values(ReferralStatus).includes(statusParam as ReferralStatus) ? statusParam as ReferralStatus : undefined;
+  const status = reportType === "monthly-cash" ? ReferralStatus.ISSUED : requestedStatus;
   const from = fromParam ? startOfDay(new Date(fromParam)) : reportType === "quarterly-regulatory" ? startOfQuarter(now) : startOfMonth(now);
   const to = toParam ? endOfDay(new Date(toParam)) : reportType === "quarterly-regulatory" ? endOfQuarter(now) : endOfMonth(now);
+  const dateWhere = reportType === "monthly-cash"
+    ? { OR: [{ issuedAt: { gte: from, lte: to } }, { AND: [{ issuedAt: null }, { createdAt: { gte: from, lte: to } }] }] }
+    : { createdAt: { gte: from, lte: to } };
   const where = {
     AND: [
-      { createdAt: { gte: from, lte: to } },
+      dateWhere,
       status ? { status } : {},
       referralNumber ? { referralNumber: { contains: referralNumber, mode: "insensitive" as const } } : {},
       applicant ? { applicantName: { contains: applicant, mode: "insensitive" as const } } : {},
@@ -86,6 +90,15 @@ export async function GET(request: NextRequest) {
     formCompletion: `${referralCompletion(item)}%`,
     createdAt: item.createdAt.toISOString().slice(0, 10)
   }));
+  const cashDetailRows = referrals.map((item) => ({
+    documentNumber: item.referralNumber,
+    customerName: item.applicantName ?? "",
+    productType: referralTypeLabels[item.type],
+    issueDate: (item.issuedAt ?? item.createdAt).toISOString().slice(0, 10),
+    paidSubscription: formatReferralMoney(Number(item.totalPremium), item.currency),
+    dueCommission: formatReferralMoney(Number(item.commission?.commissionAmount ?? 0), item.currency),
+    policyStatus: referralStatusLabels[item.status]
+  }));
   const bankSummaryRows = Array.from(bankSummaries.values()).map((item) => ({
     bank: item.bank,
     referralCount: item.referralCount,
@@ -94,11 +107,18 @@ export async function GET(request: NextRequest) {
     totalCommission: formatCurrencyTotals(item.commissionByCurrency)
   }));
 
-  const rows = [...summaryRows, ...detailRows.map((item) => ({ metric: item.referralNumber, value: `${item.status} | ${item.totalPremium} | ${item.commissionAmount} | ${item.formCompletion}` }))];
-  const title = reportType === "quarterly-regulatory" ? "Quarterly regulatory referral report" : "Monthly operational referral report";
+  const rows = reportType === "monthly-cash"
+    ? [...summaryRows, ...cashDetailRows.map((item) => ({ metric: item.documentNumber, value: `${item.customerName} | ${item.productType} | ${item.issueDate} | ${item.paidSubscription} | ${item.dueCommission} | ${item.policyStatus}` }))]
+    : [...summaryRows, ...detailRows.map((item) => ({ metric: item.referralNumber, value: `${item.status} | ${item.totalPremium} | ${item.commissionAmount} | ${item.formCompletion}` }))];
+  const title = reportType === "quarterly-regulatory" ? "Quarterly regulatory referral report" : reportType === "monthly-cash" ? "Monthly issued referrals cash report" : "Monthly operational referral report";
+  const excelRows: Record<string, unknown>[] = reportType === "quarterly-regulatory"
+    ? [...summaryRows, ...bankSummaryRows]
+    : reportType === "monthly-cash"
+      ? [...summaryRows, ...cashDetailRows]
+      : [...summaryRows, ...bankSummaryRows, ...detailRows];
 
   if (format === "xlsx") {
-    const buffer = rowsToExcelBuffer(reportType === "quarterly-regulatory" ? [...summaryRows, ...bankSummaryRows] : [...summaryRows, ...bankSummaryRows, ...detailRows], "Referral Report");
+    const buffer = rowsToExcelBuffer(excelRows, "Referral Report");
     return new Response(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -121,7 +141,7 @@ export async function GET(request: NextRequest) {
     to,
     summaryRows,
     bankSummaryRows,
-    detailRows
+    detailRows: reportType === "monthly-cash" ? cashDetailRows : detailRows
   });
 }
 

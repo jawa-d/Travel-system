@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requirePagePermission } from "@/lib/page-guard";
 import { prisma } from "@/lib/prisma";
-import { addCurrencyTotal, formatCurrencyTotals, formatReferralMoney, referralStatusLabels } from "@/lib/referrals";
+import { addCurrencyTotal, formatCurrencyTotals, formatReferralMoney, referralStatusLabels, referralTypeLabels } from "@/lib/referrals";
 import { formatDate } from "@/lib/utils";
 
-type ReportType = "monthly-operational" | "quarterly-regulatory";
+type ReportType = "monthly-operational" | "monthly-cash" | "quarterly-regulatory";
 
 type Params = {
   type?: string;
@@ -25,14 +25,18 @@ type Params = {
 export default async function ReferralReportsPage({ searchParams }: { searchParams: Promise<Params> }) {
   await requirePagePermission("referralReportsRead");
   const params = await searchParams;
-  const reportType = (params.type === "quarterly-regulatory" ? "quarterly-regulatory" : "monthly-operational") satisfies ReportType;
+  const reportType = (params.type === "quarterly-regulatory" ? "quarterly-regulatory" : params.type === "monthly-cash" ? "monthly-cash" : "monthly-operational") satisfies ReportType;
   const now = new Date();
   const from = params.from ? startOfDay(new Date(params.from)) : reportType === "quarterly-regulatory" ? startOfQuarter(now) : startOfMonth(now);
   const to = params.to ? endOfDay(new Date(params.to)) : reportType === "quarterly-regulatory" ? endOfQuarter(now) : endOfMonth(now);
-  const status = Object.values(ReferralStatus).includes(params.status as ReferralStatus) ? params.status as ReferralStatus : undefined;
+  const requestedStatus = Object.values(ReferralStatus).includes(params.status as ReferralStatus) ? params.status as ReferralStatus : undefined;
+  const status = reportType === "monthly-cash" ? ReferralStatus.ISSUED : requestedStatus;
+  const dateWhere = reportType === "monthly-cash"
+    ? { OR: [{ issuedAt: { gte: from, lte: to } }, { AND: [{ issuedAt: null }, { createdAt: { gte: from, lte: to } }] }] }
+    : { createdAt: { gte: from, lte: to } };
   const where = {
     AND: [
-      { createdAt: { gte: from, lte: to } },
+      dateWhere,
       status ? { status } : {},
       params.referralNumber ? { referralNumber: { contains: params.referralNumber, mode: "insensitive" as const } } : {},
       params.applicant ? { applicantName: { contains: params.applicant, mode: "insensitive" as const } } : {},
@@ -46,7 +50,7 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
   };
   const bankOptionWhere = {
     AND: [
-      { createdAt: { gte: from, lte: to } },
+      dateWhere,
       status ? { status } : {},
       params.referralNumber ? { referralNumber: { contains: params.referralNumber, mode: "insensitive" as const } } : {},
       params.applicant ? { applicantName: { contains: params.applicant, mode: "insensitive" as const } } : {}
@@ -95,7 +99,7 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
     from: from.toISOString().slice(0, 10),
     to: to.toISOString().slice(0, 10),
     ...(params.bank ? { bank: params.bank } : {}),
-    ...(params.status ? { status: params.status } : {}),
+    ...(reportType !== "monthly-cash" && params.status ? { status: params.status } : {}),
     ...(params.applicant ? { applicant: params.applicant } : {}),
     ...(params.referralNumber ? { referralNumber: params.referralNumber } : {})
   });
@@ -105,7 +109,7 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
       <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary"><WalletCards className="h-4 w-4" />تقارير الإحالات</div>
-          <h1 className="text-2xl font-black sm:text-3xl">{reportType === "quarterly-regulatory" ? "تقرير ربع سنوي رقابي" : "تقرير شهري تشغيلي"}</h1>
+          <h1 className="text-2xl font-black sm:text-3xl">{reportType === "quarterly-regulatory" ? "تقرير ربع سنوي رقابي" : reportType === "monthly-cash" ? "كشف شهري بالإحالات الصادرة" : "تقرير شهري تشغيلي"}</h1>
           <p className="mt-2 text-sm text-muted-foreground">بحث تفصيلي حسب المصرف المستفيد، الجهة الرافعة، الحالة، طالب التأمين، ورقم الحالة مع تصدير PDF وXLSX.</p>
         </div>
         <div className="flex gap-2">
@@ -117,6 +121,7 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
       <form className="mb-6 grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-2 xl:grid-cols-[220px_1fr_1fr_1fr_1fr_1fr_1fr_auto]">
         <select name="type" defaultValue={reportType} className="h-11 rounded-md border bg-background px-3 text-sm">
           <option value="monthly-operational">تقرير شهري تشغيلي</option>
+          <option value="monthly-cash">كشف شهري بالإحالات الصادرة</option>
           <option value="quarterly-regulatory">تقرير ربع سنوي رقابي</option>
         </select>
         <input name="from" type="date" defaultValue={from.toISOString().slice(0, 10)} className="h-11 rounded-md border bg-background px-3 text-sm" />
@@ -125,7 +130,7 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
           <option value="">كل المصارف/المستفيدين/المستخدمين</option>
           {bankOptions.map((bank) => <option key={bank} value={bank}>{bank}</option>)}
         </select>
-        <select name="status" defaultValue={params.status ?? ""} className="h-11 rounded-md border bg-background px-3 text-sm">
+        <select name="status" defaultValue={reportType === "monthly-cash" ? "ISSUED" : params.status ?? ""} disabled={reportType === "monthly-cash"} className="h-11 rounded-md border bg-background px-3 text-sm disabled:opacity-70">
           <option value="">كل الحالات</option>
           {Object.entries(referralStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
@@ -134,7 +139,7 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
         <Button>تطبيق</Button>
       </form>
 
-      {reportType === "monthly-operational" ? (
+      {reportType !== "quarterly-regulatory" ? (
         <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <Metric title="عدد الإحالات" value={referrals.length} />
           <Metric title="عدد الوثائق الصادرة" value={issuedCount} />
@@ -195,6 +200,35 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5 text-primary" />تفاصيل التقرير</CardTitle></CardHeader>
         <CardContent className="overflow-x-auto p-0">
+          {reportType === "monthly-cash" ? (
+          <table className="w-full min-w-[980px] text-sm">
+            <thead className="bg-muted/40 text-xs text-muted-foreground">
+              <tr>
+                <th className="p-3 text-right">رقم الوثيقة</th>
+                <th className="p-3 text-right">اسم العميل</th>
+                <th className="p-3 text-right">نوع المنتج</th>
+                <th className="p-3 text-right">تاريخ الإصدار</th>
+                <th className="p-3 text-right">الاشتراك مدفوع</th>
+                <th className="p-3 text-right">العمولة المستحقة</th>
+                <th className="p-3 text-right">حالة الوثيقة</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {referrals.map((item) => (
+                <tr key={item.id}>
+                  <td className="p-3 font-mono font-black text-primary" dir="ltr">{item.referralNumber}</td>
+                  <td className="p-3">{item.applicantName || "-"}</td>
+                  <td className="p-3">{referralTypeLabels[item.type]}</td>
+                  <td className="p-3">{formatDate(item.issuedAt ?? item.createdAt)}</td>
+                  <td className="p-3" dir="ltr">{formatReferralMoney(Number(item.totalPremium), item.currency)}</td>
+                  <td className="p-3" dir="ltr">{formatReferralMoney(Number(item.commission?.commissionAmount ?? 0), item.currency)}</td>
+                  <td className="p-3">{referralStatusLabels[item.status]}</td>
+                </tr>
+              ))}
+              {!referrals.length ? <tr><td colSpan={7} className="p-10 text-center text-muted-foreground">لا توجد إحالات صادرة ضمن الفترة المحددة.</td></tr> : null}
+            </tbody>
+          </table>
+          ) : (
           <table className="w-full min-w-[920px] text-sm">
             <thead className="bg-muted/40 text-xs text-muted-foreground">
               <tr>
@@ -226,6 +260,7 @@ export default async function ReferralReportsPage({ searchParams }: { searchPara
               {!referrals.length ? <tr><td colSpan={9} className="p-10 text-center text-muted-foreground">لا توجد بيانات ضمن معايير البحث المحددة.</td></tr> : null}
             </tbody>
           </table>
+          )}
         </CardContent>
       </Card>
     </AppShell>
