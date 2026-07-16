@@ -3,7 +3,7 @@
 import { ReportRequestStatus } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { CheckCircle2, Clock3, Mail, MessageSquareText, RefreshCw, UserRound, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, Download, Eye, FileUp, LockKeyhole, Mail, MessageSquareText, RefreshCw, UserRound, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast-provider";
@@ -20,6 +20,13 @@ export type ReportRequestItem = {
   requesterEmail: string | null;
   requesterBank: string | null;
   managerNotes: string | null;
+  reportFileUrl: string | null;
+  reportFileName: string | null;
+  reportFileSize: number | null;
+  reportFileUploadedAt: string | null;
+  isLocked: boolean;
+  lockedAt: string | null;
+  lockedByName: string | null;
   reviewedByName: string | null;
   reviewedAt: string | null;
   createdAt: string;
@@ -36,17 +43,15 @@ export function ReportRequestsManager({ requests }: { requests: ReportRequestIte
   const router = useRouter();
   const { toast } = useToast();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [expandedLocked, setExpandedLocked] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
 
   function updateRequest(id: string, formData: FormData) {
-    const status = String(formData.get("status")) as ReportRequestStatus;
-    const managerNotes = String(formData.get("managerNotes") ?? "").trim();
     setActiveId(id);
     startTransition(async () => {
       const response = await fetch(`/api/report-requests/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, managerNotes })
+        body: formData
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -54,9 +59,18 @@ export function ReportRequestsManager({ requests }: { requests: ReportRequestIte
         setActiveId(null);
         return;
       }
-      toast({ title: "تم تحديث طلب التقرير", tone: "success" });
+      toast({ title: formData.get("action") === "lock" ? "تم قفل طلب التقرير" : "تم تحديث طلب التقرير", tone: "success" });
       setActiveId(null);
       router.refresh();
+    });
+  }
+
+  function toggleLocked(id: string) {
+    setExpandedLocked((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
     });
   }
 
@@ -72,13 +86,39 @@ export function ReportRequestsManager({ requests }: { requests: ReportRequestIte
 
   return (
     <div className="space-y-4">
-      {requests.map((request) => (
-        <article key={request.id} className="overflow-hidden rounded-lg border bg-card shadow-sm">
+      {requests.map((request) => {
+        const lockedExpanded = expandedLocked.has(request.id);
+        if (request.isLocked && !lockedExpanded) {
+          return (
+            <button
+              key={request.id}
+              type="button"
+              onClick={() => toggleLocked(request.id)}
+              className="flex w-full items-center justify-between gap-4 rounded-lg border bg-card p-4 text-right shadow-sm transition-colors hover:bg-muted/20"
+            >
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <LockKeyhole className="h-4 w-4 text-primary" />
+                  <span className="font-mono text-sm font-black text-primary" dir="ltr">{request.requestNumber}</span>
+                  <Badge className={cn("border", statusStyles[request.status])}>{reportRequestStatusLabels[request.status]}</Badge>
+                </div>
+                <p className="mt-2 truncate text-base font-black text-slate-950 dark:text-foreground">{request.title}</p>
+              </div>
+              <span className="flex shrink-0 items-center gap-2 rounded-md border bg-muted/10 px-3 py-2 text-xs font-bold text-muted-foreground">
+                <Eye className="h-4 w-4" />
+                عرض
+              </span>
+            </button>
+          );
+        }
+        return (
+        <article key={request.id} className={cn("overflow-hidden rounded-lg border bg-card shadow-sm", request.isLocked && "border-primary/30")}>
           <div className="grid gap-4 border-b bg-muted/10 p-5 xl:grid-cols-[1fr_320px]">
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-mono text-sm font-black text-primary" dir="ltr">{request.requestNumber}</span>
                 <Badge className={cn("border", statusStyles[request.status])}>{reportRequestStatusLabels[request.status]}</Badge>
+                {request.isLocked ? <Badge className="border-primary/20 bg-primary/10 text-primary"><LockKeyhole className="ml-1 h-3.5 w-3.5" />مقفل</Badge> : null}
               </div>
               <h2 className="mt-3 text-xl font-black text-slate-950 dark:text-foreground">{request.title}</h2>
               <p className="mt-2 whitespace-pre-line text-sm leading-7 text-muted-foreground">{request.details}</p>
@@ -90,10 +130,23 @@ export function ReportRequestsManager({ requests }: { requests: ReportRequestIte
               <InfoLine icon={CheckCircle2} label="المصرف" value={request.requesterBank ?? "غير محدد"} />
               <InfoLine icon={Clock3} label="تاريخ الطلب" value={formatDate(request.createdAt)} />
               {request.reviewedByName ? <InfoLine icon={RefreshCw} label="آخر تحديث" value={`${request.reviewedByName} - ${formatDate(request.reviewedAt)}`} /> : null}
+              {request.isLocked ? <InfoLine icon={LockKeyhole} label="قفل الطلب" value={`${request.lockedByName ?? "المدير العام"} - ${formatDate(request.lockedAt)}`} /> : null}
+              {request.reportFileUrl ? (
+                <a href={request.reportFileUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-lg border bg-primary/5 p-3 text-sm font-bold text-primary hover:bg-primary/10">
+                  <Download className="h-4 w-4" />
+                  <span className="min-w-0 flex-1 truncate">{request.reportFileName ?? "ملف التقرير"}</span>
+                </a>
+              ) : null}
             </div>
           </div>
 
-          <form action={(formData) => updateRequest(request.id, formData)} className="grid gap-4 p-5 lg:grid-cols-[240px_1fr_auto] lg:items-end">
+          {request.isLocked ? (
+            <div className="flex items-center justify-between gap-3 border-t p-4">
+              <p className="text-sm font-semibold text-muted-foreground">هذا الطلب مقفل للعرض فقط ولا يمكن تعديله.</p>
+              <Button type="button" variant="outline" onClick={() => toggleLocked(request.id)}>تصغير</Button>
+            </div>
+          ) : (
+          <form action={(formData) => updateRequest(request.id, formData)} className="grid gap-4 p-5 xl:grid-cols-[220px_1fr_280px_auto] xl:items-end">
             <label className="grid gap-2 text-sm font-semibold">
               حالة الطلب
               <select name="status" defaultValue={request.status} className="h-11 rounded-md border bg-background px-3 text-sm">
@@ -114,13 +167,30 @@ export function ReportRequestsManager({ requests }: { requests: ReportRequestIte
               />
             </label>
 
-            <Button disabled={isPending && activeId === request.id} className="h-11">
-              {request.status === "REJECTED" ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
-              {isPending && activeId === request.id ? "جارٍ الحفظ..." : "حفظ التحديث"}
-            </Button>
+            <label className="grid gap-2 text-sm font-semibold">
+              رفع ملف التقرير
+              <span className="flex h-24 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed bg-muted/10 px-3 text-center text-xs text-muted-foreground hover:border-primary/50 hover:bg-primary/5">
+                <FileUp className="mb-1 h-5 w-5 text-primary" />
+                PDF / Word / Excel حتى 15 MB
+                <input name="reportFile" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" className="sr-only" />
+              </span>
+            </label>
+
+            <div className="grid gap-2">
+              <Button name="action" value="save" disabled={isPending && activeId === request.id} className="h-11">
+                {request.status === "REJECTED" ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                {isPending && activeId === request.id ? "جارٍ الحفظ..." : "حفظ التحديث"}
+              </Button>
+              <Button name="action" value="lock" variant="outline" disabled={isPending && activeId === request.id} className="h-11">
+                <LockKeyhole className="h-4 w-4" />
+                قفل الطلب
+              </Button>
+            </div>
           </form>
+          )}
         </article>
-      ))}
+        );
+      })}
     </div>
   );
 }

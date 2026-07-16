@@ -11,6 +11,16 @@ export const reportRequestUpdateSchema = z.object({
   managerNotes: z.string().trim().max(3000, "ملاحظات الإدارة طويلة جداً").optional().nullable()
 });
 
+export const reportRequestAllowedFileTypes = new Set([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/msword"
+]);
+
+export const reportRequestAllowedFileExtensions = new Set([".pdf", ".xlsx", ".xls", ".docx", ".doc"]);
+
 export const reportRequestStatusLabels: Record<ReportRequestStatus, string> = {
   PENDING: "بانتظار المراجعة",
   IN_REVIEW: "قيد المراجعة",

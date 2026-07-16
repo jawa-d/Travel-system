@@ -365,6 +365,15 @@ model ReportRequest {
   requesterRole  Role?
   requesterBank  String?
   managerNotes   String?             @db.Text
+  reportFileUrl  String?
+  reportFileName String?
+  reportFileType String?
+  reportFileSize Int?
+  reportFileUploadedAt DateTime?
+  isLocked       Boolean             @default(false)
+  lockedAt       DateTime?
+  lockedById     String?
+  lockedByName   String?
   reviewedById   String?
   reviewedBy     User?               @relation("ReportRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
   reviewedByName String?
