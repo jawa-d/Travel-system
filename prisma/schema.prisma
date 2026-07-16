@@ -146,6 +146,13 @@ enum TransportMode {
   AIR
 }
 
+enum ReportRequestStatus {
+  PENDING
+  IN_REVIEW
+  COMPLETED
+  REJECTED
+}
+
 model Agency {
   id        String   @id @default(cuid())
   name      String
@@ -180,6 +187,8 @@ model User {
   motorCommissions MotorCommission[] @relation("MotorCommissionPayer")
   referrals Referral[] @relation("ReferralCreator")
   referralCommissions ReferralCommission[] @relation("ReferralCommissionPayer")
+  reportRequests ReportRequest[] @relation("ReportRequestRequester")
+  reviewedReportRequests ReportRequest[] @relation("ReportRequestReviewer")
   claims        Claim[]     @relation("ClaimCreator")
   notifications Notification[]
   auditLogs     AuditLog[]
@@ -341,6 +350,32 @@ model ReferralCommission {
 
   @@index([paidAt])
   @@index([paidById])
+}
+
+model ReportRequest {
+  id             String              @id @default(cuid())
+  requestNumber  String              @unique
+  title          String
+  details        String              @db.Text
+  status         ReportRequestStatus @default(PENDING)
+  requesterId    String?
+  requester      User?               @relation("ReportRequestRequester", fields: [requesterId], references: [id], onDelete: SetNull)
+  requesterName  String?
+  requesterEmail String?
+  requesterRole  Role?
+  requesterBank  String?
+  managerNotes   String?             @db.Text
+  reviewedById   String?
+  reviewedBy     User?               @relation("ReportRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedByName String?
+  reviewedAt     DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([status])
+  @@index([requesterId])
+  @@index([createdAt])
+  @@index([reviewedById])
 }
 
 model MotorCommission {

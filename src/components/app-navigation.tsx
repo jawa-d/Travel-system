@@ -13,6 +13,7 @@ import {
   ClipboardList,
   FileClock,
   FilePlus2,
+  FileQuestion,
   FileText,
   Globe2,
   Home,
@@ -47,6 +48,8 @@ const groups: Array<{ label: string; items: NavItem[]; collapsible?: boolean }> 
     items: [
       { href: "/", label: "لوحة التحكم", icon: Home, permission: "dashboard" },
       { href: "/referrals", label: "الإحالات", icon: Ship, featured: true, permission: "referralsRead" },
+      { href: "/report-requests/new", label: "طلب تقرير", icon: FileQuestion, featured: true, permission: "reportRequestsCreate" },
+      { href: "/report-requests", label: "إدارة طلبات التقارير", icon: FileQuestion, permission: "reportRequestsManage" },
       { href: "/referral-sla", label: "SLA / KPIs", icon: ShieldCheck, permission: "referralsRead" },
       { href: "/motor-requests", label: "طلبات تأمين المركبات", icon: CarFront, featured: true, permission: "motorRequestsRead" },
       { href: "/policies/new", label: "إصدار وثيقة", icon: FilePlus2, featured: true, permission: "policiesWrite" }
