@@ -56,7 +56,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return null;
           }
           clearRateLimit(attemptKey);
-          return { id: user.id, email: user.email, name: user.name, role: user.role, active: user.active };
+          return { id: user.id, email: user.email, name: user.name, image: user.image, role: user.role, active: user.active };
         } catch (error) {
           console.error("[auth] Credentials authorization failed", { email, ipAddress, error });
           return null;
@@ -68,6 +68,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.name = user.name;
+        token.picture = user.image;
         token.role = (user as typeof user & { role: Role }).role;
         token.active = (user as typeof user & { active?: boolean }).active ?? true;
       }
@@ -77,6 +78,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = token.sub ?? "";
         session.user.name = token.name;
+        session.user.image = token.picture;
         session.user.role = token.role as Role;
         session.user.active = token.active !== false;
       }

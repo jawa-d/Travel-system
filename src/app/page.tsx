@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AlertTriangle, FileText, Plus, RefreshCw, Ship } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ExecutiveDashboard, type ExecutiveDashboardData } from "@/components/executive-dashboard";
+import { StoredImage } from "@/components/stored-image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { requirePagePermission } from "@/lib/page-guard";
@@ -15,6 +16,10 @@ const monthFormatter = new Intl.DateTimeFormat("en-US-u-nu-latn", { month: "shor
 export default async function DashboardPage() {
   const user = await requirePagePermission("dashboard");
   if (user.role === "BANK") {
+    const account = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { image: true }
+    }).catch(() => null);
     const referrals = await prisma.referral.findMany({
       where: { createdById: user.id },
       orderBy: { createdAt: "desc" },
@@ -30,10 +35,13 @@ export default async function DashboardPage() {
     return (
       <AppShell>
         <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-          <div>
+          <div className="flex items-start gap-4">
+            <StoredImage source={account?.image ?? user.image} alt={user.name ?? "Bank user"} className="h-16 w-16 shrink-0 rounded-2xl border bg-primary/10 object-cover" />
+            <div>
             <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary"><Ship className="h-4 w-4" />صلاحية البنوك</div>
             <h1 className="text-2xl font-black sm:text-3xl">لوحة إحالات البنك</h1>
             <p className="mt-2 text-sm text-muted-foreground">أرقام الإحالات التي تم رفعها من حسابك وحالة كل إحالة.</p>
+            </div>
           </div>
           <Button asChild><Link href="/referrals/new"><Plus className="h-4 w-4" />رفع إحالة</Link></Button>
         </div>

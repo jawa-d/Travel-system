@@ -1,11 +1,13 @@
 import { Moon, ShieldCheck, UserRound } from "lucide-react";
 import { auth } from "@/auth";
 import { AppShell } from "@/components/app-shell";
-import { ChangePasswordForm } from "@/components/change-password-form";
+import { ProfileImageForm } from "@/components/profile-image-form";
+import { StoredImage } from "@/components/stored-image";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { directAccessUser, isDirectAccessEnabled } from "@/lib/direct-access";
 import { requirePagePermission } from "@/lib/page-guard";
+import { prisma } from "@/lib/prisma";
 import { roleLabels } from "@/lib/rbac";
 
 export default async function ProfilePage() {
@@ -13,6 +15,10 @@ export default async function ProfilePage() {
   const session = await auth();
   const user = session?.user ?? (isDirectAccessEnabled() ? directAccessUser : null);
   if (!user) return null;
+  const account = user.id === directAccessUser.id
+    ? null
+    : await prisma.user.findUnique({ where: { id: user.id }, select: { image: true } }).catch(() => null);
+  const profileImage = account?.image ?? user.image ?? "";
 
   return (
     <AppShell>
@@ -29,7 +35,7 @@ export default async function ProfilePage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary/10 text-2xl font-black text-primary">{user.name?.slice(0, 1) ?? "T"}</div>
+            <StoredImage source={profileImage} alt={user.name ?? "Profile"} className="h-16 w-16 rounded-2xl border bg-primary/10 object-cover text-primary" />
             <div>
               <p className="text-xs text-muted-foreground">الاسم</p>
               <p className="mt-1 font-bold">{user.name}</p>
@@ -67,12 +73,12 @@ export default async function ProfilePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-primary" />
-              أمان الحساب
+              صورة الحساب
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ChangePasswordForm disabled={user.id === directAccessUser.id} />
-            {user.id === directAccessUser.id ? <p className="mt-3 text-xs text-muted-foreground">تغيير كلمة المرور غير متاح في وضع العرض.</p> : null}
+            <ProfileImageForm initialImage={profileImage} />
+            {user.id === directAccessUser.id ? <p className="mt-3 text-xs text-muted-foreground">تعديل صورة الحساب غير متاح في وضع العرض.</p> : null}
           </CardContent>
         </Card>
       </div>
