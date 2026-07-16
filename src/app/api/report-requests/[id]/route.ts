@@ -1,5 +1,5 @@
 import { extname } from "node:path";
-import { put } from "@vercel/blob";
+import { del, put } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 import { jsonError, requirePermission } from "@/lib/api";
 import { getIpAddress, writeAuditLog } from "@/lib/audit";
@@ -94,6 +94,39 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     });
 
     return NextResponse.json(updated);
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const user = await requirePermission("reportRequestsManage");
+    const { id } = await params;
+    const current = await prisma.reportRequest.findUnique({
+      where: { id },
+      select: { id: true, requestNumber: true, reportFileUrl: true }
+    });
+
+    if (!current) return NextResponse.json({ error: "الطلب غير موجود" }, { status: 404 });
+
+    if (current.reportFileUrl) {
+      await del(current.reportFileUrl);
+    }
+
+    await prisma.reportRequest.delete({ where: { id } });
+
+    await writeAuditLog({
+      userId: user.id,
+      role: user.role,
+      action: "REPORT_REQUEST_DELETED",
+      entity: "ReportRequest",
+      entityId: current.id,
+      ipAddress: getIpAddress(request.headers),
+      metadata: { requestNumber: current.requestNumber }
+    });
+
+    return NextResponse.json({ ok: true });
   } catch (error) {
     return jsonError(error);
   }

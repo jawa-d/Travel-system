@@ -3,9 +3,10 @@
 import { ReportRequestStatus } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { CheckCircle2, Clock3, Download, Eye, FileUp, LockKeyhole, Mail, MessageSquareText, RefreshCw, UserRound, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, Download, Eye, FileUp, LockKeyhole, Mail, MessageSquareText, RefreshCw, Trash2, UserRound, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast-provider";
 import { reportRequestStatusLabels } from "@/lib/report-requests";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,7 @@ export function ReportRequestsManager({ requests }: { requests: ReportRequestIte
   const router = useRouter();
   const { toast } = useToast();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<ReportRequestItem | null>(null);
   const [expandedLocked, setExpandedLocked] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
 
@@ -74,6 +76,27 @@ export function ReportRequestsManager({ requests }: { requests: ReportRequestIte
     });
   }
 
+  function deleteRequest() {
+    if (!deleting) return;
+    const request = deleting;
+    setActiveId(request.id);
+    startTransition(async () => {
+      const response = await fetch(`/api/report-requests/${request.id}`, {
+        method: "DELETE"
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        toast({ title: result.error ?? "تعذر حذف طلب التقرير", tone: "error" });
+        setActiveId(null);
+        return;
+      }
+      toast({ title: "تم حذف طلب التقرير", tone: "success" });
+      setDeleting(null);
+      setActiveId(null);
+      router.refresh();
+    });
+  }
+
   if (!requests.length) {
     return (
       <div className="rounded-lg border bg-card p-12 text-center">
@@ -85,6 +108,7 @@ export function ReportRequestsManager({ requests }: { requests: ReportRequestIte
   }
 
   return (
+    <>
     <div className="space-y-4">
       {requests.map((request) => {
         const lockedExpanded = expandedLocked.has(request.id);
@@ -122,6 +146,17 @@ export function ReportRequestsManager({ requests }: { requests: ReportRequestIte
               </div>
               <h2 className="mt-3 text-xl font-black text-slate-950 dark:text-foreground">{request.title}</h2>
               <p className="mt-2 whitespace-pre-line text-sm leading-7 text-muted-foreground">{request.details}</p>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeleting(request)}
+                disabled={isPending && activeId === request.id}
+                className="mt-4"
+              >
+                <Trash2 className="h-4 w-4" />
+                حذف الطلب
+              </Button>
             </div>
 
             <div className="space-y-3 rounded-lg border bg-background p-4 text-sm">
@@ -192,6 +227,17 @@ export function ReportRequestsManager({ requests }: { requests: ReportRequestIte
         );
       })}
     </div>
+    <ConfirmDialog
+      open={Boolean(deleting)}
+      onOpenChange={(open) => !open && setDeleting(null)}
+      title="حذف طلب التقرير؟"
+      description={`سيتم حذف الطلب ${deleting?.requestNumber ?? ""} نهائياً مع ملف التقرير المرفوع إن وجد.`}
+      confirmLabel="حذف"
+      destructive
+      busy={Boolean(deleting && isPending && activeId === deleting.id)}
+      onConfirm={deleteRequest}
+    />
+    </>
   );
 }
 
