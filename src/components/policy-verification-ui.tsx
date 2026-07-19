@@ -26,7 +26,7 @@ export function VerificationBrandHeader({ description, status, align = "center" 
         <Image src="/iraq-takaful-logo.svg" alt="Iraq Takaful Insurance Company" width={52} height={52} className="h-full w-full object-contain" />
       </span>
       <div>
-        {align === "split" ? <p className="text-xs font-bold uppercase tracking-normal text-[#AE8F50]">TRINSU Verification</p> : null}
+        {align === "split" ? <p className="text-xs font-bold uppercase tracking-normal text-[#AE8F50]">Iraq Takaful Verification</p> : null}
         <h1 className={`${align === "center" ? "mt-3" : "mt-1"} text-2xl font-black text-[#293545]`}>التحقق من وثيقة التأمين</h1>
         <p className="mt-1 text-sm text-slate-500">{description ?? "Iraq Takaful Insurance Company"}</p>
       </div>

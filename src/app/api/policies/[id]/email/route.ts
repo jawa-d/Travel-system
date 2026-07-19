@@ -50,7 +50,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const buffer = Buffer.from(doc.output("arraybuffer"));
     const result = await sendEmail({
       to: email,
-      subject: `TRINSU Policy ${policy.policyNumber}`,
+      subject: `Iraq Takaful Policy ${policy.policyNumber}`,
       text: `Attached is policy ${policy.policyNumber}. Verification: ${verificationUrl}`,
       attachments: [{ filename: `${policy.policyNumber}.pdf`, content: buffer, contentType: "application/pdf" }]
     });

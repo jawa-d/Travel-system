@@ -20,7 +20,7 @@ export default function LoginPage() {
             <span className="grid h-10 w-10 place-items-center rounded-xl border border-white/15 bg-white/10">
               <ShieldCheck className="h-5 w-5 text-[#d2ab5b]" />
             </span>
-            منصة إدارة تأمين السفر
+            نظام تكافل العراق للتأمين التكافلي
           </div>
 
           <div className="relative">
@@ -33,7 +33,7 @@ export default function LoginPage() {
               <span className="mt-2 block text-[#d2ab5b]">للتأمين التكافلي</span>
             </h1>
             <p className="mt-6 max-w-lg text-base leading-8 text-slate-300">
-              نظام متكامل وآمن لإدارة وثائق تأمين السفر وخدمة العملاء بكل سلاسة.
+              نظام متكامل وآمن لإدارة خدمات شركة تكافل العراق للتأمين التكافلي وخدمة العملاء بكل سلاسة.
             </p>
           </div>
 

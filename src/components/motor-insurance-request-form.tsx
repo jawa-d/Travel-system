@@ -382,7 +382,7 @@ export function MotorInsuranceRequestForm() {
     <form dir={dir} onInput={(event) => updateReviewValues(event.currentTarget)} onSubmit={(event) => submit(event, intentRef.current)} className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <div className="mb-2 text-sm font-semibold text-primary">TRINSU</div>
+          <div className="mb-2 text-sm font-semibold text-primary">Iraq Takaful</div>
           <h1 className="text-2xl font-black tracking-normal text-slate-950 dark:text-foreground sm:text-3xl">{t.title}</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{t.subtitle}</p>
         </div>

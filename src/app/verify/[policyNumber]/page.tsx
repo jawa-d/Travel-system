@@ -55,7 +55,7 @@ export default async function VerifyPolicyPage({
             <CheckCircle2 className="h-6 w-6 shrink-0" />
             <div>
               <p className="font-black">تم التحقق من صحة الوثيقة بنجاح.</p>
-              <p className="mt-1 text-sm">This policy record matches an official TRINSU policy verification entry.</p>
+              <p className="mt-1 text-sm">This policy record matches an official Iraq Takaful policy verification entry.</p>
             </div>
           </div>
         </div>

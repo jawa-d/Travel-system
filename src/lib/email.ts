@@ -13,7 +13,7 @@ export async function sendEmail(input: { to: string; subject: string; text: stri
   });
 
   await transporter.sendMail({
-    from: process.env.SMTP_FROM ?? "TRINSU <no-reply@trinsu.local>",
+    from: process.env.SMTP_FROM ?? "Iraq Takaful <no-reply@iraq-takaful.local>",
     to: input.to,
     subject: input.subject,
     text: input.text,

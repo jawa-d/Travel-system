@@ -151,8 +151,8 @@ export function AppNavigation({ role, mobileOnly = false }: { locale?: Locale; r
             />
           </span>
           <span className="min-w-0">
-            <span className="block text-lg font-black leading-5 tracking-normal text-slate-950 dark:text-foreground">TRINSU</span>
-            <span className="block truncate text-[10px] font-medium text-slate-400">إدارة تأمين السفر</span>
+            <span className="block text-lg font-black leading-5 tracking-normal text-slate-950 dark:text-foreground">Iraq Takaful</span>
+            <span className="block truncate text-[10px] font-medium text-slate-400">نظام تكافل العراق للتأمين التكافلي</span>
           </span>
         </Link>
         {mobileOnly ? (

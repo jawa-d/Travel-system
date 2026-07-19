@@ -7,8 +7,8 @@ import { isDirectAccessEnabled } from "@/lib/direct-access";
 /* eslint-disable @next/next/no-page-custom-font */
 
 export const metadata: Metadata = {
-  title: { default: "TRINSU | إدارة تأمين السفر", template: "%s | TRINSU" },
-  description: "منصة إدارة وثائق تأمين السفر"
+  title: { default: "Iraq Takaful | نظام تكافل العراق للتأمين التكافلي", template: "%s | Iraq Takaful" },
+  description: "نظام تكافل العراق للتأمين التكافلي"
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

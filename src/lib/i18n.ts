@@ -22,7 +22,7 @@ export const localeMeta = {
 } as const;
 
 const arabicDictionary = {
-  appName: "إدارة تأمين السفر",
+  appName: "نظام تكافل العراق للتأمين التكافلي",
   dashboard: "لوحة التحكم",
   customers: "العملاء",
   plans: "خطط السفر",
@@ -50,7 +50,7 @@ const arabicDictionary = {
   dark: "داكن",
   systemTheme: "النظام",
   loading: "جاري التحميل...",
-  travelInsuranceSystem: "نظام إدارة تأمين السفر",
+  travelInsuranceSystem: "نظام تكافل العراق للتأمين التكافلي",
   home: "الرئيسية",
   secureSystem: "النظام يعمل بأمان",
   autosave: "يتم حفظ تغييراتك تلقائيا.",

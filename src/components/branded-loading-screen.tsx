@@ -47,8 +47,8 @@ export function BrandedLoadingScreen({ fixed = false }: { fixed?: boolean }) {
           transition={{ delay: 0.08, duration: 0.28 }}
           className="mt-6"
         >
-          <p className="text-3xl font-black tracking-tight text-[#22354a]">TRINSU</p>
-          <p className="mt-2 text-sm font-semibold text-[#0b7f91]">Travel Insurance Management System</p>
+          <p className="text-3xl font-black tracking-tight text-[#22354a]">Iraq Takaful</p>
+          <p className="mt-2 text-sm font-semibold text-[#0b7f91]">نظام تكافل العراق للتأمين التكافلي</p>
           <p className="mt-4 text-base font-bold text-[#a77d30]">جاري التحميل...</p>
         </motion.div>
 
