@@ -6,27 +6,36 @@ import {
   BarChart3,
   BadgeDollarSign,
   Bell,
+  Building2,
   BriefcaseBusiness,
   CarFront,
   ChevronDown,
   CircleDollarSign,
   ClipboardList,
+  Construction,
   FileClock,
   FilePlus2,
   FileQuestion,
   FileText,
+  Flame,
+  Gem,
   Globe2,
+  HeartPulse,
   Home,
   Landmark,
   ListPlus,
   Menu,
+  Plane,
   ReceiptText,
   ScrollText,
   Settings2,
   Ship,
   ShieldCheck,
+  ShieldAlert,
   Users,
+  UserRoundCheck,
   WalletCards,
+  Wallet,
   X,
   XCircle
 } from "lucide-react";
@@ -54,6 +63,21 @@ const groups: Array<{ label: string; items: NavItem[]; collapsible?: boolean }> 
       { href: "/referral-sla", label: "SLA / KPIs", icon: ShieldCheck, permission: "referralsRead" },
       { href: "/motor-requests", label: "طلبات تأمين المركبات", icon: CarFront, featured: true, permission: "motorRequestsRead" },
       { href: "/policies/new", label: "إصدار وثيقة", icon: FilePlus2, featured: true, permission: "policiesWrite" }
+    ]
+  },
+  {
+    label: "طلبات بوابات التأمين",
+    items: [
+      { href: "/travel-requests", label: "طلبات تأمين السفر", icon: Plane, permission: "travelRequestsRead" },
+      { href: "/fire-requests", label: "طلبات الحريق والسرقة", icon: Flame, permission: "fireRequestsRead" },
+      { href: "/contractors-all-risks-requests", label: "طلبات جميع أخطار المقاولين", icon: Construction, permission: "contractorsAllRisksRequestsRead" },
+      { href: "/public-liability-requests", label: "طلبات المسؤولية المدنية", icon: ShieldAlert, permission: "publicLiabilityRequestsRead" },
+      { href: "/workers-compensation-requests", label: "طلبات إصابات العمال", icon: BriefcaseBusiness, permission: "workersCompensationRequestsRead" },
+      { href: "/glass-requests", label: "طلبات زجاج المباني", icon: Gem, permission: "glassRequestsRead" },
+      { href: "/health-requests", label: "طلبات التأمين الصحي", icon: HeartPulse, permission: "healthRequestsRead" },
+      { href: "/property-requests", label: "طلبات الممتلكات", icon: Building2, permission: "propertyRequestsRead" },
+      { href: "/fidelity-guarantee-requests", label: "طلبات خيانة الأمانة", icon: UserRoundCheck, permission: "fidelityGuaranteeRequestsRead" },
+      { href: "/cash-insurance-requests", label: "طلبات تأمين النقد", icon: Wallet, permission: "cashInsuranceRequestsRead" }
     ]
   },
   {

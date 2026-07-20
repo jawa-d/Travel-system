@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { jsonError, requireUser } from "@/lib/api";
 import { getIpAddress, writeAuditLog } from "@/lib/audit";
+import { createMotorRequestController } from "@/lib/motor-requests";
 import { motorInsuranceRequestSchema } from "@/lib/validators";
 import { createMotorRequestNumber, motorRequestYear } from "@/lib/motor-request-number";
 
@@ -18,6 +19,11 @@ async function getAgentSnapshot(userId: string) {
       agency: { select: { name: true } }
     }
   });
+}
+
+export async function GET() {
+  const user = await requireUser();
+  return createMotorRequestController().list(user);
 }
 
 export async function POST(request: NextRequest) {

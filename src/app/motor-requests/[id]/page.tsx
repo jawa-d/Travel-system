@@ -10,8 +10,8 @@ import { StoredImage } from "@/components/stored-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { createMotorRequestService } from "@/lib/motor-requests";
 import { requirePagePermission } from "@/lib/page-guard";
-import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -21,9 +21,8 @@ type CustomerDocument = { key: string; label: string; id?: string; url?: string;
 export default async function MotorRequestDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requirePagePermission("motorRequestsRead");
   const { id } = await params;
-  const request = await prisma.motorInsuranceRequest.findUnique({ where: { id } });
+  const request = await createMotorRequestService().getById(id, user);
   if (!request) notFound();
-  if (user.role === Role.AGENT && request.agentId !== user.id) notFound();
 
   const images = request.vehicleImages as VehicleImage[];
   const documents = request.customerDocuments as CustomerDocument[];
