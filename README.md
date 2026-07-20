@@ -44,6 +44,7 @@ Configure these variables for the Production environment:
 
 ```text
 DATABASE_URL=postgresql://...
+DIRECT_URL=postgresql://...
 AUTH_SECRET=<a cryptographically random value of at least 32 characters>
 AUTH_URL=https://your-production-domain.example
 AUTH_TRUST_HOST=true
@@ -77,7 +78,9 @@ the configured account does not already exist. Existing users are never overwrit
 Remove `BOOTSTRAP_ADMIN_PASSWORD` from Vercel after the account has been created.
 
 The Vercel build command runs `prisma migrate deploy` before `next build`, applying only reviewed
-production migrations. The existing Neon database has been baselined in Prisma migration history.
+production migrations. Set `DIRECT_URL` to the direct Neon database connection string for Prisma
+migrations, while `DATABASE_URL` may continue using the pooled application connection. The existing
+Neon database has been baselined in Prisma migration history.
 
 ## Main Modules
 

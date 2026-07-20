@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 
 function run(command, { allowRetry = false } = {}) {
-  const maxAttempts = allowRetry ? 3 : 1;
+  const maxAttempts = allowRetry ? 6 : 1;
   let lastResult;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -14,8 +14,9 @@ function run(command, { allowRetry = false } = {}) {
 
     if (lastResult.status === 0) return;
     if (attempt < maxAttempts) {
-      console.log("Command failed. Waiting before retry...");
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 8000);
+      const waitMs = Math.min(5000 * 2 ** (attempt - 1), 30000);
+      console.log(`Command failed. Waiting ${Math.round(waitMs / 1000)}s before retry...`);
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, waitMs);
     }
   }
 
