@@ -17,7 +17,6 @@ type Agent = {
   email: string;
   active: boolean;
   createdAt: string;
-  _count: { policies: number };
 };
 
 export function AgentManager({ agents: initialAgents }: { agents: Agent[] }) {
@@ -93,7 +92,7 @@ export function AgentManager({ agents: initialAgents }: { agents: Agent[] }) {
                         </Badge>
                       </div>
                       <p className="truncate text-sm text-muted-foreground" dir="ltr">{agent.email}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{agent._count.policies} وثيقة · أضيف {formatDate(agent.createdAt)}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">أضيف {formatDate(agent.createdAt)}</p>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">

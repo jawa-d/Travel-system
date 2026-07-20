@@ -47,13 +47,8 @@ export default auth(async (request) => {
     const allowed =
       path === "/" ||
       path === "/access-denied" ||
-      path === "/policies" ||
-      path.startsWith("/policies/") ||
-      path === "/policies/new" ||
-      path === "/customers" ||
-      path.startsWith("/customers/") ||
-      path === "/claims" ||
-      path === "/reports";
+      path === "/motor-requests" ||
+      path.startsWith("/motor-requests/");
     if (!allowed) {
       const deniedUrl = new URL("/access-denied", requestOrigin(request));
       deniedUrl.searchParams.set("from", `${request.nextUrl.pathname}${request.nextUrl.search}`);
@@ -69,6 +64,6 @@ export default auth(async (request) => {
 
 export const config = {
   matcher: [
-    "/((?!api/auth(?:/|$)|api/public(?:/|$)|api/v1/public(?:/|$)|login(?:/|$)|verify(?:/|$)|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.[a-zA-Z0-9]+$).*)"
+    "/((?!api/auth(?:/|$)|api/public(?:/|$)|api/v1/public(?:/|$)|login(?:/|$)|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.[a-zA-Z0-9]+$).*)"
   ]
 };

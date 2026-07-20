@@ -63,43 +63,6 @@ async function main() {
     role: Role.AGENT
   });
 
-  await prisma.travelPlan.createMany({
-    skipDuplicates: true,
-    data: [
-      {
-        name: "Basic Plan",
-        price: 25,
-        medicalCoverage: 10000,
-        baggageCoverage: 500,
-        tripDelayCoverage: 250,
-        medicalEvacuation: 5000,
-        repatriation: 5000,
-        personalLiability: 10000
-      },
-      {
-        name: "Gold Plan",
-        price: 55,
-        medicalCoverage: 50000,
-        baggageCoverage: 1500,
-        tripDelayCoverage: 750,
-        medicalEvacuation: 25000,
-        repatriation: 25000,
-        personalLiability: 50000
-      }
-    ]
-  });
-
-  await prisma.country.createMany({
-    skipDuplicates: true,
-    data: [
-      { nameAr: "Turkey", nameEn: "Turkey", isoCode: "TR", category: "ALLOWED" },
-      { nameAr: "United Arab Emirates", nameEn: "United Arab Emirates", isoCode: "AE", category: "ALLOWED" },
-      { nameAr: "United Kingdom", nameEn: "United Kingdom", isoCode: "GB", category: "ALLOWED" },
-      { nameAr: "Afghanistan", nameEn: "Afghanistan", isoCode: "AF", category: "HIGH_RISK", additionalRiskFee: 45 },
-      { nameAr: "Syria", nameEn: "Syria", isoCode: "SY", category: "RESTRICTED", additionalRiskFee: 30 }
-    ]
-  });
-
   await prisma.notification.createMany({
     data: [
       {

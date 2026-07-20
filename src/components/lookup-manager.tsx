@@ -19,18 +19,12 @@ type Lookup = {
 };
 
 const categories = {
-  CLAIM_TYPE: "أنواع المطالبات",
-  POLICY_TYPE: "أنواع الوثائق",
-  COVERAGE_TYPE: "أنواع التغطية",
-  ENDORSEMENT_TYPE: "أنواع الملاحق",
-  CANCELLATION_REASON: "أسباب الإلغاء",
-  DESTINATION: "الوجهات",
-  TRAVEL_PLAN: "خطط السفر"
+  COVERAGE_TYPE: "أنواع التغطية"
 } as const;
 
 export function LookupManager({ initialValues }: { initialValues: Lookup[] }) {
   const [items, setItems] = useState(initialValues);
-  const [category, setCategory] = useState<keyof typeof categories>("CLAIM_TYPE");
+  const [category, setCategory] = useState<keyof typeof categories>("COVERAGE_TYPE");
   const { toast } = useToast();
   const visible = items.filter((item) => item.category === category);
 

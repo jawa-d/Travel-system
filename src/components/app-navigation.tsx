@@ -1,40 +1,15 @@
 "use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  BarChart3,
-  BadgeDollarSign,
-  Bell,
-  BriefcaseBusiness,
-  CarFront,
-  ChevronDown,
-  CircleDollarSign,
-  ClipboardList,
-  FileClock,
-  FilePlus2,
-  FileQuestion,
-  FileText,
-  Globe2,
-  Home,
-  Landmark,
-  ListPlus,
-  Menu,
-  ReceiptText,
-  ScrollText,
-  Settings2,
-  Ship,
-  ShieldCheck,
-  Users,
-  WalletCards,
-  X,
-  XCircle
-} from "lucide-react";
+import { BadgeDollarSign, Bell, CarFront, ChevronDown, FileQuestion, Home, ListPlus, Menu, ReceiptText, ScrollText, Settings2, ShieldCheck, Ship, WalletCards, X } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Locale } from "@/lib/i18n";
 import type { Role } from "@prisma/client";
 import { can, type Permission } from "@/lib/rbac";
+
 type NavItem = {
   href: string;
   label: string;
@@ -42,49 +17,38 @@ type NavItem = {
   featured?: boolean;
   permission?: Permission;
 };
+
 const groups: Array<{ label: string; items: NavItem[]; collapsible?: boolean }> = [
   {
     label: "الرئيسية",
     items: [
-      { href: "/", label: "لوحة التحكم", icon: Home, permission: "dashboard" },
-      { href: "/referrals", label: "الإحالات", icon: Ship, featured: true, permission: "referralsRead" },
-      { href: "/report-requests", label: "طلباتي", icon: FileQuestion, featured: true, permission: "reportRequestsRead" },
-      { href: "/report-requests/new", label: "طلب تقرير", icon: FileQuestion, featured: true, permission: "reportRequestsCreate" },
-      { href: "/report-requests", label: "إدارة طلبات التقارير", icon: FileQuestion, permission: "reportRequestsManage" },
+      { href: "/", label: "لوحة التحكم", icon: Home, featured: true, permission: "dashboard" }
+    ]
+  },
+  {
+    label: "الإحالات",
+    items: [
+      { href: "/referrals", label: "الإحالات", icon: Ship, permission: "referralsRead" },
+      { href: "/report-requests", label: "إدارة طلبات التقرير", icon: FileQuestion, permission: "reportRequestsManage" },
       { href: "/referral-sla", label: "SLA / KPIs", icon: ShieldCheck, permission: "referralsRead" },
-      { href: "/motor-requests", label: "طلبات تأمين المركبات", icon: CarFront, featured: true, permission: "motorRequestsRead" },
-      { href: "/policies/new", label: "إصدار وثيقة", icon: FilePlus2, featured: true, permission: "policiesWrite" }
-    ]
-  },
-  {
-    label: "إدارة التأمين",
-    items: [
-      { href: "/policies", label: "الوثائق", icon: FileText, permission: "policiesRead" },
-      { href: "/customers", label: "العملاء", icon: Users, permission: "customersRead" },
-      { href: "/claims", label: "المطالبات", icon: ClipboardList, permission: "claimsWrite" },
-      { href: "/endorsements", label: "الملاحق", icon: FileClock, permission: "endorsementsRead" },
-      { href: "/cancellations", label: "الإلغاءات", icon: XCircle, permission: "cancellationsRead" }
-    ]
-  },
-  {
-    label: "الأعمال والتحليلات",
-    items: [
-      { href: "/pricing", label: "حاسبة السعر", icon: CircleDollarSign, permission: "financeRead" },
-      { href: "/motor-accounts", label: "حسابات وثائق المركبات", icon: ReceiptText, permission: "motorAccountsRead" },
-      { href: "/motor-commissions", label: "عمولات المركبات", icon: BadgeDollarSign, permission: "motorCommissionsRead" },
       { href: "/referral-commissions", label: "عمولات الإحالات", icon: BadgeDollarSign, permission: "referralCommissionsRead" },
-      { href: "/referral-reports", label: "تقرير الإحالات والعمولات", icon: WalletCards, permission: "referralReportsRead" },
-      { href: "/reports", label: "التقارير", icon: BarChart3, permission: "reportsRead" },
-      { href: "/agency", label: "بوابة الوكلاء", icon: BriefcaseBusiness, permission: "agencyRead" },
-      { href: "/agent-accounts", label: "حسابات الوكلاء", icon: Landmark, permission: "agentAccountsRead" }
+      { href: "/referral-reports", label: "تقرير الإحالات", icon: WalletCards, permission: "referralReportsRead" },
+      { href: "/report-requests", label: "طلباتي", icon: FileQuestion, permission: "reportRequestsRead" },
+      { href: "/report-requests/new", label: "طلب تقرير", icon: FileQuestion, featured: true, permission: "reportRequestsCreate" }
+    ]
+  },
+  {
+    label: "المركبات",
+    items: [
+      { href: "/motor-requests", label: "طلبات تأمين المركبات", icon: CarFront, permission: "motorRequestsRead" },
+      { href: "/motor-accounts", label: "حسابات وثائق المركبات", icon: ReceiptText, permission: "motorAccountsRead" },
+      { href: "/motor-commissions", label: "عمولات المركبات", icon: BadgeDollarSign, permission: "motorCommissionsRead" }
     ]
   },
   {
     label: "الإعدادات",
     collapsible: true,
     items: [
-      { href: "/plans", label: "خطط السفر", icon: ShieldCheck, permission: "plansWrite" },
-      { href: "/countries", label: "الدول", icon: Globe2, permission: "countriesWrite" },
       { href: "/lookups", label: "القوائم الديناميكية", icon: ListPlus, permission: "lookupsManage" },
       { href: "/notifications", label: "الإشعارات", icon: Bell, permission: "notificationsRead" },
       { href: "/audit", label: "سجل التدقيق", icon: ScrollText, permission: "auditRead" },
@@ -92,6 +56,7 @@ const groups: Array<{ label: string; items: NavItem[]; collapsible?: boolean }> 
     ]
   }
 ];
+
 export function AppNavigation({ role, mobileOnly = false }: { locale?: Locale; role: Role; mobileOnly?: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -108,7 +73,7 @@ export function AppNavigation({ role, mobileOnly = false }: { locale?: Locale; r
     const selected = active(item.href);
     return (
       <Link
-        key={item.href}
+        key={`${item.href}-${item.label}`}
         href={item.href}
         onClick={() => setOpen(false)}
         className={cn(
@@ -131,6 +96,7 @@ export function AppNavigation({ role, mobileOnly = false }: { locale?: Locale; r
       </Link>
     );
   }
+
   const sidebar = (
     <aside
       className={cn(
@@ -141,14 +107,7 @@ export function AppNavigation({ role, mobileOnly = false }: { locale?: Locale; r
       <div className="flex h-[73px] shrink-0 items-center justify-between border-b border-slate-200/70 px-5 dark:border-border">
         <Link href="/" onClick={() => setOpen(false)} className="flex min-w-0 items-center gap-3">
           <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-primary/10 bg-white p-1.5 shadow-lg shadow-primary/10">
-            <Image
-              src="/iraq-takaful-logo.svg"
-              alt="شعار شركة تكافل العراق"
-              width={44}
-              height={44}
-              priority
-              className="h-full w-full object-contain"
-            />
+            <Image src="/iraq-takaful-logo.svg" alt="شعار شركة تكافل العراق" width={44} height={44} priority className="h-full w-full object-contain" />
           </span>
           <span className="min-w-0">
             <span className="block text-lg font-black leading-5 tracking-normal text-slate-950 dark:text-foreground">Iraq Takaful</span>

@@ -3,9 +3,7 @@ import { redirect } from "next/navigation";
 import { Bell, ChevronDown, LogOut, Plus, UserRound } from "lucide-react";
 import { signOut, auth } from "@/auth";
 import { AppNavigation } from "@/components/app-navigation";
-import { ExportActions } from "@/components/export-actions";
 import { GlobalSearch } from "@/components/global-search";
-import { LocalNotificationSync } from "@/components/local-notification-sync";
 import { PageContext } from "@/components/page-context";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -31,7 +29,6 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#F1ECE2] transition-colors duration-300 dark:bg-background">
-      {isDirectAccessEnabled() ? <LocalNotificationSync /> : null}
       <AppNavigation role={user.role} />
       <main className="min-w-0 w-full lg:pr-64 xl:pr-72">
         <header className="sticky top-0 z-30 flex h-[73px] min-w-0 items-center justify-between gap-3 border-b border-slate-200/70 bg-white/90 px-3 shadow-[0_1px_8px_rgba(15,23,42,0.03)] backdrop-blur-xl transition-colors duration-300 dark:border-border dark:bg-card/90 sm:px-4 lg:px-5 xl:px-6">
@@ -43,12 +40,11 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
 
           <div className="flex shrink-0 items-center gap-1.5">
             {user.role !== "AGENT" ? <GlobalSearch /> : null}
-            {user.role !== "AGENT" ? <ExportActions locale={locale} /> : null}
             <ThemeToggle locale={locale} />
             <Button asChild className="hidden rounded-xl px-3 shadow-sm md:inline-flex">
-              <Link href={user.role === "AGENT" ? "/motor-requests/new" : "/policies/new"}>
+              <Link href={user.role === "BANK" ? "/referrals/new" : "/motor-requests/new"}>
                 <Plus className="h-4 w-4" />
-                {user.role === "AGENT" ? "طلب تأمين مركبة" : t.issuePolicy}
+                {user.role === "BANK" ? "إحالة جديدة" : "طلب تأمين مركبة"}
               </Link>
             </Button>
             {user.role !== "AGENT" ? (

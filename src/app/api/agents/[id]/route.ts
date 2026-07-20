@@ -35,8 +35,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         name: true,
         email: true,
         active: true,
-        createdAt: true,
-        _count: { select: { policies: true } }
+        createdAt: true
       }
     });
 

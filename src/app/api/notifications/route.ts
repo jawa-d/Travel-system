@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/api";
-import { buildExpiryNotificationsPreview } from "@/lib/notifications";
 import { isDirectAccessEnabled } from "@/lib/direct-access";
 import { getDemoNotifications, markAllDemoNotificationsRead } from "@/lib/demo-notification-store";
 
@@ -10,15 +9,12 @@ export async function GET() {
     return NextResponse.json({ notifications: getDemoNotifications(), expiryPreview: [] });
   }
   const user = await requireUser();
-  const [notifications, expiryPreview] = await Promise.all([
-    prisma.notification.findMany({
-      where: { OR: [{ userId: user.id }, { userId: null }] },
-      orderBy: { createdAt: "desc" },
-      take: 100
-    }),
-    buildExpiryNotificationsPreview()
-  ]);
-  return NextResponse.json({ notifications, expiryPreview });
+  const notifications = await prisma.notification.findMany({
+    where: { OR: [{ userId: user.id }, { userId: null }] },
+    orderBy: { createdAt: "desc" },
+    take: 100
+  });
+  return NextResponse.json({ notifications, expiryPreview: [] });
 }
 
 export async function PATCH() {

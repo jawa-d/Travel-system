@@ -1,4 +1,3 @@
-import { addDays, differenceInCalendarDays } from "date-fns";
 import { prisma } from "@/lib/prisma";
 
 export async function createSystemNotification(input: {
@@ -33,7 +32,7 @@ export async function createAccessDeniedNotification(input: {
   const permissionText = input.permission ? `\nالصلاحية المطلوبة: ${input.permission}` : "";
   const reasonText = input.reason ? `\nسبب المنع: ${input.reason}` : "";
   const message = [
-    `تم منع محاولة دخول غير مصرح بها.`,
+    "تم منع محاولة دخول غير مصرح بها.",
     `المستخدم: ${actor}`,
     input.userEmail ? `البريد: ${input.userEmail}` : null,
     input.userRole ? `الدور: ${input.userRole}` : null,
@@ -63,36 +62,4 @@ export async function createAccessDeniedNotification(input: {
   return prisma.notification.createMany({
     data: superAdmins.map((admin) => ({ ...base, userId: admin.id }))
   });
-}
-
-export async function schedulePolicyExpiryNotifications(policyId: string) {
-  const policy = await prisma.policy.findUnique({ where: { id: policyId }, include: { customer: true, issuedBy: true } });
-  if (!policy) return;
-  const days = [30, 15, 7, 1];
-  await prisma.notification.createMany({
-    data: days.map((day) => ({
-      userId: policy.issuedById,
-      type: "EXPIRY" as const,
-      title: `تنبيه انتهاء خلال ${day} يوم`,
-      message: `الوثيقة ${policy.policyNumber} للعميل ${policy.customer.arabicName} ستنتهي قريبا.`,
-      entity: "Policy",
-      entityId: policy.id,
-      dueAt: addDays(policy.returnDate, -day)
-    }))
-  });
-}
-
-export async function buildExpiryNotificationsPreview() {
-  const policies = await prisma.policy.findMany({
-    where: { status: "ACTIVE" },
-    include: { customer: true },
-    orderBy: { returnDate: "asc" },
-    take: 20
-  });
-  return policies
-    .map((policy) => ({
-      policy,
-      daysLeft: differenceInCalendarDays(policy.returnDate, new Date())
-    }))
-    .filter((item) => [30, 15, 7, 1].includes(item.daysLeft));
 }

@@ -1,254 +1,157 @@
-import { subMonths } from "date-fns";
 import Link from "next/link";
-import { AlertTriangle, FileText, Plus, RefreshCw, Ship } from "lucide-react";
+import { AlertTriangle, Banknote, CarFront, FileQuestion, Plus, RefreshCw, Ship } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { ExecutiveDashboard, type ExecutiveDashboardData } from "@/components/executive-dashboard";
-import { StoredImage } from "@/components/stored-image";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requirePagePermission } from "@/lib/page-guard";
 import { prisma } from "@/lib/prisma";
 import { referralStatusLabels } from "@/lib/referrals";
-import { visibleCustomerWhere, visiblePolicyWhere } from "@/lib/policy-access";
-
-const monthFormatter = new Intl.DateTimeFormat("en-US-u-nu-latn", { month: "short" });
+import { formatDate } from "@/lib/utils";
 
 export default async function DashboardPage() {
   const user = await requirePagePermission("dashboard");
-  if (user.role === "BANK") {
-    const account = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { image: true }
-    }).catch(() => null);
-    const referrals = await prisma.referral.findMany({
-      where: { createdById: user.id },
-      orderBy: { createdAt: "desc" },
-      take: 8,
-      select: { id: true, referralNumber: true, applicantName: true, status: true, totalPremium: true, currency: true, createdAt: true }
-    }).catch((error) => {
-      console.error("[dashboard] Failed to load bank referrals", error);
-      return null;
-    });
-    if (!referrals) return <DashboardUnavailable />;
-    const pending = referrals.filter((item) => item.status !== "ISSUED").length;
-    const issued = referrals.filter((item) => item.status === "ISSUED").length;
-    return (
-      <AppShell>
-        <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-          <div className="flex items-start gap-4">
-            <StoredImage source={account?.image ?? user.image} alt={user.name ?? "Bank user"} className="h-16 w-16 shrink-0 rounded-2xl border bg-primary/10 object-cover" />
-            <div>
-            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary"><Ship className="h-4 w-4" />صلاحية البنوك</div>
-            <h1 className="text-2xl font-black sm:text-3xl">لوحة إحالات البنك</h1>
-            <p className="mt-2 text-sm text-muted-foreground">أرقام الإحالات التي تم رفعها من حسابك وحالة كل إحالة.</p>
-            </div>
-          </div>
-          <Button asChild><Link href="/referrals/new"><Plus className="h-4 w-4" />رفع إحالة</Link></Button>
-        </div>
-        <div className="mb-6 grid gap-4 md:grid-cols-3">
-          <BankMetric title="إجمالي الإحالات" value={referrals.length} />
-          <BankMetric title="قيد المتابعة" value={pending} />
-          <BankMetric title="تم الإصدار" value={issued} />
-        </div>
-        <Card>
-          <CardContent className="divide-y p-0">
-            {referrals.map((item) => (
-              <Link key={item.id} href={`/referrals/${item.id}`} className="flex flex-col justify-between gap-2 p-4 hover:bg-muted/30 sm:flex-row sm:items-center">
-                <div>
-                  <p className="font-mono text-sm font-black text-primary" dir="ltr">{item.referralNumber}</p>
-                  <p className="mt-1 font-bold">{item.applicantName}</p>
-                </div>
-                <div className="text-sm text-muted-foreground">{referralStatusLabels[item.status]}</div>
-              </Link>
-            ))}
-            {!referrals.length ? <div className="p-10 text-center text-sm text-muted-foreground"><FileText className="mx-auto mb-3 h-8 w-8" />لا توجد إحالات مرفوعة من حسابك بعد.</div> : null}
-          </CardContent>
-        </Card>
-      </AppShell>
-    );
-  }
-  const policyWhere = visiblePolicyWhere(user);
-  const customerWhere = visibleCustomerWhere(user);
-  const isSuperAdmin = user.role === "SUPER_ADMIN";
+  const isBank = user.role === "BANK";
+  const referralWhere = isBank ? { createdById: user.id } : {};
+  const reportRequestWhere = isBank ? { requesterId: user.id } : {};
   const motorRequestWhere = user.role === "AGENT" ? { agentId: user.id } : {};
-  const since = new Date();
-  since.setMonth(since.getMonth() - 11, 1);
-  since.setHours(0, 0, 0, 0);
 
   const dashboardResult = await Promise.all([
-    prisma.customer.count({ where: customerWhere }),
-    prisma.policy.count({ where: policyWhere }),
-    prisma.policy.count({ where: { AND: [policyWhere, { status: "ACTIVE" }] } }),
-    prisma.claim.count({ where: { policy: policyWhere } }),
-    prisma.endorsement.count({ where: { policy: policyWhere } }),
-    prisma.cancellation.count({ where: { policy: policyWhere } }),
-    isSuperAdmin ? prisma.user.count({ where: { role: "AGENT" } }) : Promise.resolve(1),
+    prisma.referral.count({ where: referralWhere }),
+    prisma.referral.count({ where: { AND: [referralWhere, { status: { not: "ISSUED" } }] } }),
+    prisma.reportRequest.count({ where: reportRequestWhere }),
+    prisma.reportRequest.count({ where: { AND: [reportRequestWhere, { status: { in: ["PENDING", "IN_REVIEW"] } }] } }),
     prisma.motorInsuranceRequest.count({ where: motorRequestWhere }),
     prisma.motorInsuranceRequest.count({ where: { AND: [motorRequestWhere, { status: { in: ["SUBMITTED", "UNDER_REVIEW", "NEEDS_INFO"] } }] } }),
-    prisma.policy.findMany({ where: { AND: [policyWhere, { createdAt: { gte: since } }] }, select: { createdAt: true } }),
-    prisma.customer.findMany({ where: { AND: [customerWhere, { createdAt: { gte: since } }] }, select: { createdAt: true } }),
-    prisma.policy.groupBy({ by: ["status"], where: policyWhere, _count: true }),
-    prisma.claim.groupBy({ by: ["status"], where: { policy: policyWhere }, _count: true }),
-    prisma.policy.findMany({
-      where: policyWhere,
+    prisma.referralCommission.count(),
+    prisma.motorCommission.count(),
+    prisma.referral.findMany({
+      where: referralWhere,
       orderBy: { createdAt: "desc" },
       take: 5,
-      select: {
-        id: true, policyNumber: true, status: true, premium: true, createdAt: true,
-        customer: { select: { arabicName: true } }
-      }
+      select: { id: true, referralNumber: true, applicantName: true, status: true, createdAt: true }
     }),
-    prisma.claim.findMany({
-      where: { policy: policyWhere },
+    prisma.reportRequest.findMany({
+      where: reportRequestWhere,
       orderBy: { createdAt: "desc" },
       take: 5,
-      select: {
-        id: true, claimNumber: true, status: true, createdAt: true,
-        customer: { select: { arabicName: true } }
-      }
-    }),
-    prisma.endorsement.findMany({
-      where: { policy: policyWhere },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-      select: {
-        id: true, endorsementNumber: true, status: true, endorsementType: true, createdAt: true,
-        policy: { select: { policyNumber: true } }
-      }
+      select: { id: true, requestNumber: true, title: true, status: true, createdAt: true }
     }),
     prisma.motorInsuranceRequest.findMany({
       where: motorRequestWhere,
       orderBy: { createdAt: "desc" },
       take: 5,
-      select: {
-        id: true,
-        requestNumber: true,
-        status: true,
-        customerFullName: true,
-        manufacturer: true,
-        model: true,
-        createdAt: true
-      }
-    }),
-    prisma.activity.findMany({
-      where: isSuperAdmin ? {} : { actorId: user.id },
-      orderBy: { createdAt: "desc" },
-      take: 6,
-      select: {
-        id: true, action: true, entity: true, createdAt: true,
-        actor: { select: { name: true } }
-      }
+      select: { id: true, requestNumber: true, customerFullName: true, status: true, manufacturer: true, model: true, createdAt: true }
     })
   ]).catch((error) => {
-    console.error("[dashboard] Failed to load executive dashboard", error);
+    console.error("[dashboard] Failed to load dashboard", error);
     return null;
   });
 
   if (!dashboardResult) return <DashboardUnavailable />;
 
   const [
-    totalCustomers,
-    totalPolicies,
-    activePolicies,
-    totalClaims,
-    totalEndorsements,
-    totalCancellations,
-    totalAgents,
+    totalReferrals,
+    pendingReferrals,
+    totalReportRequests,
+    pendingReportRequests,
     totalMotorRequests,
     pendingMotorRequests,
-    policyDates,
-    customerDates,
-    policyStatuses,
-    claimStatuses,
-    latestPolicies,
-    latestClaims,
-    latestEndorsements,
-    latestMotorRequests,
-    latestActivity
+    referralCommissions,
+    motorCommissions,
+    latestReferrals,
+    latestReportRequests,
+    latestMotorRequests
   ] = dashboardResult;
 
-  const months = Array.from({ length: 12 }, (_, index) => {
-    const date = subMonths(new Date(), 11 - index);
-    return {
-      key: `${date.getFullYear()}-${date.getMonth()}`,
-      label: monthFormatter.format(date),
-      policies: 0,
-      customers: 0
-    };
-  });
-  const monthMap = new Map(months.map((month) => [month.key, month]));
-  policyDates.forEach(({ createdAt }) => {
-    const item = monthMap.get(`${createdAt.getFullYear()}-${createdAt.getMonth()}`);
-    if (item) item.policies += 1;
-  });
-  customerDates.forEach(({ createdAt }) => {
-    const item = monthMap.get(`${createdAt.getFullYear()}-${createdAt.getMonth()}`);
-    if (item) item.customers += 1;
-  });
+  return (
+    <AppShell>
+      <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+        <div>
+          <div className="mb-2 text-sm font-semibold text-primary">Iraq Takaful Operations</div>
+          <h1 className="text-2xl font-black text-slate-950 dark:text-foreground sm:text-3xl">لوحة التحكم</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">متابعة الإحالات، طلبات التقارير، وطلبات تأمين المركبات.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild><Link href="/referrals/new"><Plus className="h-4 w-4" />إحالة جديدة</Link></Button>
+          <Button asChild variant="outline"><Link href="/motor-requests/new"><CarFront className="h-4 w-4" />طلب مركبة</Link></Button>
+        </div>
+      </div>
 
-  const data: ExecutiveDashboardData = {
-    userName: user.name ?? "مدير النظام",
-    metrics: {
-      totalCustomers,
-      totalPolicies,
-      activePolicies,
-      totalClaims,
-      totalEndorsements,
-      totalCancellations,
-      totalAgents,
-      totalMotorRequests,
-      pendingMotorRequests
-    },
-    policiesByMonth: months.map(({ label, policies }) => ({ label, value: policies })),
-    customerGrowth: months.map(({ label, customers }) => ({ label, value: customers })),
-    policiesByStatus: policyStatuses.map((item) => ({ status: item.status, value: item._count })),
-    claimsByStatus: claimStatuses.map((item) => ({ status: item.status, value: item._count })),
-    latestPolicies: latestPolicies.map((item) => ({
-      id: item.id,
-      code: item.policyNumber,
-      title: item.customer.arabicName,
-      status: item.status,
-      amount: Number(item.premium),
-      createdAt: item.createdAt.toISOString()
-    })),
-    latestClaims: latestClaims.map((item) => ({
-      id: item.id,
-      code: item.claimNumber,
-      title: item.customer.arabicName,
-      status: item.status,
-      createdAt: item.createdAt.toISOString()
-    })),
-    latestEndorsements: latestEndorsements.map((item) => ({
-      id: item.id,
-      code: item.endorsementNumber,
-      title: item.policy.policyNumber,
-      status: item.status,
-      subtitle: item.endorsementType,
-      createdAt: item.createdAt.toISOString()
-    })),
-    latestMotorRequests: latestMotorRequests.map((item) => ({
-      id: item.id,
-      code: item.requestNumber,
-      title: item.customerFullName,
-      status: item.status,
-      subtitle: `${item.manufacturer} ${item.model}`,
-      createdAt: item.createdAt.toISOString()
-    })),
-    latestActivity: latestActivity.map((item) => ({
-      id: item.id,
-      code: item.action,
-      title: item.entity,
-      subtitle: item.actor?.name ?? "النظام",
-      status: "ACTIVITY",
-      createdAt: item.createdAt.toISOString()
-    }))
-  };
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric icon={Ship} label="الإحالات" value={totalReferrals} note={`${pendingReferrals} قيد المتابعة`} />
+        <Metric icon={FileQuestion} label="طلبات التقرير" value={totalReportRequests} note={`${pendingReportRequests} قيد المعالجة`} />
+        <Metric icon={CarFront} label="طلبات تأمين المركبات" value={totalMotorRequests} note={`${pendingMotorRequests} قيد المتابعة`} />
+        <Metric icon={Banknote} label="العمولات" value={referralCommissions + motorCommissions} note={`${referralCommissions} إحالات / ${motorCommissions} مركبات`} />
+      </div>
 
-  return <AppShell><ExecutiveDashboard data={data} /></AppShell>;
+      <div className="grid gap-6 xl:grid-cols-3">
+        <Activity title="أحدث الإحالات" href="/referrals" items={latestReferrals.map((item) => ({
+          href: `/referrals/${item.id}`,
+          code: item.referralNumber,
+          title: item.applicantName ?? "-",
+          status: referralStatusLabels[item.status],
+          createdAt: item.createdAt
+        }))} />
+        <Activity title="أحدث طلبات التقرير" href="/report-requests" items={latestReportRequests.map((item) => ({
+          href: "/report-requests",
+          code: item.requestNumber,
+          title: item.title,
+          status: item.status,
+          createdAt: item.createdAt
+        }))} />
+        <Activity title="أحدث طلبات المركبات" href="/motor-requests" items={latestMotorRequests.map((item) => ({
+          href: `/motor-requests/${item.id}`,
+          code: item.requestNumber,
+          title: item.customerFullName,
+          status: item.status,
+          subtitle: `${item.manufacturer} ${item.model}`,
+          createdAt: item.createdAt
+        }))} />
+      </div>
+    </AppShell>
+  );
 }
 
-function BankMetric({ title, value }: { title: string; value: string | number }) {
-  return <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">{title}</p><p className="mt-2 text-3xl font-black">{value}</p></CardContent></Card>;
+function Metric({ icon: Icon, label, value, note }: { icon: typeof Ship; label: string; value: number; note: string }) {
+  return (
+    <Card>
+      <CardContent className="flex items-center justify-between gap-4 p-5">
+        <div>
+          <p className="text-sm text-muted-foreground">{label}</p>
+          <p className="mt-2 text-3xl font-black">{value}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{note}</p>
+        </div>
+        <span className="grid h-12 w-12 place-items-center rounded-lg bg-primary/10 text-primary"><Icon className="h-6 w-6" /></span>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Activity({ title, href, items }: { title: string; href: string; items: Array<{ href: string; code: string; title: string; status: string; subtitle?: string; createdAt: Date }> }) {
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between">
+        <CardTitle className="text-base">{title}</CardTitle>
+        <Button asChild variant="ghost" size="sm"><Link href={href}>عرض الكل</Link></Button>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {items.map((item) => (
+          <Link key={`${item.href}-${item.code}`} href={item.href} className="block rounded-lg border bg-muted/15 p-3 transition hover:bg-muted/30">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-mono text-xs font-black text-primary" dir="ltr">{item.code}</p>
+                <p className="mt-1 truncate text-sm font-bold">{item.title}</p>
+                <p className="text-xs text-muted-foreground">{item.subtitle ?? formatDate(item.createdAt)}</p>
+              </div>
+              <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100">{item.status}</Badge>
+            </div>
+          </Link>
+        ))}
+        {!items.length ? <p className="py-8 text-center text-sm text-muted-foreground">لا توجد سجلات بعد.</p> : null}
+      </CardContent>
+    </Card>
+  );
 }
 
 function DashboardUnavailable() {
@@ -260,13 +163,8 @@ function DashboardUnavailable() {
             <AlertTriangle className="h-7 w-7" />
           </span>
           <h1 className="text-2xl font-black text-slate-950">تعذر تحميل لوحة التحكم</h1>
-          <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-muted-foreground">
-            الاتصال بقاعدة البيانات غير مستقر حالياً. باقي صفحات النظام ستعمل عند توفر الاتصال، ويمكنك إعادة المحاولة أو الانتقال مباشرة إلى سجل الإحالات.
-          </p>
-          <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
-            <Button asChild><Link href="/"><RefreshCw className="h-4 w-4" />إعادة المحاولة</Link></Button>
-            <Button asChild variant="outline"><Link href="/referrals"><Ship className="h-4 w-4" />سجل الإحالات</Link></Button>
-          </div>
+          <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-muted-foreground">الاتصال بقاعدة البيانات غير مستقر حاليا.</p>
+          <Button asChild className="mt-6"><Link href="/"><RefreshCw className="h-4 w-4" />إعادة المحاولة</Link></Button>
         </CardContent>
       </Card>
     </AppShell>

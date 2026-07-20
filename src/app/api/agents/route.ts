@@ -29,8 +29,7 @@ export async function GET() {
         name: true,
         email: true,
         active: true,
-        createdAt: true,
-        _count: { select: { policies: true } }
+        createdAt: true
       },
       orderBy: { createdAt: "desc" }
     });
@@ -56,7 +55,7 @@ export async function POST(request: NextRequest) {
       },
       select: { id: true, name: true, email: true, active: true, createdAt: true }
     });
-    return NextResponse.json({ ...agent, _count: { policies: 0 } }, { status: 201 });
+    return NextResponse.json(agent, { status: 201 });
   } catch (error) {
     return jsonError(error);
   }

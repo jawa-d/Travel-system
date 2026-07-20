@@ -17,61 +17,6 @@ enum Role {
   VIEWER
 }
 
-enum Gender {
-  MALE
-  FEMALE
-}
-
-enum CountryCategory {
-  ALLOWED
-  RESTRICTED
-  HIGH_RISK
-}
-
-enum CountryStatus {
-  ACTIVE
-  INACTIVE
-}
-
-enum PolicyType {
-  INDIVIDUAL
-  FAMILY
-  STUDENT
-  BUSINESS
-  MULTI_TRIP
-}
-
-enum PolicyStatus {
-  DRAFT
-  ACTIVE
-  EXPIRED
-  CANCELLED
-}
-
-enum TravelPurpose {
-  TOURISM
-  BUSINESS
-  STUDY
-  MEDICAL
-  OTHER
-}
-
-enum ClaimType {
-  MEDICAL
-  BAGGAGE
-  TRIP_DELAY
-  CANCELLATION
-  OTHER
-}
-
-enum ClaimStatus {
-  OPEN
-  UNDER_REVIEW
-  APPROVED
-  REJECTED
-  CLOSED
-}
-
 enum NotificationType {
   SYSTEM
   EXPIRY
@@ -85,36 +30,8 @@ enum NotificationStatus {
   FAILED
 }
 
-enum EndorsementType {
-  EXTEND_TRAVEL_PERIOD
-  CHANGE_DESTINATION
-  UPDATE_CUSTOMER_INFORMATION
-  INCREASE_COVERAGE_AMOUNT
-}
-
-enum EndorsementStatus {
-  OPEN
-  UNDER_REVIEW
-  APPROVED
-  REJECTED
-  CLOSED
-}
-
-enum CancellationReason {
-  VISA_REJECTION
-  TRIP_CANCELLATION
-  CUSTOMER_REQUEST
-  ISSUANCE_ERROR
-}
-
 enum LookupCategory {
-  CLAIM_TYPE
-  DESTINATION
-  TRAVEL_PLAN
-  POLICY_TYPE
   COVERAGE_TYPE
-  ENDORSEMENT_TYPE
-  CANCELLATION_REASON
 }
 
 enum MotorRequestStatus {
@@ -159,7 +76,6 @@ model Agency {
   code      String   @unique
   active    Boolean  @default(true)
   users     User[]
-  policies  Policy[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -180,16 +96,12 @@ model User {
   accounts      Account[]
   sessions      Session[]
   activities    Activity[]
-  customers     Customer[]  @relation("CustomerCreator")
-  policies      Policy[]   @relation("PolicyIssuer")
-  ownedPolicies Policy[]   @relation("PolicyOwner")
   motorRequests MotorInsuranceRequest[] @relation("MotorRequestAgent")
   motorCommissions MotorCommission[] @relation("MotorCommissionPayer")
   referrals Referral[] @relation("ReferralCreator")
   referralCommissions ReferralCommission[] @relation("ReferralCommissionPayer")
   reportRequests ReportRequest[] @relation("ReportRequestRequester")
   reviewedReportRequests ReportRequest[] @relation("ReportRequestReviewer")
-  claims        Claim[]     @relation("ClaimCreator")
   notifications Notification[]
   auditLogs     AuditLog[]
   createdAt     DateTime   @default(now())
@@ -443,112 +355,6 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-model Customer {
-  id              String    @id @default(cuid())
-  arabicName      String
-  englishName     String
-  passportNumber  String    @unique
-  nationality     String
-  dateOfBirth     DateTime
-  gender          Gender
-  mobile          String
-  email           String?
-  address         String?
-  passportImage   String?
-  createdByUserId String?
-  createdBy        User?     @relation("CustomerCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  createdByName    String?
-  createdByEmail   String?
-  createdByRole    Role?
-  createdByAgency  String?
-  policies        Policy[]
-  claims          Claim[]
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  @@index([arabicName])
-  @@index([englishName])
-  @@index([passportNumber])
-  @@index([createdByUserId])
-}
-
-model TravelPlan {
-  id                 String    @id @default(cuid())
-  name               String    @unique
-  price              Decimal   @db.Decimal(10, 2)
-  medicalCoverage    Decimal   @db.Decimal(12, 2)
-  baggageCoverage    Decimal   @db.Decimal(12, 2)
-  tripDelayCoverage  Decimal   @db.Decimal(12, 2)
-  medicalEvacuation  Decimal   @db.Decimal(12, 2)
-  repatriation       Decimal   @db.Decimal(12, 2)
-  personalLiability  Decimal   @db.Decimal(12, 2)
-  active             Boolean   @default(true)
-  policies           Policy[]
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-}
-
-model Country {
-  id                String          @id @default(cuid())
-  nameAr            String
-  nameEn            String          @unique
-  isoCode           String          @unique
-  category          CountryCategory @default(ALLOWED)
-  additionalRiskFee Decimal         @default(0) @db.Decimal(10, 2)
-  status            CountryStatus   @default(ACTIVE)
-  policies          Policy[]
-  endorsements      Endorsement[]
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-}
-
-model Policy {
-  id                 String         @id @default(cuid())
-  policyNumber       String         @unique
-  customerId         String
-  customer           Customer       @relation(fields: [customerId], references: [id])
-  destinationCountryId String
-  destinationCountry Country        @relation(fields: [destinationCountryId], references: [id])
-  destinations       String[]
-  travelPurpose      TravelPurpose
-  departureDate      DateTime
-  returnDate         DateTime
-  numberOfDays       Int
-  coverageAmount     Decimal        @db.Decimal(12, 2)
-  policyType         String
-  coverageType       String         @default("STANDARD")
-  travelPlanId       String
-  travelPlan         TravelPlan     @relation(fields: [travelPlanId], references: [id])
-  premium            Decimal        @db.Decimal(10, 2)
-  status             PolicyStatus   @default(DRAFT)
-  qrCodeData         String?        @db.Text
-  issuedById         String?
-  issuedBy           User?          @relation("PolicyIssuer", fields: [issuedById], references: [id])
-  issuedByUserId     String?
-  owner              User?          @relation("PolicyOwner", fields: [issuedByUserId], references: [id], onDelete: SetNull)
-  issuedByName       String?
-  issuedByEmail      String?
-  issuedByRole       Role?
-  issuedByAgency     String?
-  agencyId           String?
-  agency             Agency?        @relation(fields: [agencyId], references: [id], onDelete: SetNull)
-  deletedAt          DateTime?
-  deletedBy          String?
-  claims             Claim[]
-  endorsements       Endorsement[]
-  cancellation       Cancellation?
-  issuedAt           DateTime?
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
-
-  @@index([policyNumber])
-  @@index([status])
-  @@index([departureDate, returnDate])
-  @@index([issuedByUserId])
-  @@index([agencyId])
-  @@index([deletedAt])
-}
-
 model Activity {
   id        String   @id @default(cuid())
   actorId   String?
@@ -558,59 +364,6 @@ model Activity {
   entityId  String?
   metadata  Json?
   createdAt DateTime @default(now())
-}
-
-model Claim {
-  id           String      @id @default(cuid())
-  claimNumber  String      @unique
-  policyId     String
-  policy       Policy      @relation(fields: [policyId], references: [id])
-  customerId   String
-  customer     Customer    @relation(fields: [customerId], references: [id])
-  claimType    String
-  description  String      @db.Text
-  attachments  String[]
-  status       ClaimStatus @default(OPEN)
-  createdById  String?
-  createdBy    User?       @relation("ClaimCreator", fields: [createdById], references: [id])
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-
-  @@index([claimNumber])
-  @@index([status])
-}
-
-model Endorsement {
-  id                 String            @id @default(cuid())
-  endorsementNumber  String            @unique
-  policyId           String
-  policy             Policy            @relation(fields: [policyId], references: [id])
-  endorsementType    String
-  previousValue      Json?
-  newValue           Json
-  destinationCountryId String?
-  destinationCountry Country?          @relation(fields: [destinationCountryId], references: [id])
-  additionalPremium  Decimal           @default(0) @db.Decimal(10, 2)
-  status             EndorsementStatus @default(OPEN)
-  createdById        String?
-  createdByName      String?
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-
-  @@index([createdById])
-}
-
-model Cancellation {
-  id                 String             @id @default(cuid())
-  cancellationNumber String             @unique
-  policyId           String             @unique
-  policy             Policy             @relation(fields: [policyId], references: [id])
-  reason             String
-  notes              String?            @db.Text
-  refundAmount       Decimal            @db.Decimal(10, 2)
-  administrativeFees Decimal            @db.Decimal(10, 2)
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
 }
 
 model AuditLog {

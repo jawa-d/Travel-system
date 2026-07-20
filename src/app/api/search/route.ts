@@ -1,60 +1,18 @@
 import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/api";
-import { isDirectAccessEnabled } from "@/lib/direct-access";
-import { getDemoCustomers } from "@/lib/demo-customer-store";
-import { getDemoPolicies } from "@/lib/demo-policy-store";
 import { prisma } from "@/lib/prisma";
-import { visibleCustomerWhere, visiblePolicyWhere } from "@/lib/policy-access";
 
 export async function GET(request: NextRequest) {
   const query = (request.nextUrl.searchParams.get("q") ?? "").trim();
   if (query.length < 2) return NextResponse.json([]);
 
-  if (isDirectAccessEnabled()) {
-    const text = query.toLowerCase();
-    const customers = getDemoCustomers()
-      .filter((item) => `${item.arabicName} ${item.englishName} ${item.passportNumber}`.toLowerCase().includes(text))
-      .slice(0, 6)
-      .map((item) => ({ id: item.id, title: item.arabicName, subtitle: item.passportNumber, href: `/customers/${item.id}`, type: "customer" }));
-    const policies = getDemoPolicies()
-      .filter((item) => `${item.policyNumber} ${item.customer.arabicName} ${item.destinationCountry.nameAr}`.toLowerCase().includes(text))
-      .slice(0, 6)
-      .map((item) => ({ id: item.id, title: item.policyNumber, subtitle: `${item.customer.arabicName} - ${item.destinationCountry.nameAr}`, href: `/policies/${item.id}`, type: "policy" }));
-    return NextResponse.json([...customers, ...policies]);
-  }
-
   const user = await requireUser();
   const motorRequestWhere = user.role === Role.AGENT ? { agentId: user.id } : {};
-  const [customers, policies, motorRequests] = await Promise.all([
-    prisma.customer.findMany({
-      where: {
-        AND: [
-          visibleCustomerWhere(user),
-          { OR: [
-            { arabicName: { contains: query, mode: "insensitive" } },
-            { englishName: { contains: query, mode: "insensitive" } },
-            { passportNumber: { contains: query, mode: "insensitive" } }
-          ] }
-        ]
-      },
-      select: { id: true, arabicName: true, passportNumber: true },
-      take: 6
-    }),
-    prisma.policy.findMany({
-      where: {
-        AND: [
-          visiblePolicyWhere(user),
-          { OR: [
-            { policyNumber: { contains: query, mode: "insensitive" } },
-            { customer: { arabicName: { contains: query, mode: "insensitive" } } },
-            { destinationCountry: { nameAr: { contains: query, mode: "insensitive" } } }
-          ] }
-        ]
-      },
-      include: { customer: true, destinationCountry: true },
-      take: 6
-    }),
+  const referralWhere = user.role === Role.BANK ? { createdById: user.id } : {};
+  const reportRequestWhere = user.role === Role.BANK ? { requesterId: user.id } : {};
+
+  const [motorRequests, referrals, reportRequests] = await Promise.all([
     prisma.motorInsuranceRequest.findMany({
       where: {
         AND: [
@@ -68,38 +26,60 @@ export async function GET(request: NextRequest) {
           ] }
         ]
       },
-      select: {
-        id: true,
-        requestNumber: true,
-        customerFullName: true,
-        plateNumber: true,
-        status: true
+      select: { id: true, requestNumber: true, customerFullName: true, plateNumber: true, status: true },
+      take: 6
+    }),
+    prisma.referral.findMany({
+      where: {
+        AND: [
+          referralWhere,
+          { OR: [
+            { referralNumber: { contains: query, mode: "insensitive" } },
+            { applicantName: { contains: query, mode: "insensitive" } },
+            { beneficiaryName: { contains: query, mode: "insensitive" } }
+          ] }
+        ]
       },
+      select: { id: true, referralNumber: true, applicantName: true, status: true },
+      take: 6
+    }),
+    prisma.reportRequest.findMany({
+      where: {
+        AND: [
+          reportRequestWhere,
+          { OR: [
+            { requestNumber: { contains: query, mode: "insensitive" } },
+            { title: { contains: query, mode: "insensitive" } },
+            { requesterName: { contains: query, mode: "insensitive" } }
+          ] }
+        ]
+      },
+      select: { id: true, requestNumber: true, title: true, status: true },
       take: 6
     })
   ]);
 
   return NextResponse.json([
-    ...customers.map((item) => ({
-      id: item.id,
-      title: item.arabicName,
-      subtitle: item.passportNumber,
-      href: `/customers/${item.id}`,
-      type: "customer"
-    })),
-    ...policies.map((item) => ({
-      id: item.id,
-      title: item.policyNumber,
-      subtitle: `${item.customer.arabicName} - ${item.destinationCountry.nameAr}`,
-      href: `/policies/${item.id}`,
-      type: "policy"
-    })),
     ...motorRequests.map((item) => ({
       id: item.id,
       title: item.requestNumber,
       subtitle: `${item.customerFullName} - ${item.plateNumber} - ${item.status}`,
       href: `/motor-requests/${item.id}`,
       type: "motorRequest"
+    })),
+    ...referrals.map((item) => ({
+      id: item.id,
+      title: item.referralNumber,
+      subtitle: `${item.applicantName ?? "-"} - ${item.status}`,
+      href: `/referrals/${item.id}`,
+      type: "referral"
+    })),
+    ...reportRequests.map((item) => ({
+      id: item.id,
+      title: item.requestNumber,
+      subtitle: `${item.title} - ${item.status}`,
+      href: "/report-requests",
+      type: "reportRequest"
     }))
   ]);
 }
