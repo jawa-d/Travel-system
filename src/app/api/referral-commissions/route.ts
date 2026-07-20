@@ -6,7 +6,8 @@ import { rowsToExcelBuffer, rowsToPdfBuffer } from "@/lib/exports";
 import { addCurrencyTotal, formatCurrencyTotals, formatReferralMoney } from "@/lib/referrals";
 
 export async function GET(request: NextRequest) {
-  await requirePermission("referralCommissionsRead");
+  const user = await requirePermission("referralCommissionsRead");
+  const isBank = user.role === "BANK";
   const format = request.nextUrl.searchParams.get("format") ?? "json";
   const fromParam = request.nextUrl.searchParams.get("from");
   const toParam = request.nextUrl.searchParams.get("to");
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest) {
   const commissions = await prisma.referralCommission.findMany({
     where: {
       referral: {
+        ...(isBank ? { createdById: user.id } : {}),
         ...(from || to ? { createdAt: { gte: from, lte: to } } : {}),
         ...(referralNumber ? { referralNumber: { contains: referralNumber, mode: "insensitive" } } : {}),
         ...(bank ? { OR: [

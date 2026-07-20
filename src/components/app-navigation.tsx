@@ -16,6 +16,7 @@ type NavItem = {
   icon: typeof Home;
   featured?: boolean;
   permission?: Permission;
+  hiddenFor?: Role[];
 };
 
 const groups: Array<{ label: string; items: NavItem[]; collapsible?: boolean }> = [
@@ -30,7 +31,7 @@ const groups: Array<{ label: string; items: NavItem[]; collapsible?: boolean }> 
     items: [
       { href: "/referrals", label: "الإحالات", icon: Ship, permission: "referralsRead" },
       { href: "/report-requests", label: "إدارة طلبات التقرير", icon: FileQuestion, permission: "reportRequestsManage" },
-      { href: "/referral-sla", label: "SLA / KPIs", icon: ShieldCheck, permission: "referralsRead" },
+      { href: "/referral-sla", label: "SLA / KPIs", icon: ShieldCheck, permission: "referralsRead", hiddenFor: ["BANK"] },
       { href: "/referral-commissions", label: "عمولات الإحالات", icon: BadgeDollarSign, permission: "referralCommissionsRead" },
       { href: "/referral-reports", label: "تقرير الإحالات", icon: WalletCards, permission: "referralReportsRead" },
       { href: "/report-requests", label: "طلباتي", icon: FileQuestion, permission: "reportRequestsRead" },
@@ -61,7 +62,7 @@ export function AppNavigation({ role, mobileOnly = false }: { locale?: Locale; r
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const visibleGroups = groups
-    .map((group) => ({ ...group, items: group.items.filter((item) => !item.permission || can(role, item.permission)) }))
+    .map((group) => ({ ...group, items: group.items.filter((item) => (!item.permission || can(role, item.permission)) && !item.hiddenFor?.includes(role)) }))
     .filter((group) => group.items.length);
 
   function active(href: string) {

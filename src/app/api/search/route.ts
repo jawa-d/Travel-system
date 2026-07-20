@@ -8,12 +8,13 @@ export async function GET(request: NextRequest) {
   if (query.length < 2) return NextResponse.json([]);
 
   const user = await requireUser();
+  const isBank = user.role === Role.BANK;
   const motorRequestWhere = user.role === Role.AGENT ? { agentId: user.id } : {};
   const referralWhere = user.role === Role.BANK ? { createdById: user.id } : {};
   const reportRequestWhere = user.role === Role.BANK ? { requesterId: user.id } : {};
 
   const [motorRequests, referrals, reportRequests] = await Promise.all([
-    prisma.motorInsuranceRequest.findMany({
+    isBank ? Promise.resolve([]) : prisma.motorInsuranceRequest.findMany({
       where: {
         AND: [
           motorRequestWhere,

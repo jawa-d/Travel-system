@@ -10,13 +10,15 @@ import { addCurrencyTotal, formatCurrencyTotals, formatReferralMoney } from "@/l
 import { formatDate } from "@/lib/utils";
 
 export default async function ReferralCommissionsPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string; bank?: string; referralNumber?: string }> }) {
-  await requirePagePermission("referralCommissionsRead");
+  const user = await requirePagePermission("referralCommissionsRead");
+  const isBank = user.role === "BANK";
   const params = await searchParams;
   const from = params.from ? startOfDay(new Date(params.from)) : undefined;
   const to = params.to ? endOfDay(new Date(params.to)) : undefined;
   const commissions = await prisma.referralCommission.findMany({
     where: {
       referral: {
+        ...(isBank ? { createdById: user.id } : {}),
         ...(from || to ? { createdAt: { gte: from, lte: to } } : {}),
         ...(params.referralNumber ? { referralNumber: { contains: params.referralNumber, mode: "insensitive" } } : {}),
         ...(params.bank ? { OR: [

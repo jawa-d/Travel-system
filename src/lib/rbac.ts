@@ -16,7 +16,7 @@ const permissions = {
   referralsCreate: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.BANK],
   referralsManage: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER],
   referralsDelete: [Role.SUPER_ADMIN],
-  referralCommissionsRead: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE],
+  referralCommissionsRead: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE, Role.BANK],
   referralCommissionsWrite: [Role.SUPER_ADMIN, Role.ADMIN, Role.FINANCE],
   referralReportsRead: [Role.SUPER_ADMIN, Role.ADMIN, Role.UNDERWRITER, Role.FINANCE],
   reportRequestsCreate: [Role.BANK],

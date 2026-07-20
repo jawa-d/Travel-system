@@ -15,16 +15,17 @@ export default async function DashboardPage() {
   const referralWhere = isBank ? { createdById: user.id } : {};
   const reportRequestWhere = isBank ? { requesterId: user.id } : {};
   const motorRequestWhere = user.role === "AGENT" ? { agentId: user.id } : {};
+  const referralCommissionWhere = isBank ? { referral: { createdById: user.id } } : {};
 
   const dashboardResult = await Promise.all([
     prisma.referral.count({ where: referralWhere }),
     prisma.referral.count({ where: { AND: [referralWhere, { status: { not: "ISSUED" } }] } }),
     prisma.reportRequest.count({ where: reportRequestWhere }),
     prisma.reportRequest.count({ where: { AND: [reportRequestWhere, { status: { in: ["PENDING", "IN_REVIEW"] } }] } }),
-    prisma.motorInsuranceRequest.count({ where: motorRequestWhere }),
-    prisma.motorInsuranceRequest.count({ where: { AND: [motorRequestWhere, { status: { in: ["SUBMITTED", "UNDER_REVIEW", "NEEDS_INFO"] } }] } }),
-    prisma.referralCommission.count(),
-    prisma.motorCommission.count(),
+    isBank ? Promise.resolve(0) : prisma.motorInsuranceRequest.count({ where: motorRequestWhere }),
+    isBank ? Promise.resolve(0) : prisma.motorInsuranceRequest.count({ where: { AND: [motorRequestWhere, { status: { in: ["SUBMITTED", "UNDER_REVIEW", "NEEDS_INFO"] } }] } }),
+    prisma.referralCommission.count({ where: referralCommissionWhere }),
+    isBank ? Promise.resolve(0) : prisma.motorCommission.count(),
     prisma.referral.findMany({
       where: referralWhere,
       orderBy: { createdAt: "desc" },
@@ -37,7 +38,7 @@ export default async function DashboardPage() {
       take: 5,
       select: { id: true, requestNumber: true, title: true, status: true, createdAt: true }
     }),
-    prisma.motorInsuranceRequest.findMany({
+    isBank ? Promise.resolve([]) : prisma.motorInsuranceRequest.findMany({
       where: motorRequestWhere,
       orderBy: { createdAt: "desc" },
       take: 5,
@@ -70,22 +71,29 @@ export default async function DashboardPage() {
         <div>
           <div className="mb-2 text-sm font-semibold text-primary">Iraq Takaful Operations</div>
           <h1 className="text-2xl font-black text-slate-950 dark:text-foreground sm:text-3xl">لوحة التحكم</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">متابعة الإحالات، طلبات التقارير، وطلبات تأمين المركبات.</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+            {isBank ? "متابعة الإحالات وطلبات التقرير والعمولات." : "متابعة الإحالات، طلبات التقارير، وطلبات تأمين المركبات."}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild><Link href="/referrals/new"><Plus className="h-4 w-4" />إحالة جديدة</Link></Button>
-          <Button asChild variant="outline"><Link href="/motor-requests/new"><CarFront className="h-4 w-4" />طلب مركبة</Link></Button>
+          {!isBank ? <Button asChild variant="outline"><Link href="/motor-requests/new"><CarFront className="h-4 w-4" />طلب مركبة</Link></Button> : null}
         </div>
       </div>
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className={`mb-6 grid gap-4 sm:grid-cols-2 ${isBank ? "xl:grid-cols-3" : "xl:grid-cols-4"}`}>
         <Metric icon={Ship} label="الإحالات" value={totalReferrals} note={`${pendingReferrals} قيد المتابعة`} />
         <Metric icon={FileQuestion} label="طلبات التقرير" value={totalReportRequests} note={`${pendingReportRequests} قيد المعالجة`} />
-        <Metric icon={CarFront} label="طلبات تأمين المركبات" value={totalMotorRequests} note={`${pendingMotorRequests} قيد المتابعة`} />
-        <Metric icon={Banknote} label="العمولات" value={referralCommissions + motorCommissions} note={`${referralCommissions} إحالات / ${motorCommissions} مركبات`} />
+        {!isBank ? <Metric icon={CarFront} label="طلبات تأمين المركبات" value={totalMotorRequests} note={`${pendingMotorRequests} قيد المتابعة`} /> : null}
+        <Metric
+          icon={Banknote}
+          label="العمولات"
+          value={referralCommissions + motorCommissions}
+          note={isBank ? `${referralCommissions} عمولات إحالات` : `${referralCommissions} إحالات / ${motorCommissions} مركبات`}
+        />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className={`grid gap-6 ${isBank ? "xl:grid-cols-2" : "xl:grid-cols-3"}`}>
         <Activity title="أحدث الإحالات" href="/referrals" items={latestReferrals.map((item) => ({
           href: `/referrals/${item.id}`,
           code: item.referralNumber,
@@ -100,14 +108,14 @@ export default async function DashboardPage() {
           status: item.status,
           createdAt: item.createdAt
         }))} />
-        <Activity title="أحدث طلبات المركبات" href="/motor-requests" items={latestMotorRequests.map((item) => ({
+        {!isBank ? <Activity title="أحدث طلبات المركبات" href="/motor-requests" items={latestMotorRequests.map((item) => ({
           href: `/motor-requests/${item.id}`,
           code: item.requestNumber,
           title: item.customerFullName,
           status: item.status,
           subtitle: `${item.manufacturer} ${item.model}`,
           createdAt: item.createdAt
-        }))} />
+        }))} /> : null}
       </div>
     </AppShell>
   );
