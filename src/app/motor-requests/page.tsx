@@ -5,17 +5,55 @@ import { AppShell } from "@/components/app-shell";
 import { MotorRequestsList } from "@/components/motor-requests-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { createMotorRequestService } from "@/lib/motor-requests";
 import { requirePagePermission } from "@/lib/page-guard";
+import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 
 export default async function MotorRequestsPage() {
   const user = await requirePagePermission("motorRequestsRead");
-  const requests = await createMotorRequestService().list(user);
+  const requests = await prisma.motorInsuranceRequest.findMany({
+    where: user.role === Role.AGENT ? { agentId: user.id } : undefined,
+    orderBy: { createdAt: "desc" },
+    take: 100,
+    select: {
+      id: true,
+      requestNumber: true,
+      status: true,
+      customerFullName: true,
+      manufacturer: true,
+      model: true,
+      plateNumber: true,
+      estimatedVehicleValue: true,
+      insurancePremium: true,
+      netPremium: true,
+      pricingCurrency: true,
+      commission: {
+        select: {
+          id: true,
+          paid: true,
+          commissionAmount: true
+        }
+      },
+      createdDate: true,
+      createdTime: true
+    }
+  });
 
   const submitted = requests.filter((request) => request.status === "SUBMITTED").length;
   const inProgress = requests.filter((request) => request.status === "UNDER_REVIEW" || request.status === "NEEDS_INFO").length;
   const decided = requests.filter((request) => request.status === "APPROVED" || request.status === "REJECTED").length;
+  const listRequests = requests.map((request) => ({
+    ...request,
+    estimatedVehicleValue: String(request.estimatedVehicleValue),
+    insurancePremium: String(request.insurancePremium),
+    netPremium: String(request.netPremium),
+    commission: request.commission ? {
+      id: request.commission.id,
+      paid: request.commission.paid,
+      commissionAmount: String(request.commission.commissionAmount)
+    } : null,
+    createdDate: request.createdDate.toISOString()
+  }));
 
   return (
     <AppShell>
@@ -50,7 +88,7 @@ export default async function MotorRequestsPage() {
         <CardContent className="p-0">
           {requests.length ? (
             <MotorRequestsList
-              requests={requests}
+              requests={listRequests}
               canDelete={can(user.role, "motorRequestsDelete")}
               canPayCommission={can(user.role, "motorCommissionsWrite")}
             />

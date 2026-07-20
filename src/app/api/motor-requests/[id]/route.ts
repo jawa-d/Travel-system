@@ -4,7 +4,6 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { jsonError, requirePermission, requireUser } from "@/lib/api";
 import { getIpAddress, writeAuditLog } from "@/lib/audit";
-import { createMotorRequestController } from "@/lib/motor-requests";
 import { deleteMotorBlobFiles } from "@/lib/public-api/motor-files";
 
 const MAX_DECIMAL_12_2_VALUE = 9_999_999_999.99;
@@ -52,17 +51,6 @@ function canEditRequest(user: { role: Role }, request: { policyIssuedAt: Date | 
 
 function canDeleteRequest(user: { role: Role }, request: { policyIssuedAt: Date | null; issuedPolicyNumber: string | null }) {
   return user.role === Role.SUPER_ADMIN && !request.policyIssuedAt && !request.issuedPolicyNumber;
-}
-
-export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const user = await requirePermission("motorRequestsRead");
-  const { id } = await params;
-
-  try {
-    return await createMotorRequestController().getById(id, user);
-  } catch (error) {
-    return jsonError(error);
-  }
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
