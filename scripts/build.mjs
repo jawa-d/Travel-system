@@ -1,5 +1,10 @@
 import { spawnSync } from "node:child_process";
 
+if (!process.env.DIRECT_URL && process.env.DATABASE_URL) {
+  process.env.DIRECT_URL = process.env.DATABASE_URL;
+  console.log("DIRECT_URL is not set. Falling back to DATABASE_URL for Prisma migrations.");
+}
+
 function run(command, { allowRetry = false } = {}) {
   const maxAttempts = allowRetry ? 6 : 1;
   let lastResult;
