@@ -18,7 +18,6 @@ export default async function MotorRequestsPage() {
     select: {
       id: true,
       requestNumber: true,
-      requestType: true,
       status: true,
       customerFullName: true,
       manufacturer: true,

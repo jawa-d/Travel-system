@@ -11,14 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requirePagePermission } from "@/lib/page-guard";
-import { portalRequestTypeLabels } from "@/lib/portal-request-types";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 type VehicleImage = { id?: string; url?: string; category?: string; label?: string; name: string; size: number; type: string };
 type CustomerDocument = { key: string; label: string; id?: string; url?: string; name: string; size: number; type: string };
-type PortalAttachment = { key?: string; label?: string; id?: string; url?: string; name: string; size?: number; type?: string };
 
 export default async function MotorRequestDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requirePagePermission("motorRequestsRead");
@@ -29,8 +27,6 @@ export default async function MotorRequestDetailsPage({ params }: { params: Prom
 
   const images = request.vehicleImages as VehicleImage[];
   const documents = request.customerDocuments as CustomerDocument[];
-  const portalAttachments = request.portalAttachments as PortalAttachment[];
-  const isMotor = request.requestType === "MOTOR";
   const canManage = can(user.role, "motorRequestsManage");
   const issued = Boolean(request.policyIssuedAt || request.issuedPolicyNumber);
   const canEdit = user.role === Role.SUPER_ADMIN || user.role === Role.ADMIN || (user.role === Role.UNDERWRITER && !issued);
@@ -44,12 +40,9 @@ export default async function MotorRequestDetailsPage({ params }: { params: Prom
           </Button>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="font-mono text-2xl font-black text-primary sm:text-3xl" dir="ltr">{request.requestNumber}</h1>
-            <Badge className="border border-slate-200 bg-white text-slate-700 hover:bg-white dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
-              {portalRequestTypeLabels[request.requestType]}
-            </Badge>
             <Badge className={statusClasses[request.status]}>{statusLabels[request.status]}</Badge>
           </div>
-          <p className="mt-2 text-sm text-muted-foreground">ملف طلب وارد من بوابات TRINSU.</p>
+          <p className="mt-2 text-sm text-muted-foreground">ملف طلب تأمين المركبة المرسل من الوكيل.</p>
         </div>
       </div>
 
@@ -67,7 +60,7 @@ export default async function MotorRequestDetailsPage({ params }: { params: Prom
             </CardContent>
           </Card>
 
-          {isMotor ? <Card>
+          <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><CarFront className="h-5 w-5 text-primary" />معلومات المركبة</CardTitle></CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Detail label="نوع المركبة" value={request.vehicleType} />
@@ -78,20 +71,11 @@ export default async function MotorRequestDetailsPage({ params }: { params: Prom
               <Detail label="رقم اللوحة" value={request.plateNumber} dir="ltr" />
               <Detail label="رقم الشاصي" value={request.chassisNumber} dir="ltr" />
               <Detail label="رقم المحرك" value={request.engineNumber} dir="ltr" />
-              <Detail label="القيمة التقديرية" value={request.estimatedVehicleValue ? formatCurrency(Number(request.estimatedVehicleValue)) : "-"} dir="ltr" />
+              <Detail label="القيمة التقديرية" value={formatCurrency(Number(request.estimatedVehicleValue))} dir="ltr" />
             </CardContent>
-          </Card> : (
-            <Card>
-              <CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" />بيانات الاستمارة</CardTitle></CardHeader>
-              <CardContent>
-                <pre className="max-h-96 overflow-auto rounded-lg border bg-muted/15 p-4 text-xs leading-6" dir="ltr">
-                  {JSON.stringify(request.portalPayload, null, 2)}
-                </pre>
-              </CardContent>
-            </Card>
-          )}
+          </Card>
 
-          {isMotor ? <Card>
+          <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><FileImage className="h-5 w-5 text-primary" />صور المركبة ({images.length})</CardTitle></CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {images.map((image) => (
@@ -104,14 +88,14 @@ export default async function MotorRequestDetailsPage({ params }: { params: Prom
                 </div>
               ))}
             </CardContent>
-          </Card> : null}
+          </Card>
 
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" />مستندات العميل</CardTitle></CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-2">
-              {(isMotor ? documents : portalAttachments).map((document) => (
-                <div key={document.key ?? document.url ?? document.id ?? document.name} className="rounded-lg border bg-muted/15 p-4">
-                  <p className="font-bold">{document.label ?? document.key ?? document.name}</p>
+              {documents.map((document) => (
+                <div key={document.key} className="rounded-lg border bg-muted/15 p-4">
+                  <p className="font-bold">{document.label}</p>
                   <p className="mt-1 truncate text-xs text-muted-foreground">{document.name}</p>
                   {fileSource(document).startsWith("http") ? (
                     <Button asChild size="sm" variant="outline" className="mt-3">
@@ -125,7 +109,7 @@ export default async function MotorRequestDetailsPage({ params }: { params: Prom
         </div>
 
         <div className="space-y-6">
-          {isMotor ? <Card>
+          <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" />تحميل الملفات</CardTitle></CardHeader>
             <CardContent>
               <MotorRequestFileDownloads
@@ -134,7 +118,7 @@ export default async function MotorRequestDetailsPage({ params }: { params: Prom
                 documents={documents}
               />
             </CardContent>
-          </Card> : null}
+          </Card>
 
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-primary" />معلومات الطلب</CardTitle></CardHeader>
@@ -189,7 +173,7 @@ export default async function MotorRequestDetailsPage({ params }: { params: Prom
             </Card>
           ) : null}
 
-          {isMotor && (canEdit || can(user.role, "motorRequestsPricing") || can(user.role, "motorRequestsTermsWrite") || can(user.role, "motorRequestsDelete")) ? (
+          {(canEdit || can(user.role, "motorRequestsPricing") || can(user.role, "motorRequestsTermsWrite") || can(user.role, "motorRequestsDelete")) ? (
             <Card>
               <CardHeader><CardTitle>Enterprise Controls</CardTitle></CardHeader>
               <CardContent>
@@ -200,18 +184,18 @@ export default async function MotorRequestDetailsPage({ params }: { params: Prom
                     customerFullName: request.customerFullName,
                     customerMobile: request.customerMobile,
                     customerEmail: request.customerEmail,
-                    customerNationalId: request.customerNationalId ?? "",
-                    customerAddress: request.customerAddress ?? "",
-                    customerCity: request.customerCity ?? "",
-                    vehicleType: request.vehicleType ?? "",
-                    manufacturer: request.manufacturer ?? "",
-                    model: request.model ?? "",
-                    manufacturingYear: request.manufacturingYear ?? new Date().getFullYear(),
-                    color: request.color ?? "",
-                    plateNumber: request.plateNumber ?? "",
-                    chassisNumber: request.chassisNumber ?? "",
-                    engineNumber: request.engineNumber ?? "",
-                    estimatedVehicleValue: request.estimatedVehicleValue ? String(request.estimatedVehicleValue) : "0",
+                    customerNationalId: request.customerNationalId,
+                    customerAddress: request.customerAddress,
+                    customerCity: request.customerCity,
+                    vehicleType: request.vehicleType,
+                    manufacturer: request.manufacturer,
+                    model: request.model,
+                    manufacturingYear: request.manufacturingYear,
+                    color: request.color,
+                    plateNumber: request.plateNumber,
+                    chassisNumber: request.chassisNumber,
+                    engineNumber: request.engineNumber,
+                    estimatedVehicleValue: String(request.estimatedVehicleValue),
                     coverageType: request.coverageType,
                     coverageNotes: request.coverageNotes,
                     insurancePremium: String(request.insurancePremium),
