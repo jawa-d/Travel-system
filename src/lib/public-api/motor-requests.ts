@@ -175,9 +175,9 @@ export function publicMotorTrackingStatusLabel(status: PublicMotorTrackingStatus
 }
 
 export function formatPublicMotorVehicle(input: {
-  manufacturer: string;
-  model: string;
-  manufacturingYear: number;
+  manufacturer: string | null;
+  model: string | null;
+  manufacturingYear: number | null;
 }) {
   return [input.manufacturer, input.model, input.manufacturingYear].filter(Boolean).join(" ");
 }

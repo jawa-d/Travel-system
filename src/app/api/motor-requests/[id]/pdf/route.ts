@@ -17,6 +17,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const motorRequest = await prisma.motorInsuranceRequest.findUnique({ where: { id } });
   if (!motorRequest) return new Response("Motor request not found", { status: 404 });
   if (user.role === Role.AGENT && motorRequest.agentId !== user.id) return new Response("Not found", { status: 404 });
+  if (motorRequest.requestType !== "MOTOR") return new Response("PDF generation is available for motor requests only.", { status: 400 });
 
   const origin = request.nextUrl.origin;
   const verificationUrl = `${origin}/api/v1/public/motor-requests/${encodeURIComponent(motorRequest.requestNumber)}`;
@@ -26,18 +27,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     customerFullName: motorRequest.customerFullName,
     customerMobile: motorRequest.customerMobile,
     customerEmail: motorRequest.customerEmail,
-    customerNationalId: motorRequest.customerNationalId,
-    customerAddress: motorRequest.customerAddress,
-    customerCity: motorRequest.customerCity,
-    vehicleType: motorRequest.vehicleType,
-    manufacturer: motorRequest.manufacturer,
-    model: motorRequest.model,
-    manufacturingYear: motorRequest.manufacturingYear,
-    color: motorRequest.color,
-    plateNumber: motorRequest.plateNumber,
-    chassisNumber: motorRequest.chassisNumber,
-    engineNumber: motorRequest.engineNumber,
-    estimatedVehicleValue: String(motorRequest.estimatedVehicleValue),
+    customerNationalId: motorRequest.customerNationalId ?? "",
+    customerAddress: motorRequest.customerAddress ?? "",
+    customerCity: motorRequest.customerCity ?? "",
+    vehicleType: motorRequest.vehicleType ?? "",
+    manufacturer: motorRequest.manufacturer ?? "",
+    model: motorRequest.model ?? "",
+    manufacturingYear: motorRequest.manufacturingYear ?? new Date().getFullYear(),
+    color: motorRequest.color ?? "",
+    plateNumber: motorRequest.plateNumber ?? "",
+    chassisNumber: motorRequest.chassisNumber ?? "",
+    engineNumber: motorRequest.engineNumber ?? "",
+    estimatedVehicleValue: motorRequest.estimatedVehicleValue ? String(motorRequest.estimatedVehicleValue) : "0",
     coverageType: motorRequest.coverageType,
     coverageNotes: motorRequest.coverageNotes,
     insurancePremium: String(motorRequest.insurancePremium),

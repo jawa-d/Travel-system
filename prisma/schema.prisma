@@ -126,6 +126,18 @@ enum MotorRequestStatus {
   REJECTED
 }
 
+enum PortalRequestType {
+  MOTOR
+  CIVIL_LIABILITY
+  TRAVEL
+  BUILDING_GLASS
+  FIDELITY_GUARANTEE
+  CASH_IN_SAFE
+  CONTRACTORS_ALL_RISKS
+  PERSONAL_ACCIDENT
+  WORKERS_COMPENSATION
+}
+
 enum ReferralType {
   MARINE
   ENGINEERING
@@ -202,22 +214,25 @@ model MotorInsuranceRequest {
   id                    String             @id @default(cuid())
   requestNumber         String             @unique
   submissionToken       String             @unique
+  requestType           PortalRequestType  @default(MOTOR)
+  portalPayload         Json               @default("{}")
+  portalAttachments     Json               @default("[]")
   status                MotorRequestStatus @default(SUBMITTED)
   customerFullName      String
   customerMobile        String
   customerEmail         String?
-  customerNationalId    String
-  customerAddress       String
-  customerCity          String
-  vehicleType           String
-  manufacturer          String
-  model                 String
-  manufacturingYear     Int
-  color                 String
-  plateNumber           String
-  chassisNumber         String
-  engineNumber          String
-  estimatedVehicleValue Decimal            @db.Decimal(12, 2)
+  customerNationalId    String?
+  customerAddress       String?
+  customerCity          String?
+  vehicleType           String?
+  manufacturer          String?
+  model                 String?
+  manufacturingYear     Int?
+  color                 String?
+  plateNumber           String?
+  chassisNumber         String?
+  engineNumber          String?
+  estimatedVehicleValue Decimal?           @db.Decimal(12, 2)
   vehicleImages         Json
   customerDocuments     Json
   uploadFailures        Json               @default("[]")
@@ -263,6 +278,7 @@ model MotorInsuranceRequest {
   updatedAt             DateTime           @updatedAt
 
   @@index([status])
+  @@index([requestType])
   @@index([agentId])
   @@index([createdAt])
   @@index([customerNationalId])
