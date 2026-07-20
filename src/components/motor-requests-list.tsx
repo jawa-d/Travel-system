@@ -10,17 +10,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast-provider";
+import { portalRequestTypeLabels } from "@/lib/portal-request-types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 type MotorRequestListItem = {
   id: string;
   requestNumber: string;
+  requestType: keyof typeof portalRequestTypeLabels;
   status: MotorRequestStatus;
   customerFullName: string;
-  manufacturer: string;
-  model: string;
-  plateNumber: string;
-  estimatedVehicleValue: string;
+  manufacturer: string | null;
+  model: string | null;
+  plateNumber: string | null;
+  estimatedVehicleValue: string | null;
   insurancePremium: string;
   netPremium: string;
   pricingCurrency: string;
@@ -175,13 +177,17 @@ export function MotorRequestsList({
               </p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">المركبة</p>
-              <p className="mt-1 text-sm font-bold">{request.manufacturer} {request.model}</p>
-              <p className="mt-1 text-xs text-muted-foreground" dir="ltr">{request.plateNumber}</p>
+              <p className="text-xs text-muted-foreground">نوع الطلب</p>
+              <p className="mt-1 text-sm font-bold">{portalRequestTypeLabels[request.requestType]}</p>
+              <p className="mt-1 text-xs text-muted-foreground" dir="ltr">
+                {request.requestType === "MOTOR" ? [request.manufacturer, request.model].filter(Boolean).join(" ") || "-" : request.requestType}
+              </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">القيمة والتاريخ</p>
-              <p className="mt-1 text-sm font-bold" dir="ltr">{formatCurrency(Number(request.estimatedVehicleValue))}</p>
+              <p className="mt-1 text-sm font-bold" dir="ltr">
+                {request.estimatedVehicleValue ? formatCurrency(Number(request.estimatedVehicleValue)) : "-"}
+              </p>
               <p className="mt-1 text-xs text-muted-foreground">{formatDate(request.createdDate)} - {request.createdTime}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2 lg:justify-end">
