@@ -39,6 +39,35 @@ export const engineeringRequestSchema = z.object({
 
 export type EngineeringRequestInput = z.infer<typeof engineeringRequestSchema>;
 
+export const publicEngineeringTrackingStatuses = [
+  "RECEIVED",
+  "UNDER_REVIEW",
+  "DOCUMENTS_CHECK",
+  "QUOTE_PREPARATION",
+  "COMPLETED",
+  "REJECTED"
+] as const;
+
+export type PublicEngineeringTrackingStatus = (typeof publicEngineeringTrackingStatuses)[number];
+
+export const publicEngineeringTrackingStatusLabels: Record<PublicEngineeringTrackingStatus, string> = {
+  RECEIVED: "تم استلام الطلب",
+  UNDER_REVIEW: "قيد المراجعة",
+  DOCUMENTS_CHECK: "تدقيق المستندات",
+  QUOTE_PREPARATION: "إعداد العرض",
+  COMPLETED: "مكتمل",
+  REJECTED: "مرفوض"
+};
+
+const engineeringTrackingStatusAdapter: Record<string, PublicEngineeringTrackingStatus> = {
+  SUBMITTED: "RECEIVED",
+  UNDER_REVIEW: "UNDER_REVIEW",
+  NEEDS_INFO: "DOCUMENTS_CHECK",
+  QUOTED: "QUOTE_PREPARATION",
+  APPROVED: "COMPLETED",
+  REJECTED: "REJECTED"
+};
+
 export function engineeringRequestSelect() {
   return {
     id: true,
@@ -85,6 +114,14 @@ export function engineeringRequestSelect() {
 
 export function parseEngineeringRequestJson(input: unknown) {
   return engineeringRequestSchema.parse(input);
+}
+
+export function toPublicEngineeringTrackingStatus(status: string): PublicEngineeringTrackingStatus {
+  return engineeringTrackingStatusAdapter[status] ?? "UNDER_REVIEW";
+}
+
+export function publicEngineeringTrackingStatusLabel(status: PublicEngineeringTrackingStatus) {
+  return publicEngineeringTrackingStatusLabels[status];
 }
 
 export async function createEngineeringInsuranceRequest(input: EngineeringRequestInput, source = "Public Portal") {
