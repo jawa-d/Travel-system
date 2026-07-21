@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BadgeDollarSign, Bell, CarFront, ChevronDown, FileQuestion, Home, ListPlus, Menu, ReceiptText, ScrollText, Settings2, ShieldCheck, Ship, WalletCards, X } from "lucide-react";
+import { BadgeDollarSign, Bell, Building2, CarFront, ChevronDown, FileQuestion, Home, ListPlus, Menu, ReceiptText, ScrollText, Settings2, ShieldCheck, Ship, WalletCards, X } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Locale } from "@/lib/i18n";
@@ -42,6 +42,7 @@ const groups: Array<{ label: string; items: NavItem[]; collapsible?: boolean }> 
     label: "المركبات",
     items: [
       { href: "/motor-requests", label: "طلبات تأمين المركبات", icon: CarFront, permission: "motorRequestsRead" },
+      { href: "/engineering-requests", label: "طلبات التأمين الهندسي", icon: Building2, permission: "engineeringRequestsRead" },
       { href: "/motor-accounts", label: "حسابات وثائق المركبات", icon: ReceiptText, permission: "motorAccountsRead" },
       { href: "/motor-commissions", label: "عمولات المركبات", icon: BadgeDollarSign, permission: "motorCommissionsRead" }
     ]

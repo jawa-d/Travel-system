@@ -43,6 +43,15 @@ enum MotorRequestStatus {
   REJECTED
 }
 
+enum EngineeringRequestStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  NEEDS_INFO
+  QUOTED
+  APPROVED
+  REJECTED
+}
+
 enum ReferralType {
   MARINE
   ENGINEERING
@@ -97,6 +106,7 @@ model User {
   sessions      Session[]
   activities    Activity[]
   motorRequests MotorInsuranceRequest[] @relation("MotorRequestAgent")
+  engineeringRequests EngineeringInsuranceRequest[] @relation("EngineeringRequestAgent")
   motorCommissions MotorCommission[] @relation("MotorCommissionPayer")
   referrals Referral[] @relation("ReferralCreator")
   referralCommissions ReferralCommission[] @relation("ReferralCommissionPayer")
@@ -364,6 +374,50 @@ model Activity {
   entityId  String?
   metadata  Json?
   createdAt DateTime @default(now())
+}
+
+model EngineeringInsuranceRequest {
+  id                    String                   @id @default(cuid())
+  requestNumber         String                   @unique
+  submissionToken       String?                  @unique
+  status                EngineeringRequestStatus @default(SUBMITTED)
+  customerFullName      String
+  customerMobile        String
+  customerEmail         String?
+  customerNationalId    String?
+  customerAddress       String?
+  customerCity          String?
+  projectName           String
+  projectType           String
+  projectLocation       String
+  contractValue         Decimal                  @db.Decimal(12, 2)
+  currency              String                   @default("IQD")
+  insuranceType         String
+  startDate             DateTime?
+  endDate               DateTime?
+  contractorName        String?
+  ownerName             String?
+  riskDetails           String?                  @db.Text
+  documents             Json                     @default("[]")
+  notes                 String?                  @db.Text
+  source                String                   @default("Internal")
+  agentId               String?
+  agent                 User?                    @relation("EngineeringRequestAgent", fields: [agentId], references: [id], onDelete: SetNull)
+  agentName             String?
+  agentEmail            String?
+  reviewedById          String?
+  reviewedByName        String?
+  reviewedAt            DateTime?
+  managerNotes          String?                  @db.Text
+  createdDate           DateTime                 @default(now())
+  createdTime           String
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@index([status])
+  @@index([agentId])
+  @@index([createdAt])
+  @@index([customerNationalId])
 }
 
 model AuditLog {
