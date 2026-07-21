@@ -1,6 +1,7 @@
 "use client";
 
 import { EngineeringRequestStatus } from "@prisma/client";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Building2, Trash2 } from "lucide-react";
@@ -162,6 +163,9 @@ export function EngineeringRequestsList({
                   ))}
                 </select>
               ) : null}
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/engineering-requests/${request.id}`}>عرض</Link>
+              </Button>
             </div>
           </div>
         ))}

@@ -409,6 +409,25 @@ model EngineeringInsuranceRequest {
   reviewedByName        String?
   reviewedAt            DateTime?
   managerNotes          String?                  @db.Text
+  coverageType          String?
+  coverageNotes         String?                  @db.Text
+  insurancePremium      Decimal                  @default(0) @db.Decimal(12, 2)
+  discount              Decimal                  @default(0) @db.Decimal(12, 2)
+  additionalFees        Decimal                  @default(0) @db.Decimal(12, 2)
+  taxes                 Decimal                  @default(0) @db.Decimal(12, 2)
+  netPremium            Decimal                  @default(0) @db.Decimal(12, 2)
+  pricingCurrency       String                   @default("IQD")
+  pricingNotes          String?                  @db.Text
+  policyTermsHtml       String?                  @db.Text
+  termsApprovedById     String?
+  termsApprovedByName   String?
+  termsApprovedAt       DateTime?
+  underwriterSignature  Json?
+  managerSignature      Json?
+  companyStamp          Json?
+  issuedPolicyNumber    String?
+  policyIssuedAt        DateTime?
+  editHistory           Json                     @default("[]")
   createdDate           DateTime                 @default(now())
   createdTime           String
   createdAt             DateTime                 @default(now())
