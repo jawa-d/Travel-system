@@ -4,7 +4,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { BadgeDollarSign, Trash2, UserRound, X } from "lucide-react";
+import { BadgeDollarSign, RotateCcw, Trash2, UserRound, X } from "lucide-react";
 import { MotorRequestStatus } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,8 @@ export function MotorRequestsList({
   const [commissionRate, setCommissionRate] = useState("10");
   const [commissionAmount, setCommissionAmount] = useState("");
   const [commissionNotes, setCommissionNotes] = useState("");
+  const [cancelCommissionRequest, setCancelCommissionRequest] = useState<MotorRequestListItem | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
   const [busy, setBusy] = useState(false);
   const selectedSet = useMemo(() => new Set(selected), [selected]);
   const allSelected = requests.length > 0 && selected.length === requests.length;
@@ -71,6 +73,11 @@ export function MotorRequestsList({
     if (commissionRequest) {
       setCommissionAmount(((premiumValue(commissionRequest) * Number(rate || 0)) / 100).toFixed(2));
     }
+  }
+
+  function openCancelCommissionDialog(request: MotorRequestListItem) {
+    setCancelCommissionRequest(request);
+    setCancelReason("");
   }
 
   async function deleteSelected() {
@@ -126,6 +133,49 @@ export function MotorRequestsList({
         tone: "success"
       });
       setCommissionRequest(null);
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cancelCommission() {
+    if (!cancelCommissionRequest) return;
+    const reason = cancelReason.trim();
+    if (!reason) {
+      toast({
+        title: "سبب الإلغاء مطلوب",
+        description: "يرجى كتابة سبب إلغاء صرف العمولة قبل المتابعة.",
+        tone: "error"
+      });
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/motor-requests/${cancelCommissionRequest.id}/commission`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason })
+      });
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        toast({
+          title: "تعذر إلغاء صرف العمولة",
+          description: result?.error ?? "حدث خطأ أثناء إلغاء صرف العمولة.",
+          tone: "error"
+        });
+        return;
+      }
+
+      toast({
+        title: "تم إلغاء صرف العمولة",
+        description: `تم تسجيل سبب الإلغاء للطلب ${cancelCommissionRequest.requestNumber}.`,
+        tone: "success"
+      });
+      setCancelCommissionRequest(null);
+      setCancelReason("");
       router.refresh();
     } finally {
       setBusy(false);
@@ -188,7 +238,13 @@ export function MotorRequestsList({
               <Badge className={statusClasses[request.status]}>{statusLabels[request.status]}</Badge>
               {canPayCommission ? (
                 request.commission?.paid ? (
-                  <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">مصروفة</Badge>
+                  <>
+                    <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">مصروفة</Badge>
+                    <Button type="button" size="sm" variant="outline" onClick={() => openCancelCommissionDialog(request)}>
+                      <RotateCcw className="h-4 w-4" />
+                      إلغاء صرف العمولة
+                    </Button>
+                  </>
                 ) : (
                   <Button type="button" size="sm" variant="secondary" onClick={() => openCommissionDialog(request)}>
                     <BadgeDollarSign className="h-4 w-4" />
@@ -214,6 +270,50 @@ export function MotorRequestsList({
         busy={busy}
         onConfirm={deleteSelected}
       />
+
+      <Dialog.Root open={Boolean(cancelCommissionRequest)} onOpenChange={(open) => !busy && !open && setCancelCommissionRequest(null)}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[80] bg-slate-950/55 backdrop-blur-sm" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-[81] max-h-[88vh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-2xl focus:outline-none">
+            <div className="flex items-start justify-between gap-3 border-b p-5">
+              <div>
+                <Dialog.Title className="text-lg font-black">إلغاء صرف العمولة</Dialog.Title>
+                <Dialog.Description className="mt-1 text-sm text-muted-foreground">
+                  {cancelCommissionRequest ? `طلب رقم ${cancelCommissionRequest.requestNumber}` : ""}
+                </Dialog.Description>
+              </div>
+              <Dialog.Close asChild>
+                <button className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted" aria-label="إغلاق">
+                  <X className="h-4 w-4" />
+                </button>
+              </Dialog.Close>
+            </div>
+
+            <div className="space-y-4 p-5">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">
+                سيتم تحويل حالة العمولة إلى غير مصروفة، ويمكن صرفها مرة أخرى لاحقًا عند الحاجة.
+              </div>
+              <label className="space-y-1.5 text-sm font-bold">
+                <span>سبب الإلغاء</span>
+                <textarea
+                  value={cancelReason}
+                  onChange={(event) => setCancelReason(event.target.value)}
+                  placeholder="اكتب سبب إلغاء صرف العمولة"
+                  className="min-h-28 w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                />
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t p-4">
+              <Button type="button" variant="outline" disabled={busy} onClick={() => setCancelCommissionRequest(null)}>تراجع</Button>
+              <Button type="button" variant="destructive" disabled={busy || !cancelReason.trim()} onClick={cancelCommission}>
+                <RotateCcw className="h-4 w-4" />
+                {busy ? "جارٍ الإلغاء..." : "إلغاء صرف العمولة"}
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       <Dialog.Root open={Boolean(commissionRequest)} onOpenChange={(open) => !busy && !open && setCommissionRequest(null)}>
         <Dialog.Portal>
