@@ -15,7 +15,7 @@ export default async function ReferralsPage() {
   const where = user.role === Role.BANK ? { createdById: user.id } : undefined;
   const referrals = await prisma.referral.findMany({
     where,
-    include: { commission: { select: { id: true, commissionAmount: true } } },
+    include: { commission: { select: { id: true, paid: true, commissionAmount: true } } },
     orderBy: { createdAt: "desc" },
     take: 100
   });
@@ -24,7 +24,7 @@ export default async function ReferralsPage() {
 
   referrals.forEach((item) => {
     addCurrencyTotal(premiumByCurrency, item.currency, Number(item.totalPremium));
-    addCurrencyTotal(commissionByCurrency, item.currency, Number(item.commission?.commissionAmount ?? 0));
+    addCurrencyTotal(commissionByCurrency, item.currency, item.commission?.paid ? Number(item.commission.commissionAmount) : 0);
   });
   const issued = referrals.filter((item) => item.status === "ISSUED").length;
 
@@ -65,7 +65,7 @@ export default async function ReferralsPage() {
                 createdByBank: item.createdByBank,
                 createdByEmail: item.createdByEmail,
                 createdAt: item.createdAt.toISOString(),
-                commission: item.commission ? { id: item.commission.id, commissionAmount: String(item.commission.commissionAmount) } : null
+                commission: item.commission ? { id: item.commission.id, paid: item.commission.paid, commissionAmount: String(item.commission.commissionAmount) } : null
               }))}
               canManage={can(user.role, "referralsManage")}
               canPayCommission={can(user.role, "referralCommissionsWrite")}

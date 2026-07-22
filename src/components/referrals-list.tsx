@@ -4,7 +4,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { BadgeDollarSign, Eye, Trash2, X } from "lucide-react";
+import { BadgeDollarSign, Eye, RotateCcw, Trash2, X } from "lucide-react";
 import { ReferralStatus } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ export type ReferralListItem = {
   createdByBank: string | null;
   createdByEmail: string | null;
   createdAt: string;
-  commission: { id: string; commissionAmount: string } | null;
+  commission: { id: string; paid: boolean; commissionAmount: string } | null;
 };
 
 export function ReferralsList({ referrals, canManage, canPayCommission, canDelete = false }: { referrals: ReferralListItem[]; canManage: boolean; canPayCommission: boolean; canDelete?: boolean }) {
@@ -34,6 +34,8 @@ export function ReferralsList({ referrals, canManage, canPayCommission, canDelet
   const [commissionReferral, setCommissionReferral] = useState<ReferralListItem | null>(null);
   const [premiumAmount, setPremiumAmount] = useState("");
   const [notes, setNotes] = useState("");
+  const [cancelCommissionReferral, setCancelCommissionReferral] = useState<ReferralListItem | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
 
   async function updateStatus(id: string, status: ReferralStatus) {
     setBusy(id);
@@ -57,6 +59,11 @@ export function ReferralsList({ referrals, canManage, canPayCommission, canDelet
     setNotes("");
   }
 
+  function openCancelCommission(referral: ReferralListItem) {
+    setCancelCommissionReferral(referral);
+    setCancelReason("");
+  }
+
   async function payCommission() {
     if (!commissionReferral) return;
     setBusy(commissionReferral.id);
@@ -73,6 +80,32 @@ export function ReferralsList({ referrals, canManage, canPayCommission, canDelet
     }
     toast({ title: "تم صرف العمولة", description: "تم احتساب 10% من قسط الوثيقة وتسجيلها.", tone: "success" });
     setCommissionReferral(null);
+    router.refresh();
+  }
+
+  async function cancelCommission() {
+    if (!cancelCommissionReferral) return;
+    const reason = cancelReason.trim();
+    if (!reason) {
+      toast({ title: "سبب الإلغاء مطلوب", description: "يرجى كتابة سبب إلغاء صرف العمولة قبل المتابعة.", tone: "error" });
+      return;
+    }
+
+    setBusy(cancelCommissionReferral.id);
+    const response = await fetch(`/api/referrals/${cancelCommissionReferral.id}/commission`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason })
+    });
+    const result = await response.json().catch(() => null);
+    setBusy("");
+    if (!response.ok) {
+      toast({ title: "تعذر إلغاء صرف العمولة", description: result?.error, tone: "error" });
+      return;
+    }
+    toast({ title: "تم إلغاء صرف العمولة", description: `تم تسجيل سبب الإلغاء للإحالة ${cancelCommissionReferral.referralNumber}.`, tone: "success" });
+    setCancelCommissionReferral(null);
+    setCancelReason("");
     router.refresh();
   }
 
@@ -134,8 +167,14 @@ export function ReferralsList({ referrals, canManage, canPayCommission, canDelet
                 <td className="p-3">
                   <div className="flex justify-end gap-2">
                     {canPayCommission ? (
-                      referral.commission ? (
+                      referral.commission?.paid ? (
+                        <span className="inline-flex flex-wrap justify-end gap-2">
                         <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">عمولة مصروفة</Badge>
+                          <Button type="button" size="sm" variant="outline" disabled={busy === referral.id} onClick={() => openCancelCommission(referral)}>
+                            <RotateCcw className="h-4 w-4" />
+                            إلغاء صرف العمولة
+                          </Button>
+                        </span>
                       ) : (
                         <Button type="button" size="sm" variant="secondary" disabled={referral.status !== "ISSUED"} onClick={() => openCommission(referral)}>
                           <BadgeDollarSign className="h-4 w-4" />
@@ -159,6 +198,44 @@ export function ReferralsList({ referrals, canManage, canPayCommission, canDelet
           </tbody>
         </table>
       </div>
+
+      <Dialog.Root open={Boolean(cancelCommissionReferral)} onOpenChange={(open) => !open && setCancelCommissionReferral(null)}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[80] bg-slate-950/55 backdrop-blur-sm" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-[81] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-card shadow-2xl">
+            <div className="flex items-start justify-between border-b p-5">
+              <div>
+                <Dialog.Title className="text-lg font-black">إلغاء صرف العمولة</Dialog.Title>
+                <Dialog.Description className="mt-1 text-sm text-muted-foreground">
+                  {cancelCommissionReferral ? `إحالة رقم ${cancelCommissionReferral.referralNumber}` : ""}
+                </Dialog.Description>
+              </div>
+              <Dialog.Close className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted"><X className="h-4 w-4" /></Dialog.Close>
+            </div>
+            <div className="space-y-4 p-5">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">
+                سيتم تحويل حالة العمولة إلى غير مصروفة، ويمكن صرفها مرة أخرى لاحقًا عند الحاجة.
+              </div>
+              <label className="space-y-1.5 text-sm font-bold">
+                <span>سبب الإلغاء</span>
+                <textarea
+                  value={cancelReason}
+                  onChange={(event) => setCancelReason(event.target.value)}
+                  placeholder="اكتب سبب إلغاء صرف العمولة"
+                  className="min-h-28 w-full rounded-lg border bg-background px-3 py-2"
+                />
+              </label>
+            </div>
+            <div className="flex justify-end gap-2 border-t p-4">
+              <Button type="button" variant="outline" disabled={Boolean(busy)} onClick={() => setCancelCommissionReferral(null)}>تراجع</Button>
+              <Button type="button" variant="destructive" disabled={!cancelReason.trim() || busy === cancelCommissionReferral?.id} onClick={cancelCommission}>
+                <RotateCcw className="h-4 w-4" />
+                إلغاء صرف العمولة
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       <Dialog.Root open={Boolean(commissionReferral)} onOpenChange={(open) => !open && setCommissionReferral(null)}>
         <Dialog.Portal>
